@@ -1,6 +1,5 @@
 import os
 import sys
-import yaml
 import uvicorn
 import socketio
 from loguru import logger
@@ -8,28 +7,19 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from shared.util import deep_update
+from playhouse.postgres_ext import PostgresqlExtDatabase
 from shared.logs import TextStyler as st
 from shared.logs import config as log_config
-from shared.validation import validate_data
-from .validation.custom import validate_delay, validate_interval
-from .validation.schemas import server_yaml_schema
+from .database import db
+from .routes.flags import router as flags_router
+from .config import config, load_user_config, DOT_DIR_PATH
+from .models import Client, Exploit, Flag
+from .scheduler import initialize_scheduler
 
 app = FastAPI()
-sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
+app.include_router(flags_router)
 
-config = {
-    "game": {},
-    "submitter": {"module": "submitter"},
-    "server": {"host": "0.0.0.0", "port": 2023},
-    "database": {
-        "name": "fast",
-        "user": "admin",
-        "password": "admin",
-        "host": "localhost",
-        "port": 5432,
-    },
-}
+sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
 
 
 def main():
@@ -43,12 +33,16 @@ def main():
     create_dot_dir()
     load_user_config()
 
+    connect_database()
+    setup_database()
+
+    scheduler = initialize_scheduler()
+    scheduler.start()
+
     uvicorn.run(
-        "server:app",
-        host="localhost",
-        port=2023,
-        lifespan="on",
-        reload=True,
+        app,
+        host=config["server"]["host"],
+        port=config["server"]["port"],
         log_config=uvicorn_logging,
     )
 
@@ -71,9 +65,9 @@ def configure_logging():
     logger.configure(**log_config)
 
     uvicorn_log_config = uvicorn.config.LOGGING_CONFIG
-    uvicorn_log_config["loggers"]["uvicorn"]["propagate"] = False
-    uvicorn_log_config["loggers"]["uvicorn.error"]["propagate"] = False
-    uvicorn_log_config["loggers"]["uvicorn.access"]["propagate"] = False
+    uvicorn_log_config["loggers"]["uvicorn"]["handlers"] = []
+    uvicorn_log_config["loggers"]["uvicorn.error"]["handlers"] = []
+    uvicorn_log_config["loggers"]["uvicorn.access"]["handlers"] = []
     return uvicorn_log_config
 
 
@@ -105,51 +99,39 @@ def configure_socketio():
 
 
 def create_dot_dir():
-    dot_dir_path = ".fast"
-    if not os.path.exists(dot_dir_path):
-        os.makedirs(dot_dir_path)
-        logger.success("Created .fast directory.")
+    if not DOT_DIR_PATH.exists():
+        DOT_DIR_PATH.mkdir()
+        logger.info("Created .fast directory.")
     else:
-        logger.success(".fast directory already exists.")
+        logger.info("Found .fast directory.")
 
 
-def load_user_config():
-    # Remove datetime resolver
-    # https://stackoverflow.com/a/52312810
-    yaml.SafeLoader.yaml_implicit_resolvers = {
-        k: [r for r in v if r[0] != "tag:yaml.org,2002:timestamp"]
-        for k, v in yaml.SafeLoader.yaml_implicit_resolvers.items()
-    }
+def connect_database():
+    postgres = PostgresqlExtDatabase(
+        config["database"]["name"],
+        user=config["database"]["user"],
+        password=config["database"]["password"],
+        host=config["database"]["host"],
+        port=config["database"]["port"],
+    )
 
-    user_config = -1
-
-    for ext in ["yml", "yaml"]:
-        if os.path.isfile(f"server.{ext}"):
-            with open(f"server.{ext}", "r") as file:
-                user_config = yaml.safe_load(file)
-                break
-
-    if not user_config:
-        logger.error("No configuration found in server.yaml. Exiting...")
-        exit(1)
-
-    if user_config == -1:
+    db.initialize(postgres)
+    try:
+        db.connect()
+    except Exception as e:
         logger.error(
-            "server.yaml not found in the current working directory. Exiting..."
+            f"An error occurred when connecting to the database:\n{st.color(e, 'red')}"
         )
-        exit(1)
+        sys.exit(1)
 
-    if not validate_data(
-        user_config, server_yaml_schema, custom=[validate_delay, validate_interval]
-    ):
-        logger.error("Fix errors in server.yaml and rerun.")
-        exit(1)
+    logger.info("Connected to the database.")
 
-    deep_update(config, user_config)
 
-    # Wrap single team ip in a list
-    if type(config["game"]["team_ip"]) != list:
-        config["game"]["team_ip"] = [config["game"]["team_ip"]]
+def setup_database():
+    db.create_tables([Client, Exploit, Flag])
+    Flag.add_index(Flag.value)
+
+    logger.info("Created tables and indexes.")
 
 
 # @sio.on("connect")
