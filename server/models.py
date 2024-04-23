@@ -1,37 +1,18 @@
+from loguru import logger
 from datetime import datetime
-from playhouse.postgres_ext import JSONField
-from peewee import (
-    CharField,
-    DateTimeField,
-    ForeignKeyField,
-    IntegerField,
-    UUIDField,
-    BooleanField,
-    Check,
-    SQL,
-)
-from .database import BaseModel
+from peewee import Model, CharField, DateTimeField, IntegerField, Check
+from .database import db
 
 
-class Client(BaseModel):
-    id = UUIDField(primary_key=True)
-    ip = CharField()
-    alias = CharField()
-    note = CharField(null=True)
-    last_seen = DateTimeField()
-
-
-class Exploit(BaseModel):
-    id = UUIDField(primary_key=True)
-    alias = CharField()
-    maintainer = CharField()
-    config = JSONField()
-    client = ForeignKeyField(Client, to_field="id", backref="exploits")
+class BaseModel(Model):
+    class Meta:
+        database = db
 
 
 class Flag(BaseModel):
     value = CharField(unique=True)
-    exploit = ForeignKeyField(Exploit, to_field="id", backref="flags")
+    exploit = CharField()
+    player = CharField()
     tick = IntegerField()
     target = CharField()
     timestamp = DateTimeField(default=datetime.now)
@@ -39,3 +20,10 @@ class Flag(BaseModel):
         constraints=[Check("status IN ('queued', 'accepted', 'rejected')")]
     )
     response = CharField(null=True)
+
+
+def create_tables():
+    db.create_tables([Flag])
+    Flag.add_index(Flag.value)
+
+    logger.info("Created tables and indexes.")

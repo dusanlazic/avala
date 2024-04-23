@@ -27,6 +27,7 @@ submitter_schema = {
         "delay": {"type": "number", "exclusiveMinimum": 0},
         "interval": {"type": "number", "exclusiveMinimum": 0},
         "module": {"type": "string"},
+        "processing_mode": {"type": "string", "enum": ["batch", "stream"]},
     },
     "oneOf": [{"required": ["delay"]}, {"required": ["interval"]}],
     "additionalProperties": False,

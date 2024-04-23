@@ -1,25 +1,20 @@
 import os
-import sys
 import uvicorn
-import socketio
 from loguru import logger
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from playhouse.postgres_ext import PostgresqlExtDatabase
-from shared.logs import TextStyler as st
 from shared.logs import config as log_config
-from .database import db
+from .database import connect_database
 from .routes.flags import router as flags_router
 from .config import config, load_user_config, DOT_DIR_PATH
-from .models import Client, Exploit, Flag
+from .models import create_tables
 from .scheduler import initialize_scheduler
+from .websocket import sio, socketio
 
 app = FastAPI()
 app.include_router(flags_router)
-
-sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
 
 
 def main():
@@ -34,7 +29,7 @@ def main():
     load_user_config()
 
     connect_database()
-    setup_database()
+    create_tables()
 
     scheduler = initialize_scheduler()
     scheduler.start()
@@ -44,20 +39,6 @@ def main():
         host=config["server"]["host"],
         port=config["server"]["port"],
         log_config=uvicorn_logging,
-    )
-
-
-def show_banner():
-    vers = "2.0.0"
-    print(
-        f"""
-\033[32;1m     .___    ____\033[0m    ______         __ 
-\033[32;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  
-\033[32;1m   /   /   /  ❬` \033[0m  / /_/ __ `/ ___/ __/
-\033[32;1m  /___/   /____\ \033[0m / __/ /_/ (__  ) /_  
-\033[32;1m /    \___\/     \033[0m/_/  \__,_/____/\__/  
-\033[32;1m/\033[0m                      \033[32mserver\033[0m \033[2mv{vers}\033[0m
-"""
     )
 
 
@@ -106,46 +87,18 @@ def create_dot_dir():
         logger.info("Found .fast directory.")
 
 
-def connect_database():
-    postgres = PostgresqlExtDatabase(
-        config["database"]["name"],
-        user=config["database"]["user"],
-        password=config["database"]["password"],
-        host=config["database"]["host"],
-        port=config["database"]["port"],
+def show_banner():
+    print(
+        f"""
+\033[32;1m     .___    ____\033[0m    ______         __ 
+\033[32;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  
+\033[32;1m   /   /   /  ❬` \033[0m  / /_/ __ `/ ___/ __/
+\033[32;1m  /___/   /____\ \033[0m / __/ /_/ (__  ) /_  
+\033[32;1m /    \___\/     \033[0m/_/  \__,_/____/\__/  
+\033[32;1m/\033[0m                      \033[32mserver\033[0m \033[2mv%s\033[0m
+"""
+        % "2.0.0"
     )
-
-    db.initialize(postgres)
-    try:
-        db.connect()
-    except Exception as e:
-        logger.error(
-            f"An error occurred when connecting to the database:\n{st.color(e, 'red')}"
-        )
-        sys.exit(1)
-
-    logger.info("Connected to the database.")
-
-
-def setup_database():
-    db.create_tables([Client, Exploit, Flag])
-    Flag.add_index(Flag.value)
-
-    logger.info("Created tables and indexes.")
-
-
-# @sio.on("connect")
-# async def connect(sid, env):
-#     print("New Client Connected to This id :" + " " + str(sid)) @ sio.on("disconnect")
-
-
-# async def disconnect(sid):
-#     print("Client Disconnected: " + " " + str(sid))
-
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
 
 
 if __name__ == "__main__":
