@@ -12,6 +12,7 @@ from .config import config, load_user_config, DOT_DIR_PATH
 from .models import create_tables
 from .scheduler import initialize_scheduler
 from .websocket import sio, socketio
+from .submit import initialize_submitter
 
 app = FastAPI()
 app.include_router(flags_router)
@@ -31,8 +32,8 @@ def main():
     connect_database()
     create_tables()
 
-    scheduler = initialize_scheduler()
-    scheduler.start()
+    initialize_scheduler()
+    initialize_submitter()
 
     uvicorn.run(
         app,

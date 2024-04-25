@@ -5,7 +5,11 @@ from shared.logs import TextStyler as st
 from .config import config
 
 
+scheduler: BackgroundScheduler = None
+
+
 def initialize_scheduler():
+    global scheduler
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         func=tick_announcer,
@@ -14,14 +18,13 @@ def initialize_scheduler():
         id="tick_announcer",
         next_run_time=get_next_tick_start(),
     )
-    return scheduler
 
 
-def get_tick_duration():
+def get_tick_duration() -> timedelta:
     return timedelta(seconds=config["game"]["tick_duration"])
 
 
-def get_first_tick_start():
+def get_first_tick_start() -> datetime:
     start_time_str = config["game"]["start_time"]
     return datetime.strptime(
         start_time_str,
@@ -29,12 +32,12 @@ def get_first_tick_start():
     )
 
 
-def get_tick_elapsed(now=None):
+def get_tick_elapsed(now=None) -> timedelta:
     now = now or datetime.now()
     return (now - get_first_tick_start()) % get_tick_duration()
 
 
-def get_tick_number(now=None):
+def get_tick_number(now=None) -> int:
     now = now or datetime.now()
     if now < get_first_tick_start():
         return -1
@@ -42,7 +45,7 @@ def get_tick_number(now=None):
     return (now - get_first_tick_start()) // get_tick_duration()
 
 
-def get_next_tick_start(now=None):
+def get_next_tick_start(now=None) -> datetime:
     now = now or datetime.now()
     if now < get_first_tick_start():
         return get_first_tick_start()
