@@ -1,4 +1,8 @@
+import os
+import sys
 import threading
+from loguru import logger
+from apscheduler.schedulers.background import BackgroundScheduler
 from typing import Dict
 from datetime import datetime, timedelta
 from collections import namedtuple
@@ -8,10 +12,11 @@ from .models import Flag
 from .config import config
 from .database import db
 from .scheduler import (
-    scheduler,
+    get_tick_elapsed,
     get_tick_duration,
     get_next_tick_start,
-    get_tick_elapsed,
+    get_first_tick_start,
+    game_has_started,
 )
 
 
@@ -25,23 +30,32 @@ submission_buffer: list[str] = []
 persisting_buffer: list[FlagResponse] = []
 
 
-def initialize_submitter():
-    if config["submitter"].get("per_tick"):
-        submissions_per_tick = config["submitter"]["per_tick"]
-        tick_duration = get_tick_duration()
-        interval: timedelta = tick_duration / (submissions_per_tick - 1)
-
+def initialize_submitter(scheduler: BackgroundScheduler):
+    if config["submitter"].get("per_tick") or config["submitter"].get("interval"):
         now = datetime.now()
-        next_run_time = (
-            get_next_tick_start(now)
-            - tick_duration
-            + (get_tick_elapsed(now) // interval + 1) * interval
-        )
+        tick_duration = get_tick_duration()
+        next_tick_start = get_next_tick_start(now)
+        tick_elapsed = get_tick_elapsed(now)
+
+        submissions_per_tick = config["submitter"].get("per_tick")
+        if submissions_per_tick:
+            interval: timedelta = tick_duration / (submissions_per_tick - 1)
+        else:
+            interval: timedelta = timedelta(seconds=config["submitter"]["interval"])
+
+        if game_has_started():
+            next_run_time = (
+                next_tick_start
+                - tick_duration
+                + (tick_elapsed // interval + 1) * interval
+            )
+        else:
+            next_run_time = get_first_tick_start() + interval
 
         scheduler.add_job(
             func=submit_flags_from_queue,
             trigger="interval",
-            seconds=interval.seconds,
+            seconds=interval.total_seconds(),
             id="submitter",
             next_run_time=next_run_time,
         )
@@ -51,14 +65,15 @@ def initialize_submitter():
     elif config["submitter"].get("streams"):
         threads = config["submitter"]["streams"]
         submit = import_submit_function()
-        for _ in range(threads):
-            threading.Thread(target=submit_flags_stream_job, args=(submit,)).start()
+        for num in range(threads):
+            threading.Thread(target=submit_flags_stream_job, args=(submit, num)).start()
 
     threading.Thread(target=persist_flags_in_batches_job).start()
 
 
-def submit_flags_stream_job(submit):
+def submit_flags_stream_job(submit, num):
     # Support error recovery and stuff here
+    logger.info("Starting submitter stream in thread %s..." % num)
     submit(submission_queue, persisting_queue)
 
 
@@ -68,7 +83,8 @@ def submit_flags_from_queue():
     submit_flags_from_buffer()
 
 
-def submit_flags_in_batches_job(batch_size=50):
+def submit_flags_in_batches_job():
+    batch_size = config["submitter"]["batch_size"]
     while True:
         submission_buffer.append(submission_queue.get())
         if len(submission_buffer) >= batch_size:
@@ -76,6 +92,8 @@ def submit_flags_in_batches_job(batch_size=50):
 
 
 def submit_flags_from_buffer():
+    logger.info("Submitting %d flags..." % len(submission_buffer))
+
     submit = import_submit_function()
     map(
         persisting_queue.put,
@@ -114,13 +132,11 @@ def persist_flags_from_buffer():
 def import_submit_function():
     module_name = config["submitter"]["module"]
 
+    cwd = os.getcwd()
+    if cwd not in sys.path:
+        sys.path.append(cwd)
+
     imported_module = reload(import_module(module_name))
     submit_function = getattr(imported_module, "submit")
 
     return submit_function
-
-
-def run():
-    # Queue can be clogged if there is to many flags to submit and submitting service is too slow!
-    # If flag checking service is REST API, you should be able to limit how many flags per request.
-    pass

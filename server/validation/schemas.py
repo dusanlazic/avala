@@ -24,12 +24,18 @@ game_schema = {
 submitter_schema = {
     "type": "object",
     "properties": {
-        "delay": {"type": "number", "exclusiveMinimum": 0},
-        "interval": {"type": "number", "exclusiveMinimum": 0},
         "module": {"type": "string"},
-        "processing_mode": {"type": "string", "enum": ["batch", "stream"]},
+        "interval": {"type": "number", "exclusiveMinimum": 0},
+        "per_tick": {"type": "integer", "minimum": 1},
+        "batch_size": {"type": "integer", "minimum": 1},
+        "streams": {"type": "integer", "minimum": 1},
     },
-    "oneOf": [{"required": ["delay"]}, {"required": ["interval"]}],
+    "oneOf": [
+        {"required": ["interval"]},
+        {"required": ["per_tick"]},
+        {"required": ["batch_size"]},
+        {"required": ["streams"]},
+    ],
     "additionalProperties": False,
 }
 

@@ -32,8 +32,10 @@ def main():
     connect_database()
     create_tables()
 
-    initialize_scheduler()
-    initialize_submitter()
+    scheduler = initialize_scheduler()
+    initialize_submitter(scheduler)
+
+    scheduler.start()
 
     uvicorn.run(
         app,
