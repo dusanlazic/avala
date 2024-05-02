@@ -1,6 +1,7 @@
 import os
+import sys
 import uvicorn
-from loguru import logger
+from shared.logs import logger
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -74,7 +75,7 @@ def configure_cors():
 
 def configure_static():
     base_dir = Path(__file__).resolve().parent
-    static_folder_path = base_dir / "dist"
+    static_folder_path = base_dir / ".." / "frontend" / "dist"
     app.mount("", StaticFiles(directory=static_folder_path), name="static")
 
 

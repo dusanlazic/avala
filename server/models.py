@@ -1,4 +1,4 @@
-from loguru import logger
+from shared.logs import logger
 from datetime import datetime
 from peewee import Model, CharField, DateTimeField, IntegerField, Check
 from .database import db

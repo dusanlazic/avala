@@ -1,6 +1,5 @@
 from jsonschema import validate, ValidationError
-from loguru import logger
-from .logs import TextStyler as st
+from shared.logs import logger
 
 
 def validate_data(data, schema, custom=None):
@@ -15,5 +14,5 @@ def validate_data(data, schema, custom=None):
         return True
     except ValidationError as e:
         path = ".".join((str(x) for x in e.path))
-        logger.error(f"Error found in field {st.bold(path)}: {e.message}")
+        logger.error("Error found in field <bold>%s</bold>: %s" % (path, e.message))
         return False

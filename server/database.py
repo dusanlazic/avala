@@ -1,8 +1,7 @@
 import sys
-from loguru import logger
+from shared.logs import logger
 from peewee import DatabaseProxy
 from playhouse.postgres_ext import PostgresqlExtDatabase
-from shared.logs import TextStyler as st
 from .config import config
 
 db = DatabaseProxy()
@@ -22,7 +21,7 @@ def connect_database():
         db.connect()
     except Exception as e:
         logger.error(
-            f"An error occurred when connecting to the database:\n{st.color(e, 'red')}"
+            "An error occurred when connecting to the database:\n<red>%s</red>" % e
         )
         sys.exit(1)
 

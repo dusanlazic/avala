@@ -1,6 +1,6 @@
 import yaml
 from pathlib import Path
-from loguru import logger
+from shared.logs import logger
 from shared.util import deep_update
 from shared.validation import validate_data
 from .validation.custom import validate_delay, validate_interval

@@ -1,3 +1,4 @@
+from shared.logs import logger
 from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -5,7 +6,7 @@ from server.auth import basic_auth
 from server.models import Flag
 from server.database import db
 from server.scheduler import get_tick_number
-from server.submit import submission_queue
+from server.submit import submission_queue, submission_buffer
 
 router = APIRouter(prefix="/flags", tags=["Flags"])
 
@@ -39,10 +40,23 @@ def enqueue(flags: EnqueueBody, _: Annotated[str, Depends(basic_auth)]):
         ]
 
     Flag.insert_many(new_flags_metadata).on_conflict_ignore().execute()
-    map(submission_queue.put, new_flag_values)
+    for flag in new_flag_values:
+        submission_queue.put(flag)
+
+    logger.info(
+        "<bold>%d</bold> flags from <bold>%s</bold> using <bold>%s, %s</bold> -> <green>%d new</green> - <yellow>%d duplicates</yellow>."
+        % (
+            len(flags.values),
+            flags.target,
+            flags.exploit,
+            flags.player,
+            len(new_flag_values),
+            len(dup_flag_values),
+        )
+    )
 
     return {
         "discarded": dup_flag_values,
         "enqueued": new_flag_values,
-        "qsize": submission_queue.qsize(),
+        "qsize": submission_queue.qsize() + len(submission_buffer),
     }

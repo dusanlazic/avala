@@ -1,7 +1,6 @@
-from loguru import logger
+from shared.logs import logger
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
-from shared.logs import TextStyler as st
 from .config import config
 
 
@@ -68,16 +67,19 @@ def game_has_started(now=None) -> bool:
 
 def tick_announcer():
     logger.info(
-        f"Started tick {st.bold(get_tick_number())}. Next tick scheduled for {st.bold(get_next_tick_start().strftime('%H:%M:%S'))}. ⏱️"
+        "Started tick <bold>%d</bold>. Next tick scheduled for <bold>%s</bold>."
+        % (get_tick_number(), get_next_tick_start().strftime("%H:%M:%S"))
     )
 
 
 def print_current_tick(now=None):
     if not game_has_started(now):
         logger.info(
-            f"Game has not started yet. First tick scheduled for {st.bold(get_next_tick_start().strftime('%H:%M:%S'))}."
+            "Game has not started yet. First tick scheduled for <bold>%s</bold>."
+            % get_first_tick_start().strftime("%H:%M:%S")
         )
     else:
         logger.info(
-            f"Current tick is {st.bold(get_tick_number())}. Next tick scheduled for {st.bold(get_next_tick_start().strftime('%H:%M:%S'))}. ⏱️"
+            "Current tick is <bold>%d</bold>. Next tick scheduled for <bold>%s</bold>."
+            % (get_tick_number(), get_next_tick_start().strftime("%H:%M:%S"))
         )
