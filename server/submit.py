@@ -35,12 +35,12 @@ def initialize_submitter(scheduler: BackgroundScheduler):
     tick_duration = get_tick_duration()
     next_tick_start = get_next_tick_start(now)
 
-    if config["submitter"].get("per_tick") or config["submitter"].get("interval"):
-        submissions_per_tick = config["submitter"].get("per_tick")
+    if config.submitter.per_tick or config.submitter.interval:
+        submissions_per_tick = config.submitter.per_tick
         if submissions_per_tick:
             interval: timedelta = tick_duration / (submissions_per_tick - 1)
         else:
-            interval: timedelta = timedelta(seconds=config["submitter"]["interval"])
+            interval: timedelta = timedelta(seconds=config.submitter.interval)
 
         if game_has_started():
             tick_elapsed = get_tick_elapsed(now)
@@ -60,7 +60,7 @@ def initialize_submitter(scheduler: BackgroundScheduler):
             id="submitter",
             next_run_time=next_run_time,
         )
-    elif config["submitter"].get("batch_size"):
+    elif config.submitter.batch_size:
         threading.Thread(target=submit_flags_in_batches_job).start()
 
         scheduler.add_job(
@@ -70,8 +70,8 @@ def initialize_submitter(scheduler: BackgroundScheduler):
             id="submitter",
             next_run_time=next_tick_start,
         )
-    elif config["submitter"].get("streams"):
-        threads = config["submitter"]["streams"]
+    elif config.submitter.streams:
+        threads = config.submitter.streams
         submit = import_submit_function()
         for num in range(threads):
             threading.Thread(target=submit_flags_stream_job, args=(submit, num)).start()
@@ -93,7 +93,7 @@ def submit_flags_from_queue():
 
 
 def submit_flags_in_batches_job():
-    batch_size = config["submitter"]["batch_size"]
+    batch_size = config.submitter.batch_size
     while True:
         submission_buffer.append(submission_queue.get())
         if len(submission_buffer) >= batch_size:
@@ -157,7 +157,7 @@ def persist_flags_from_buffer():
 
 
 def import_submit_function():
-    module_name = config["submitter"]["module"]
+    module_name = config.submitter.module
 
     cwd = os.getcwd()
     if cwd not in sys.path:

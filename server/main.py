@@ -23,7 +23,6 @@ def main():
     show_banner()
 
     configure_cors()
-    configure_static()
     configure_socketio()
     uvicorn_logging = configure_logging()
 
@@ -40,8 +39,8 @@ def main():
 
     uvicorn.run(
         app,
-        host=config["server"]["host"],
-        port=config["server"]["port"],
+        host=config.server.host,
+        port=config.server.port,
         log_config=uvicorn_logging,
     )
 

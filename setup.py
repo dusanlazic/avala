@@ -19,8 +19,9 @@ setup(
         "python-socketio",
         "uvicorn",
         "APScheduler==3.10.1",
+        "addict",
     ],
-    packages=["client", "server", "shared", "frontend"],
+    packages=["client", "server", "shared"],
     package_data={"web": ["dist/*", "dist/assets/*"]},
     py_modules=[
         "cli",

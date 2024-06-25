@@ -9,11 +9,11 @@ db = DatabaseProxy()
 
 def connect_database():
     postgres = PostgresqlExtDatabase(
-        config["database"]["name"],
-        user=config["database"]["user"],
-        password=config["database"]["password"],
-        host=config["database"]["host"],
-        port=config["database"]["port"],
+        config.database.name,
+        user=config.database.user,
+        password=config.database.password,
+        host=config.database.host,
+        port=config.database.port,
     )
 
     db.initialize(postgres)

@@ -1,7 +1,7 @@
 import yaml
+from addict import Dict
 from pathlib import Path
 from shared.logs import logger
-from shared.util import deep_update
 from shared.validation import validate_data
 from .validation.custom import validate_delay, validate_interval
 from .validation.schemas import server_yaml_schema
@@ -9,18 +9,20 @@ from .validation.schemas import server_yaml_schema
 DOT_DIR_PATH = Path(".fast")
 STATE_FILE_PATH = DOT_DIR_PATH / "state.json"
 
-config = {
-    "game": {},
-    "submitter": {"module": "submitter"},
-    "server": {"host": "0.0.0.0", "port": 2023},
-    "database": {
-        "name": "fastdb",
-        "user": "admin",
-        "password": "admin",
-        "host": "localhost",
-        "port": 5432,
-    },
-}
+config = Dict(
+    {
+        "game": {},
+        "submitter": {"module": "submitter"},
+        "server": {"host": "0.0.0.0", "port": 2023},
+        "database": {
+            "name": "fastdb",
+            "user": "admin",
+            "password": "admin",
+            "host": "localhost",
+            "port": 5432,
+        },
+    }
+)
 
 
 def load_user_config():
@@ -51,10 +53,10 @@ def load_user_config():
         logger.error("Fix errors in server.yaml and rerun.")
         exit(1)
 
-    deep_update(config, user_config)
+    config.update(user_config)
 
     # Wrap single team ip in a list
-    if type(config["game"]["team_ip"]) != list:
-        config["game"]["team_ip"] = [config["game"]["team_ip"]]
+    if type(config.game.team_ip) != list:
+        config.game.team_ip = [config.game.team_ip]
 
     logger.info("Loaded user configuration.")

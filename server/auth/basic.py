@@ -7,16 +7,16 @@ security = HTTPBasic()
 
 
 def custom_security(request: Request):
-    return security(request) if config["server"].get("password") else None
+    return security(request) if config.server.password else None
 
 
 def authenticate(
     request: Request, credentials: HTTPBasicCredentials = Depends(custom_security)
 ):
-    if config["server"].get("password") is None:
+    if config.server.password is None:
         return "Anon"
 
-    if credentials.password != config["server"]["password"]:
+    if credentials.password != config.server.password:
         logger.error(
             "Invalid password attempt from <bold>%s</bold>." % request.client.host
         )

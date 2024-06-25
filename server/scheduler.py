@@ -25,11 +25,11 @@ def initialize_scheduler():
 
 
 def get_tick_duration() -> timedelta:
-    return timedelta(seconds=config["game"]["tick_duration"])
+    return timedelta(seconds=config.game.tick_duration)
 
 
 def get_first_tick_start() -> datetime:
-    start_time_str = config["game"]["start_time"]
+    start_time_str = config.game.start_time
     return datetime.strptime(
         start_time_str,
         "%Y-%m-%d %H:%M:%S" if len(start_time_str) == 19 else "%Y-%m-%d %H:%M",
