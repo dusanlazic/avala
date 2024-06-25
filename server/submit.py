@@ -31,12 +31,35 @@ persisting_buffer: list[FlagResponse] = []
 
 
 def initialize_submitter(scheduler: BackgroundScheduler):
+    """Initializes threads and schedules jobs for flag submission based on the configuration.
+
+    Configuration options:
+
+        submitter.per_tick:
+            Number of submissions per tick. If set, submissions are spread across the tick duration.
+
+        submitter.interval:
+            Interval in seconds between submissions. Used when flags are submitted at fixed intervals.
+
+        submitter.batch_size:
+            Size of each batch for flag submission. Submissions trigger when queue reaches batch size.
+
+        submitter.streams:
+            Number of continuous streams (threads) for flag submission.
+
+    Args:
+        scheduler (BackgroundScheduler): The scheduler used for managing submission jobs.
+
+    The function sets up different submission strategies based on the provided configuration. It automatically calculates
+    the next run time for each submission job to synchronize with game ticks.
+    """
     now = datetime.now()
     tick_duration = get_tick_duration()
     next_tick_start = get_next_tick_start(now)
 
     if config.submitter.per_tick or config.submitter.interval:
         submissions_per_tick = config.submitter.per_tick
+
         if submissions_per_tick:
             interval: timedelta = tick_duration / (submissions_per_tick - 1)
         else:
@@ -80,27 +103,45 @@ def initialize_submitter(scheduler: BackgroundScheduler):
 
 
 def submit_flags_stream_job(submit, num):
-    # Support error recovery and stuff here
+    """Starts a continuous flag submission stream in a separate thread."""
     logger.info("Starting submitter stream in thread %s..." % num)
-    debug_func = get_debug_function(num)
+    debug_func = get_log_debug_function(num)
     submit(submission_queue, persisting_queue, debug_func)
 
 
 def submit_flags_from_queue():
+    """Initiates submission of all queued flags.
+
+    The function retrieves all flags from the submission queue, loads them into the submission buffer,
+    and initiates their submission. It is called when the submitter is configured to run at fixed
+    intervals, or fixed number of times per tick.
+    """
     while not submission_queue.empty():
         submission_buffer.append(submission_queue.get())
     submit_flags_from_buffer()
 
 
 def submit_flags_in_batches_job():
-    batch_size = config.submitter.batch_size
+    """Initiates submission of a batch of queued flags.
+
+    The function retrieves a fixed number of flags from the submission queue, loads them into the
+    submission buffer, and initiates their submission. It is called when the submitter is configured
+    to run in batches and the queue reaches the batch size.
+    """
     while True:
         submission_buffer.append(submission_queue.get())
-        if len(submission_buffer) >= batch_size:
+        if len(submission_buffer) >= config.submitter.batch_size:
             submit_flags_from_buffer()
 
 
 def submit_flags_from_buffer():
+    """
+    This function reimports the submitter function, submits flags from the submission buffer,
+    and then puts the responses into the persisting queue.
+
+    This function is called when flag submission is triggered by the scheduler or when there
+    are enough flags for submitting a batch, depending on the configuration.
+    """
     if not submission_buffer:
         logger.info("No flags in queue. Submission skipped.")
         return
@@ -126,6 +167,12 @@ def submit_flags_from_buffer():
 
 
 def persist_flags_in_batches_job(batch_size=50):
+    """
+    This function loads a fixed amount of flag responses into the persisting buffer,
+    and then starts the flag response persistence process.
+
+    This function is meant to be constantly running in a separate thread.
+    """
     while True:
         persisting_buffer.append(persisting_queue.get())
         if len(persisting_buffer) >= batch_size:
@@ -133,11 +180,9 @@ def persist_flags_in_batches_job(batch_size=50):
 
 
 def persist_flags_from_buffer():
-    # logger.info(
-    #     "Writing <bold>%d</bold> flags to db. Flags in memory: <bold>%d</bold>."
-    #     % (len(persisting_buffer), persisting_queue.qsize())
-    # )
-
+    """
+    This function persists flags from the submission buffer into the database.
+    """
     flag_responses_map: Dict[str, FlagResponse] = {}
 
     for flag_response in persisting_buffer:
@@ -157,6 +202,9 @@ def persist_flags_from_buffer():
 
 
 def import_submit_function():
+    """
+    This function imports the submit function that does the actual flag submission.
+    """
     module_name = config.submitter.module
 
     cwd = os.getcwd()
@@ -169,7 +217,7 @@ def import_submit_function():
     return submit_function
 
 
-def get_debug_function(thread_num):
+def get_log_debug_function(thread_num):
     def debug(message):
         logger.debug("<light-blue>submit:%d</light-blue> -> %s" % (thread_num, message))
 

@@ -16,6 +16,7 @@ from .websocket import sio, socketio
 from .submit import initialize_submitter
 
 app = FastAPI()
+
 app.include_router(flags_router)
 
 
