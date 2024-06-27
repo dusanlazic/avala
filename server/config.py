@@ -21,6 +21,12 @@ config = Dict(
             "host": "localhost",
             "port": 5432,
         },
+        "rabbitmq": {
+            "host": "localhost",
+            "port": 5672,
+            "user": "guest",
+            "password": "guest",
+        },
     }
 )
 

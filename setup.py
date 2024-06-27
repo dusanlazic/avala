@@ -20,6 +20,7 @@ setup(
         "uvicorn",
         "APScheduler==3.10.1",
         "addict",
+        "pika",
     ],
     packages=["client", "server", "shared"],
     package_data={"web": ["dist/*", "dist/assets/*"]},
@@ -34,6 +35,10 @@ setup(
         "server",
     ],
     entry_points={
-        "console_scripts": ["fast-server = server:main"],
+        "console_scripts": [
+            "av_server=server.main:main",
+            "av_persister=server.workers.persister:main",
+            "av_submitter=server.workers.submitter:main",
+        ]
     },
 )

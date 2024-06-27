@@ -1,18 +1,15 @@
 import os
 import sys
 import pika
-import json
 from shared.logs import logger
 from apscheduler.schedulers.background import BackgroundScheduler
-from threading import Thread
-from typing import Dict
 from datetime import datetime, timedelta
-from collections import namedtuple, Counter
+from collections import Counter
 from importlib import import_module, reload
-from .models import Flag
-from .config import config
-from .database import db
-from .scheduler import (
+from ..models import FlagResponse
+from ..config import load_user_config, config
+from ..rabbitmq import RabbitMQQueue, connect_rabbitmq, channel
+from ..scheduler import (
     get_tick_elapsed,
     get_tick_duration,
     get_next_tick_start,
@@ -21,60 +18,39 @@ from .scheduler import (
 )
 
 
-class FlagResponse(namedtuple("FlagResponse", "value status response")):
-    def serialize(self):
-        return json.dumps(self._asdict())
+def main():
+    load_user_config()
+    connect_rabbitmq()
 
-    def deserialize(response):
-        return FlagResponse(**json.loads(response))
+    scheduler = BackgroundScheduler()
+    worker = Submitter(scheduler, channel)
+    worker.start()
 
 
-class RabbitMQQueue:
-    """A simple wrapper around a RabbitMQ queue."""
-
-    def __init__(self, channel, routing_key) -> None:
+class Submitter:
+    def __init__(self, scheduler: BackgroundScheduler, channel) -> None:
+        self.scheduler = scheduler
         self.channel = channel
-        self.routing_key = routing_key
-
-        self.latest_delivery_tag = None
-        self.channel.queue_declare(queue=self.routing_key, durable=True)
-
-    def put(self, message):
-        self.channel.basic_publish(
-            exchange="", routing_key=self.routing_key, body=message
-        )
-
-    def ack(self, delivery_tag, multiple=False):
-        self.channel.basic_ack(delivery_tag=delivery_tag, multiple=multiple)
-
-    def add_consumer(self, callback):
-        self.channel.basic_consume(queue=self.routing_key, on_message_callback=callback)
-
-    def size(self):
-        return self.channel.queue_declare(
-            queue=self.routing_key, passive=True
-        ).method.message_count
-
-
-class SubmissionHandler:
-    def __init__(self, scheduler: BackgroundScheduler) -> None:
-        self.channel = self._initialize_rabbitmq()
-
-        self.submit = self._import_submit_function()
 
         self.submission_buffer: list[str] = []
         self.submission_delivery_tags: list[int] = []
-        self.submission_queue = RabbitMQQueue(self.channel, "submission_queue")
+        self.submission_queue = RabbitMQQueue(
+            self.channel, "submission_queue", durable=True
+        )
+        self.persisting_queue = RabbitMQQueue(
+            self.channel, "persisting_queue", durable=True
+        )
 
-        self.persisting_buffer: list[FlagResponse] = []
-        self.persisting_delivery_tags: list[int] = []
-        self.persisting_queue = RabbitMQQueue(self.channel, "persisting_queue")
+        self.submit = self._import_submit_function()
+        self._initialize()
 
-        self.persisting_queue.add_consumer(self._persist_responses_in_batches_consumer)
+    def start(self):
+        logger.info("Waiting for flags...")
 
-        self._initialize_submitter(scheduler)
+        self.scheduler.start()
+        self.channel.start_consuming()
 
-    def _initialize_submitter(self):
+    def _initialize(self):
         """Initializes threads, consumers and scheduled jobs for flag submission based on the configuration.
 
         Configuration options:
@@ -90,9 +66,6 @@ class SubmissionHandler:
 
             submitter.streams:
                 Number of continuous streams (threads) for flag submission.
-
-        Args:
-            scheduler (BackgroundScheduler): The scheduler used for managing submission jobs.
 
         The function sets up different submission strategies based on the provided configuration. It automatically
         calculates the next run time for each submission job to synchronize with game ticks.
@@ -120,6 +93,8 @@ class SubmissionHandler:
             else:
                 next_run_time = get_first_tick_start() + interval
 
+            self.submission_queue.add_consumer(self._submit_flags_in_intervals_consumer)
+
             self.scheduler.add_job(
                 func=self._submit_flags_scheduled_job,
                 trigger="interval",
@@ -138,27 +113,7 @@ class SubmissionHandler:
                 next_run_time=next_tick_start,
             )
         elif config.submitter.streams:
-            threads = config.submitter.streams
-            submit = self._import_submit_function()
-            for num in range(threads):
-                Thread(target=self._submit_flags_stream_job, args=(submit, num)).start()
-
-    def _initialize_rabbitmq(self):
-        connection = pika.BlockingConnection(
-            pika.ConnectionParameters(
-                host=config.rabbitmq.host,
-                port=config.rabbitmq.port,
-                credentials=pika.PlainCredentials(
-                    config.rabbitmq.username, config.rabbitmq.password
-                ),
-            )
-        )
-
-        channel = connection.channel()
-        channel.queue_declare(queue="submission_queue", durable=True)
-        channel.queue_declare(queue="persisting_queue", durable=True)
-
-        return channel
+            self.submission_queue.add_consumer(self._submit_flags_in_stream_consumer)
 
     def _submit_flags_in_batches_consumer(self, ch, method, properties, body):
         """Receives flags from the submission queue and initiates submission of a batch of queued flags.
@@ -167,7 +122,15 @@ class SubmissionHandler:
         and initiates their submission when the buffer reaches the configured batch size. After submission,
         it acknowledges the messages and moves the responses to the persisting queue.
         """
-        self.submission_buffer.append(body.decode())
+        flag = body.decode().strip()
+
+        self.submission_buffer.append(flag)
+
+        logger.debug(
+            "Received flag <bold>%s</bold> (%d flags in buffer)"
+            % (flag, len(self.submission_buffer))
+        )
+
         if len(self.submission_buffer) >= config.submitter.batch_size:
             flag_repsonses = self._submit_flags()
             ch.basic_ack(delivery_tag=method.delivery_tag, multiple=True)
@@ -183,13 +146,29 @@ class SubmissionHandler:
         per tick. The function moves flags straight to the submission buffer making them ready to be
         submitted. It also tracks delivery tags for acknowledging the messages later.
         """
-        self.submission_buffer.append(body.decode())
+        flag = body.decode().strip()
+
+        self.submission_buffer.append(flag)
         self.submission_delivery_tags.append(method.delivery_tag)
+
+        logger.debug(
+            "Received flag <bold>%s</bold> (%d flags in buffer)"
+            % (flag, len(self.submission_buffer))
+        )
 
     def _submit_flags_in_stream_consumer(self, ch, method, properties, body):
         flag = body.decode().strip()
+        logger.debug("Received flag <bold>%s</bold>" % flag)
+
         response = FlagResponse(*self.submit(flag))
         ch.ack(delivery_tag=method.delivery_tag)
+
+        logger.debug(
+            "<green>Accepted</green> %s" % response.response
+            if response.status == "accepted"
+            else "<red>Rejected</red> %s" % response.response
+        )
+
         self.persisting_queue.put(response.serialize())
 
     def _submit_flags_scheduled_job(self):
@@ -242,33 +221,6 @@ class SubmissionHandler:
 
         return flag_responses
 
-    def _persist_responses_in_batches_consumer(self, ch, method, properties, body):
-        """Receives responses from the persisting queue and initiates persisting of a batch of queued flags."""
-        self.persisting_buffer.append(FlagResponse.deserialize(body.decode()))
-        if len(self.persisting_buffer) >= 50:  # temporary hardcoded
-            self._persist_responses()
-            ch.basic_ack(delivery_tag=method.delivery_tag, multiple=True)
-            self.persisting_buffer.clear()
-
-    def _persist_responses(self):
-        """Persists responses from the persistence buffer into the database."""
-        flag_responses_map: Dict[str, FlagResponse] = {}
-
-        for flag_response in self.persisting_buffer:
-            flag_responses_map[flag_response.value] = flag_response
-
-        with db.atomic():
-            flag_records_to_update = Flag.select().where(
-                Flag.value.in_(list(flag_responses_map.keys()))
-            )
-            for flag in flag_records_to_update:
-                flag.status = flag_responses_map[flag.value].status
-                flag.response = flag_responses_map[flag.value].response
-
-            Flag.bulk_update(
-                flag_records_to_update, fields=[Flag.status, Flag.response]
-            )
-
     def _import_submit_function(self):
         """Imports and reloads the submit function that does the actual flag submission."""
         module_name = config.submitter.module
@@ -282,10 +234,6 @@ class SubmissionHandler:
 
         return submit_function
 
-    def _get_log_debug_function(self, thread_num):
-        def debug(message):
-            logger.debug(
-                "<light-blue>submit:%d</light-blue> -> %s" % (thread_num, message)
-            )
 
-        return debug
+if __name__ == "__main__":
+    main()

@@ -1,3 +1,5 @@
+import json
+from collections import namedtuple
 from shared.logs import logger
 from datetime import datetime
 from peewee import Model, CharField, DateTimeField, IntegerField, Check
@@ -20,6 +22,14 @@ class Flag(BaseModel):
         constraints=[Check("status IN ('queued', 'accepted', 'rejected')")]
     )
     response = CharField(null=True)
+
+
+class FlagResponse(namedtuple("FlagResponse", "value status response")):
+    def serialize(self):
+        return json.dumps(self._asdict())
+
+    def deserialize(response):
+        return FlagResponse(**json.loads(response))
 
 
 def create_tables():

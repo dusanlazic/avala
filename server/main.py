@@ -1,5 +1,4 @@
 import os
-import sys
 import uvicorn
 from shared.logs import logger
 from pathlib import Path
@@ -7,13 +6,13 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from shared.logs import config as log_config
+from .rabbitmq import connect_rabbitmq, channel, RabbitMQQueue
 from .database import connect_database
 from .routes.flags import router as flags_router
 from .config import config, load_user_config, DOT_DIR_PATH
 from .models import create_tables
 from .scheduler import initialize_scheduler
 from .websocket import sio, socketio
-from .submit import initialize_submitter
 
 app = FastAPI()
 
@@ -33,9 +32,13 @@ def main():
     connect_database()
     create_tables()
 
-    scheduler = initialize_scheduler()
-    initialize_submitter(scheduler)
+    connect_rabbitmq()
 
+    app.state.submission_queue = RabbitMQQueue(
+        channel, "submission_queue", durable=True
+    )  # TODO
+
+    scheduler = initialize_scheduler()
     scheduler.start()
 
     uvicorn.run(

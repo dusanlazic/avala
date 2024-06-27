@@ -61,6 +61,17 @@ database_schema = {
     "additionalProperties": False,
 }
 
+rabbitmq_schema = {
+    "type": "object",
+    "properties": {
+        "host": {"type": "string", "format": "hostname"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "user": {"type": "string"},
+        "password": {"type": "string"},
+    },
+    "additionalProperties": False,
+}
+
 server_yaml_schema = {
     "type": "object",
     "properties": {
@@ -68,6 +79,7 @@ server_yaml_schema = {
         "submitter": submitter_schema,
         "server": server_schema,
         "database": database_schema,
+        "rabbitmq": rabbitmq_schema,
     },
     "required": ["game", "submitter"],
 }
