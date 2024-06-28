@@ -39,6 +39,8 @@ submitter_schema = {
     "additionalProperties": False,
 }
 
+submitters_schema = {"type": "object", "additionalProperties": submitter_schema}
+
 server_schema = {
     "type": "object",
     "properties": {
@@ -76,10 +78,10 @@ server_yaml_schema = {
     "type": "object",
     "properties": {
         "game": game_schema,
-        "submitter": submitter_schema,
+        "submitters": submitters_schema,
         "server": server_schema,
         "database": database_schema,
         "rabbitmq": rabbitmq_schema,
     },
-    "required": ["game", "submitter"],
+    "required": ["game", "submitters"],
 }

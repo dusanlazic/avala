@@ -1,14 +1,14 @@
 import os
 import sys
-import pika
+from addict import Dict
 from shared.logs import logger
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BlockingScheduler
 from datetime import datetime, timedelta
 from collections import Counter
 from importlib import import_module, reload
 from ..models import FlagResponse
 from ..config import load_user_config, config
-from ..rabbitmq import RabbitMQQueue, connect_rabbitmq, channel
+from ..mq.rabbit import RabbitQueue, RabbitConnection
 from ..scheduler import (
     get_tick_elapsed,
     get_tick_duration,
@@ -20,35 +20,35 @@ from ..scheduler import (
 
 def main():
     load_user_config()
-    connect_rabbitmq()
+    instance_config = Dict(config.submitters[sys.argv[1]])
 
-    scheduler = BackgroundScheduler()
-    worker = Submitter(scheduler, channel)
+    worker = Submitter(instance_config)
     worker.start()
 
 
 class Submitter:
-    def __init__(self, scheduler: BackgroundScheduler, channel) -> None:
-        self.scheduler = scheduler
-        self.channel = channel
+    def __init__(self, config) -> None:
+        self.config = config
 
-        self.submission_buffer: list[str] = []
-        self.submission_delivery_tags: list[int] = []
-        self.submission_queue = RabbitMQQueue(
-            self.channel, "submission_queue", durable=True
-        )
-        self.persisting_queue = RabbitMQQueue(
-            self.channel, "persisting_queue", durable=True
-        )
+        self.scheduler: BlockingScheduler | None = None
+        self.connection: RabbitConnection | None = None
+
+        self.submission_buffer: list[str] | None = None
+        self.delivery_tag_map: dict[str, int] | None = None
+
+        self.submission_queue: RabbitQueue | None = None
+        self.persisting_queue: RabbitQueue | None = None
 
         self.submit = self._import_submit_function()
         self._initialize()
 
     def start(self):
-        logger.info("Waiting for flags...")
-
-        self.scheduler.start()
-        self.channel.start_consuming()
+        if self.config.per_tick or self.config.interval:
+            self.scheduler.start()
+        elif self.config.batch_size:
+            self.connection.channel.start_consuming()
+        elif self.config.streams:
+            pass
 
     def _initialize(self):
         """Initializes threads, consumers and scheduled jobs for flag submission based on the configuration.
@@ -70,31 +70,11 @@ class Submitter:
         The function sets up different submission strategies based on the provided configuration. It automatically
         calculates the next run time for each submission job to synchronize with game ticks.
         """
-        now = datetime.now()
-        tick_duration = get_tick_duration()
-        next_tick_start = get_next_tick_start(now)
 
-        if config.submitter.per_tick or config.submitter.interval:
-            submissions_per_tick = config.submitter.per_tick
+        if self.config.per_tick or self.config.interval:
+            interval, next_run_time = self._calculate_next_run_time()
 
-            if submissions_per_tick:
-                interval: timedelta = tick_duration / (submissions_per_tick - 1)
-            else:
-                interval: timedelta = timedelta(seconds=config.submitter.interval)
-
-            if game_has_started():
-                tick_elapsed = get_tick_elapsed(now)
-
-                next_run_time = (
-                    next_tick_start
-                    - tick_duration
-                    + (tick_elapsed // interval + 1) * interval
-                )
-            else:
-                next_run_time = get_first_tick_start() + interval
-
-            self.submission_queue.add_consumer(self._submit_flags_in_intervals_consumer)
-
+            self.scheduler = BlockingScheduler()
             self.scheduler.add_job(
                 func=self._submit_flags_scheduled_job,
                 trigger="interval",
@@ -102,58 +82,114 @@ class Submitter:
                 id="submitter",
                 next_run_time=next_run_time,
             )
-        elif config.submitter.batch_size:
-            self.submission_queue.add_consumer(self._submit_flags_in_batches_consumer)
+        elif self.config.batch_size:
+            self.submission_buffer = []
+            self.delivery_tag_map = {}
 
-            self.scheduler.add_job(
-                func=self._submit_flags_scheduled_job,
-                trigger="interval",
-                seconds=tick_duration.total_seconds(),
-                id="submitter",
-                next_run_time=next_tick_start,
+            self.connection = RabbitConnection()
+            self.connection.connect()
+
+            self.submission_queue = RabbitQueue(
+                self.connection.channel, "submission_queue", durable=True
             )
-        elif config.submitter.streams:
+            self.persisting_queue = RabbitQueue(
+                self.connection.channel, "persisting_queue", durable=True
+            )
+
+            self.submission_queue.add_consumer(self._submit_flags_in_batches_consumer)
+        elif self.config.streams:
             self.submission_queue.add_consumer(self._submit_flags_in_stream_consumer)
 
     def _submit_flags_in_batches_consumer(self, ch, method, properties, body):
-        """Receives flags from the submission queue and initiates submission of a batch of queued flags.
-
-        The function retrieves flags from the submission queue, loads them into the submission buffer,
-        and initiates their submission when the buffer reaches the configured batch size. After submission,
-        it acknowledges the messages and moves the responses to the persisting queue.
-        """
+        """TODO docstring"""
         flag = body.decode().strip()
 
         self.submission_buffer.append(flag)
+        self.delivery_tag_map[flag] = method.delivery_tag
 
         logger.debug(
             "Received flag <bold>%s</bold> (%d flags in buffer)"
             % (flag, len(self.submission_buffer))
         )
 
-        if len(self.submission_buffer) >= config.submitter.batch_size:
-            flag_repsonses = self._submit_flags()
-            ch.basic_ack(delivery_tag=method.delivery_tag, multiple=True)
-            self.submission_buffer.clear()
+        if len(self.submission_buffer) < self.config.batch_size:
+            return
 
-            for fr in flag_repsonses:
-                self.persisting_queue.put(fr.serialize())
+        self._submit_flags(
+            self.submission_buffer,
+            self.delivery_tag_map,
+            self.persisting_queue,
+            self.connection.channel,
+        )
 
-    def _submit_flags_in_intervals_consumer(self, ch, method, properties, body):
-        """Receives flags from the submission queue and moves them straight to the submission buffer.
+        self.submission_buffer.clear()
+        self.delivery_tag_map.clear()
 
-        It is used when the submitter is configured to run at fixed intervals or fixed number of times
-        per tick. The function moves flags straight to the submission buffer making them ready to be
-        submitted. It also tracks delivery tags for acknowledging the messages later.
-        """
-        flag = body.decode().strip()
+    def _submit_flags_scheduled_job(self):
+        """TODO docstring"""
+        connection = RabbitConnection()
+        connection.connect()
 
-        self.submission_buffer.append(flag)
-        self.submission_delivery_tags.append(method.delivery_tag)
+        submission_buffer = []
+        delivery_tag_map = {}
+        persisting_queue = RabbitQueue(
+            connection.channel, "persisting_queue", durable=True
+        )
 
-        logger.debug(
-            "Received flag <bold>%s</bold> (%d flags in buffer)"
-            % (flag, len(self.submission_buffer))
+        while True:
+            method_frame, header_frame, body = connection.channel.basic_get(
+                "submission_queue"
+            )
+            if method_frame:
+                flag = body.decode().strip()
+
+                submission_buffer.append(flag)
+                delivery_tag_map[flag] = method_frame.delivery_tag
+            else:
+                logger.info(
+                    "Pulled %d flags from the submission queue."
+                    % len(submission_buffer)
+                )
+                break
+
+        self._submit_flags(
+            submission_buffer,
+            delivery_tag_map,
+            persisting_queue,
+            connection.channel,
+        )
+
+        connection.close()
+
+    def _submit_flags(
+        self,
+        submission_buffer: list[str],
+        delivery_tag_map: dict[str, int],
+        persisting_queue: RabbitQueue,
+        channel,
+    ):
+        """Submits flags from the submission buffer."""
+        if not submission_buffer:
+            logger.info("No flags in buffer. Submission skipped.")
+            return
+
+        logger.info("Submitting <bold>%d</bold> flags..." % len(submission_buffer))
+
+        flag_responses = [
+            FlagResponse(*response) for response in self.submit(submission_buffer)
+        ]
+
+        for fr in flag_responses:
+            channel.basic_ack(delivery_tag_map[fr.value])
+            persisting_queue.put(fr.to_json())
+
+        stats = Counter(fr.status for fr in flag_responses)
+        logger.info(
+            "<green>%d accepted</green> - <red>%d rejected</red>"
+            % (
+                stats["accepted"],
+                stats["rejected"],
+            )
         )
 
     def _submit_flags_in_stream_consumer(self, ch, method, properties, body):
@@ -169,61 +205,11 @@ class Submitter:
             else "<red>Rejected</red> %s" % response.response
         )
 
-        self.persisting_queue.put(response.serialize())
-
-    def _submit_flags_scheduled_job(self):
-        """Initiates submission of all flags from the submission buffer.
-
-        The function is used when the submitter is configured to run at fixed intervals or fixed number of
-        times per tick. It is called by the scheduler at fixed intervals. After submission, it acknowledges
-        the messages and moves the responses to the persisting queue.
-        """
-        flag_responses = self._submit_flags()
-        if not flag_responses:
-            return
-
-        delivery_tag = max(self.submission_delivery_tags)
-        self.submission_queue.ack(delivery_tag=delivery_tag, multiple=True)
-        self.submission_buffer.clear()
-        self.submission_delivery_tags.clear()
-
-        for fr in flag_responses:
-            self.persisting_queue.put(fr.serialize())
-
-    def _submit_flags(self) -> list[FlagResponse]:
-        """Submits flags from the submission buffer.
-
-        The function reloads the submitter function and submits flags from the submission buffer.
-        This function is called when flag submission is triggered at fixed intervals by the scheduler
-        or when there are enough flags for submitting a batch, depending on the configuration.
-        """
-        if not self.submission_buffer:
-            logger.info("No flags in buffer. Submission skipped.")
-            return []
-
-        logger.info(
-            "Submitting <bold>%d/%d</bold> flags..."
-            % (
-                len(self.submission_buffer),
-                len(self.submission_buffer) + self.submission_queue.size(),
-            )
-        )
-
-        flag_responses = [
-            FlagResponse(*response) for response in self.submit(self.submission_buffer)
-        ]
-
-        stats = Counter(fr.status for fr in flag_responses)
-        logger.info(
-            "<green>%d accepted</green> - <red>%d rejected</red> - <cyan>%d queued</cyan>"
-            % (stats["accepted"], stats["rejected"], self.submission_queue.size())
-        )
-
-        return flag_responses
+        self.persisting_queue.put(response.to_json())
 
     def _import_submit_function(self):
         """Imports and reloads the submit function that does the actual flag submission."""
-        module_name = config.submitter.module
+        module_name = self.config.module if self.config.module else "submitter"
 
         cwd = os.getcwd()
         if cwd not in sys.path:
@@ -233,6 +219,31 @@ class Submitter:
         submit_function = getattr(imported_module, "submit")
 
         return submit_function
+
+    def _calculate_next_run_time(self) -> tuple[timedelta, datetime]:
+        now = datetime.now()
+        tick_duration = get_tick_duration()
+        next_tick_start = get_next_tick_start(now)
+
+        submissions_per_tick = self.config.per_tick
+
+        if submissions_per_tick:
+            interval: timedelta = tick_duration / (submissions_per_tick - 1)
+        else:
+            interval: timedelta = timedelta(seconds=self.config.interval)
+
+        if game_has_started():
+            tick_elapsed = get_tick_elapsed(now)
+
+            next_run_time = (
+                next_tick_start
+                - tick_duration
+                + (tick_elapsed // interval + 1) * interval
+            )
+        else:
+            next_run_time = get_first_tick_start() + interval
+
+        return interval, next_run_time
 
 
 if __name__ == "__main__":

@@ -25,10 +25,11 @@ class Flag(BaseModel):
 
 
 class FlagResponse(namedtuple("FlagResponse", "value status response")):
-    def serialize(self):
+    def to_json(self):
         return json.dumps(self._asdict())
 
-    def deserialize(response):
+    @staticmethod
+    def from_json(response):
         return FlagResponse(**json.loads(response))
 
 

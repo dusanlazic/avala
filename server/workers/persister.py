@@ -1,75 +1,85 @@
-import pika
 from shared.logs import logger
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BlockingScheduler
 from typing import Dict
 from datetime import datetime
 from ..models import Flag, FlagResponse
 from ..config import load_user_config
 from ..database import db, connect_database
-from ..rabbitmq import RabbitMQQueue, connect_rabbitmq, channel
+from ..mq.rabbit import RabbitQueue, RabbitConnection, rabbit
 from ..scheduler import get_tick_duration, get_next_tick_start
 
 
 def main():
     load_user_config()
     connect_database()
-    connect_rabbitmq()
 
-    scheduler = BackgroundScheduler()
-    worker = Persister(scheduler, channel)
+    worker = Persister()
     worker.start()
 
 
 class Persister:
-    def __init__(self, scheduler: BackgroundScheduler, channel) -> None:
-        self.scheduler = scheduler
-        self.channel = channel
-
-        self.persisting_buffer: list[FlagResponse] = []
-        self.persisting_queue = RabbitMQQueue(self.channel, "persisting_queue")
-
+    def __init__(self) -> None:
+        self.scheduler: BlockingScheduler | None = None
         self._initialize()
 
     def start(self):
-        logger.info("Waiting for flag responses...")
-
         self.scheduler.start()
-        self.channel.start_consuming()
 
     def _initialize(self):
         """Initializes and configures threads, consumers and scheduled jobs for flag response persistence based on the configuration."""
-        now = datetime.now()
-        tick_duration = get_tick_duration()
-        next_tick_start = get_next_tick_start(now)
-
-        self.persisting_queue.add_consumer(self._persist_responses_in_batches_consumer)
+        self.scheduler = BlockingScheduler()
         self.scheduler.add_job(
-            func=self._persist_responses,
+            func=self._persist_responses_in_batches_job,
             trigger="interval",
-            seconds=tick_duration.total_seconds(),
-            id="submitter",
-            next_run_time=next_tick_start,
+            seconds=5,
+            id="persister",
         )
 
-    def _persist_responses_in_batches_consumer(self, ch, method, properties, body):
-        """Receives responses from the persisting queue and initiates persisting of a batch of queued flags."""
-        self.persisting_buffer.append(FlagResponse.deserialize(body.decode()))
-        if len(self.persisting_buffer) >= 50:  # temporary hardcoded
-            self._persist_responses()
-            ch.basic_ack(delivery_tag=method.delivery_tag, multiple=True)
-            self.persisting_buffer.clear()
+    def _persist_responses_in_batches_job(self):
+        connection = RabbitConnection()
+        connection.connect()
 
-    def _persist_responses(self):
+        persisting_buffer = []
+        delivery_tag = None
+
+        while True:
+            method_frame, header_frame, body = connection.channel.basic_get(
+                "persisting_queue"
+            )
+            if method_frame:
+                flag_response = FlagResponse.from_json(body.decode())
+
+                persisting_buffer.append(flag_response)
+                delivery_tag = method_frame.delivery_tag
+            else:
+                logger.info(
+                    "Pulled %d flags from the submission queue."
+                    % len(persisting_buffer)
+                )
+                break
+
+        self._persist_responses(
+            persisting_buffer,
+            delivery_tag,
+            connection.channel,
+        )
+
+        connection.close()
+
+    def _persist_responses(
+        self,
+        persisting_buffer: list[FlagResponse],
+        delivery_tag: int,
+        channel,
+    ):
         """Persists responses from the persistence buffer into the database."""
-        flag_responses_map: Dict[str, FlagResponse] = {}
-
-        if not self.persisting_buffer:
+        if not persisting_buffer:
+            logger.info("No flag responses in buffer. Persistence skipped.")
             return
 
-        logger.info("Persisting %d flag responses..." % len(self.persisting_buffer))
+        logger.info("Persisting %d flag responses..." % len(persisting_buffer))
 
-        for flag_response in self.persisting_buffer:
-            flag_responses_map[flag_response.value] = flag_response
+        flag_responses_map = {fr.value: fr for fr in persisting_buffer}
 
         with db.atomic():
             flag_records_to_update = Flag.select().where(
@@ -83,6 +93,7 @@ class Persister:
                 flag_records_to_update, fields=[Flag.status, Flag.response]
             )
 
+        channel.basic_ack(delivery_tag, multiple=True)
         logger.info("Done.")
 
 

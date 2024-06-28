@@ -6,11 +6,13 @@ from server.config import config
 security = HTTPBasic()
 
 
-def custom_security(request: Request):
-    return security(request) if config.server.password else None
+async def custom_security(request: Request):
+    if config.server.password:
+        return await security(request)
+    return None
 
 
-def authenticate(
+async def authenticate(
     request: Request, credentials: HTTPBasicCredentials = Depends(custom_security)
 ):
     if config.server.password is None:

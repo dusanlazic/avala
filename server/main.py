@@ -5,8 +5,9 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from shared.logs import config as log_config
-from .rabbitmq import connect_rabbitmq, channel, RabbitMQQueue
+from .mq.rabbit_async import rabbit, RabbitQueue
 from .database import connect_database
 from .routes.flags import router as flags_router
 from .config import config, load_user_config, DOT_DIR_PATH
@@ -14,38 +15,43 @@ from .models import create_tables
 from .scheduler import initialize_scheduler
 from .websocket import sio, socketio
 
-app = FastAPI()
 
-app.include_router(flags_router)
-
-
-def main():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     show_banner()
 
-    configure_cors()
-    configure_socketio()
-    uvicorn_logging = configure_logging()
-
     create_dot_dir()
-    load_user_config()
 
     connect_database()
     create_tables()
 
-    connect_rabbitmq()
-
-    app.state.submission_queue = RabbitMQQueue(
-        channel, "submission_queue", durable=True
-    )  # TODO
+    await rabbit.connect()
+    await rabbit.create_queue("submission_queue", durable=True)
 
     scheduler = initialize_scheduler()
     scheduler.start()
+
+    yield
+
+    logger.info("Shutting down...")
+    await rabbit.close()
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+def main():
+    load_user_config()
+
+    app.include_router(flags_router)
+    configure_cors(app)
+    configure_socketio(app)
 
     uvicorn.run(
         app,
         host=config.server.host,
         port=config.server.port,
-        log_config=uvicorn_logging,
+        log_config=configure_logging(),
     )
 
 
@@ -59,7 +65,7 @@ def configure_logging():
     return uvicorn_log_config
 
 
-def configure_cors():
+def configure_cors(app: FastAPI):
     dev_origins = ["*"]
     prod_origins = ["*"]
 
@@ -76,13 +82,13 @@ def configure_cors():
     )
 
 
-def configure_static():
+def configure_static(app: FastAPI):
     base_dir = Path(__file__).resolve().parent
     static_folder_path = base_dir / ".." / "frontend" / "dist"
     app.mount("", StaticFiles(directory=static_folder_path), name="static")
 
 
-def configure_socketio():
+def configure_socketio(app: FastAPI):
     app.mount("/", socketio.ASGIApp(sio))
 
 

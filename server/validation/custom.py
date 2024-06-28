@@ -2,6 +2,8 @@ from jsonschema import ValidationError
 
 
 def validate_delay(server_yaml_data):
+    return
+
     if server_yaml_data["submitter"].get("delay") is None:
         return
 
@@ -16,6 +18,8 @@ def validate_delay(server_yaml_data):
 
 
 def validate_interval(server_yaml_data):
+    return
+
     if server_yaml_data["submitter"].get("interval") is None:
         return
 

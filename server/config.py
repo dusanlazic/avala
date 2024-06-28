@@ -12,7 +12,6 @@ STATE_FILE_PATH = DOT_DIR_PATH / "state.json"
 config = Dict(
     {
         "game": {},
-        "submitter": {"module": "submitter"},
         "server": {"host": "0.0.0.0", "port": 2023},
         "database": {
             "name": "fastdb",
