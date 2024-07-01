@@ -26,3 +26,8 @@ def connect_database():
         sys.exit(1)
 
     logger.info("Connected to the database.")
+
+
+def disconnect_database():
+    db.close()
+    logger.info("Disconnected from the database.")

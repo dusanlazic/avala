@@ -113,7 +113,7 @@ class Submitter:
         )
 
         if len(self.submission_buffer) < self.config.batch_size:
-            return
+            return  # Skip submission if batch size not reached
 
         self._submit_flags(
             self.submission_buffer,

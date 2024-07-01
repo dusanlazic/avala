@@ -1,6 +1,6 @@
 from shared.logs import logger
 from typing import Annotated
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from pydantic import BaseModel
 from server.auth import basic_auth
 from server.models import Flag
@@ -19,7 +19,11 @@ class EnqueueBody(BaseModel):
 
 
 @router.post("/queue")
-async def enqueue(flags: EnqueueBody, _: Annotated[str, Depends(basic_auth)]):
+async def enqueue(
+    flags: EnqueueBody,
+    bg: BackgroundTasks,
+    _: Annotated[str, Depends(basic_auth)],
+):
     with db.connection_context():
         dup_flags = Flag.select(Flag.value).where(Flag.value.in_(flags.values))
         dup_flag_values = [flag.value for flag in dup_flags]
@@ -41,7 +45,7 @@ async def enqueue(flags: EnqueueBody, _: Annotated[str, Depends(basic_auth)]):
 
     Flag.insert_many(new_flags_metadata).on_conflict_ignore().execute()
     for flag in new_flag_values:
-        await rabbit.queues.submission_queue.put(flag)
+        bg.add_task(rabbit.queues.submission_queue.put, flag)
 
     logger.info(
         "<bold>%d</bold> flags from <bold>%s</bold> using <bold>%s, %s</bold> -> <green>%d new</green> - <yellow>%d duplicates</yellow>."
@@ -55,8 +59,4 @@ async def enqueue(flags: EnqueueBody, _: Annotated[str, Depends(basic_auth)]):
         )
     )
 
-    return {
-        "discarded": dup_flag_values,
-        "enqueued": new_flag_values,
-        "qsize": await rabbit.queues.submission_queue.size(),
-    }
+    return {"discarded": dup_flag_values, "enqueued": new_flag_values}

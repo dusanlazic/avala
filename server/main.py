@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from shared.logs import config as log_config
 from .mq.rabbit_async import rabbit, RabbitQueue
-from .database import connect_database
+from .database import connect_database, disconnect_database
 from .routes.flags import router as flags_router
 from .config import config, load_user_config, DOT_DIR_PATH
 from .models import create_tables
@@ -33,8 +33,11 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    print()  # Add a newline after the ^C
     logger.info("Shutting down...")
     await rabbit.close()
+
+    disconnect_database()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -47,12 +50,15 @@ def main():
     configure_cors(app)
     configure_socketio(app)
 
-    uvicorn.run(
-        app,
-        host=config.server.host,
-        port=config.server.port,
-        log_config=configure_logging(),
-    )
+    try:
+        uvicorn.run(
+            app,
+            host=config.server.host,
+            port=config.server.port,
+            log_config=configure_logging(),
+        )
+    except KeyboardInterrupt:
+        logger.info("Thanks for using Avala!")
 
 
 def configure_logging():
