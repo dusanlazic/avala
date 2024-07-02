@@ -21,9 +21,11 @@ from ..scheduler import (
 
 def main():
     load_user_config()
-    instance_config = Dict(config.submitters[sys.argv[1]])
 
-    worker = Submitter(instance_config)
+    if config.submitter.max_batch_size < 1:
+        config.submitter.max_batch_size = float("inf")
+
+    worker = Submitter()
     worker.start()
 
 
@@ -36,9 +38,7 @@ def batched(iterable, n):
 
 
 class Submitter:
-    def __init__(self, config) -> None:
-        self.config = config
-
+    def __init__(self) -> None:
         self.scheduler: BlockingScheduler | None = None
         self.connection: RabbitConnection | None = None
 
@@ -52,11 +52,11 @@ class Submitter:
         self._initialize()
 
     def start(self):
-        if self.config.per_tick or self.config.interval:
+        if config.submitter.per_tick or config.submitter.interval:
             self.scheduler.start()
-        elif self.config.batch_size:
+        elif config.submitter.batch_size:
             self.connection.channel.start_consuming()
-        elif self.config.streams:
+        elif config.submitter.streams:
             pass
 
     def _initialize(self):
@@ -80,7 +80,7 @@ class Submitter:
         calculates the next run time for each submission job to synchronize with game ticks.
         """
 
-        if self.config.per_tick or self.config.interval:
+        if config.submitter.per_tick or config.submitter.interval:
             interval, next_run_time = self._calculate_next_run_time()
 
             self.scheduler = BlockingScheduler()
@@ -91,7 +91,7 @@ class Submitter:
                 id="submitter",
                 next_run_time=next_run_time,
             )
-        elif self.config.batch_size:
+        elif config.submitter.batch_size:
             self.submission_buffer = []
             self.delivery_tag_map = {}
 
@@ -106,7 +106,7 @@ class Submitter:
             )
 
             self.submission_queue.add_consumer(self._submit_flags_in_batches_consumer)
-        elif self.config.streams:
+        elif config.submitter.streams:
             self.submission_queue.add_consumer(self._submit_flags_in_stream_consumer)
 
     def _submit_flags_in_batches_consumer(self, ch, method, properties, body):
@@ -121,7 +121,7 @@ class Submitter:
             % (flag, len(self.submission_buffer))
         )
 
-        if len(self.submission_buffer) < self.config.batch_size:
+        if len(self.submission_buffer) < config.submitter.batch_size:
             return  # Skip submission if batch size not reached
 
         self._submit_flags(
@@ -146,7 +146,7 @@ class Submitter:
         while True:
             submission_buffer = []
             delivery_tag_map = {}
-            while len(submission_buffer) < self.config.max_batch_size:
+            while len(submission_buffer) < config.submitter.max_batch_size:
                 method, properties, body = connection.channel.basic_get(
                     "submission_queue"
                 )
@@ -166,7 +166,7 @@ class Submitter:
                 submission_buffer.append(flag)
                 delivery_tag_map[flag] = method.delivery_tag
 
-                if len(submission_buffer) == self.config.max_batch_size:
+                if len(submission_buffer) == config.submitter.max_batch_size:
                     logger.info(
                         "Batch size reached. Pulled %d flags from the submission queue."
                         % len(submission_buffer)
@@ -233,7 +233,9 @@ class Submitter:
 
     def _import_submit_function(self):
         """Imports and reloads the submit function that does the actual flag submission."""
-        module_name = self.config.module if self.config.module else "submitter"
+        module_name = (
+            config.submitter.module if config.submitter.module else "submitter"
+        )
 
         cwd = os.getcwd()
         if cwd not in sys.path:
@@ -249,12 +251,12 @@ class Submitter:
         tick_duration = get_tick_duration()
         next_tick_start = get_next_tick_start(now)
 
-        submissions_per_tick = self.config.per_tick
+        submissions_per_tick = config.submitter.per_tick
 
         if submissions_per_tick:
             interval: timedelta = tick_duration / (submissions_per_tick - 1)
         else:
-            interval: timedelta = timedelta(seconds=self.config.interval)
+            interval: timedelta = timedelta(seconds=config.submitter.interval)
 
         if game_has_started():
             tick_elapsed = get_tick_elapsed(now)

@@ -13,6 +13,7 @@ config = Dict(
     {
         "game": {},
         "server": {"host": "0.0.0.0", "port": 2023},
+        "submitter": {"module": "submitter"},
         "database": {
             "name": "fastdb",
             "user": "admin",

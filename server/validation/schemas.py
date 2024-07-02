@@ -28,7 +28,7 @@ submitter_schema = {
         "interval": {"type": "number", "exclusiveMinimum": 0},
         "per_tick": {"type": "integer", "minimum": 1},
         "batch_size": {"type": "integer", "minimum": 1},
-        "max_batch_size": {"type": "integer", "minimum": 1},
+        "max_batch_size": {"type": "integer", "minimum": 0},
         "streams": {"type": "integer", "minimum": 1},
     },
     "oneOf": [
@@ -39,8 +39,6 @@ submitter_schema = {
     ],
     "additionalProperties": False,
 }
-
-submitters_schema = {"type": "object", "additionalProperties": submitter_schema}
 
 server_schema = {
     "type": "object",
@@ -79,10 +77,10 @@ server_yaml_schema = {
     "type": "object",
     "properties": {
         "game": game_schema,
-        "submitters": submitters_schema,
+        "submitter": submitter_schema,
         "server": server_schema,
         "database": database_schema,
         "rabbitmq": rabbitmq_schema,
     },
-    "required": ["game", "submitters"],
+    "required": ["game", "submitter"],
 }
