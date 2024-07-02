@@ -25,11 +25,11 @@ async def enqueue(
     _: Annotated[str, Depends(basic_auth)],
 ):
     with db.connection_context():
-        dup_flags = Flag.select(Flag.value).where(Flag.value.in_(flags.values))
-        dup_flag_values = [flag.value for flag in dup_flags]
-        new_flag_values = [
-            value for value in flags.values if value not in dup_flag_values
-        ]
+        duplicate_flags = Flag.select(Flag.value).where(Flag.value.in_(flags.values))
+        dup_flag_values = {flag.value for flag in duplicate_flags}
+        new_flag_values = list(set(flags.values) - dup_flag_values)
+
+        current_tick = get_tick_number()
 
         Flag.insert_many(
             [
@@ -37,7 +37,7 @@ async def enqueue(
                     "value": value,
                     "exploit": flags.exploit,
                     "target": flags.target,
-                    "tick": get_tick_number(),
+                    "tick": current_tick,
                     "player": flags.player,
                     "status": "queued",
                 }
