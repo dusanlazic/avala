@@ -6,7 +6,8 @@ from ..config import load_user_config
 from ..database import db, connect_database
 from ..mq.rabbit import RabbitConnection
 
-BATCH_SIZE = 100
+BATCH_SIZE = 1000
+INTERVAL = 5
 
 
 def main():
@@ -39,7 +40,7 @@ class Persister:
         self.scheduler.add_job(
             func=self._persist_responses_in_batches_job,
             trigger="interval",
-            seconds=5,
+            seconds=INTERVAL,
             id="persister",
         )
 
@@ -47,30 +48,42 @@ class Persister:
         connection = RabbitConnection()
         connection.connect()
 
-        persisting_buffer = []
-        delivery_tags = []
-
         while True:
-            method_frame, properties, body = connection.channel.basic_get(
-                "persisting_queue"
-            )
-            if method_frame:
-                flag_response = FlagResponse.from_json(body.decode())
-
-                persisting_buffer.append(flag_response)
-                delivery_tags.append(method_frame.delivery_tag)
-            else:
-                logger.info(
-                    "Pulled %d flags from the submission queue."
-                    % len(persisting_buffer)
+            persisting_buffer = []
+            delivery_tag_map = {}
+            while len(persisting_buffer) < BATCH_SIZE:
+                method, properties, body = connection.channel.basic_get(
+                    "persisting_queue"
                 )
+                if method is None:
+                    if persisting_buffer:
+                        logger.info(
+                            "Pulled all remaining %d responses from the persisting queue."
+                            % len(persisting_buffer)
+                        )
+                    else:
+                        logger.info(
+                            "No flags remaining in the persisting queue. Persistence skipped."
+                        )
+                    break
+
+                fr = FlagResponse.from_json(body.decode())
+                persisting_buffer.append(fr)
+                delivery_tag_map[fr.value] = method.delivery_tag
+
+                if len(persisting_buffer) == BATCH_SIZE:
+                    logger.info(
+                        "Batch size reached. Pulled %d responses from the persisting queue."
+                        % len(persisting_buffer)
+                    )
+                    break
+
+            if not persisting_buffer:
                 break
 
-        for i, persisting_batch in enumerate(batched(persisting_buffer, BATCH_SIZE)):
-            max_tag = max(delivery_tags[i * BATCH_SIZE : (i + 1) * BATCH_SIZE])
             self._persist_responses(
-                persisting_batch,
-                max_tag,
+                persisting_buffer,
+                delivery_tag_map,
                 connection.channel,
             )
 
@@ -79,7 +92,7 @@ class Persister:
     def _persist_responses(
         self,
         persisting_buffer: list[FlagResponse],
-        delivery_tag: int,
+        delivery_tag_map: dict[str, int],
         channel,
     ):
         """Persists responses from the persistence buffer into the database."""
@@ -105,7 +118,7 @@ class Persister:
 
             logger.info("Updated %d records." % updated_count)
 
-        channel.basic_ack(delivery_tag, multiple=True)
+        channel.basic_ack(max(delivery_tag_map.values()), multiple=True)
 
 
 if __name__ == "__main__":

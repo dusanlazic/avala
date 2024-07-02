@@ -1,6 +1,7 @@
 import os
 import sys
 from addict import Dict
+from itertools import islice
 from shared.logs import logger
 from apscheduler.schedulers.background import BlockingScheduler
 from datetime import datetime, timedelta
@@ -24,6 +25,14 @@ def main():
 
     worker = Submitter(instance_config)
     worker.start()
+
+
+def batched(iterable, n):
+    if n < 1:
+        raise ValueError("n must be at least one")
+    iterator = iter(iterable)
+    while batch := tuple(islice(iterator, n)):
+        yield batch
 
 
 class Submitter:
@@ -130,34 +139,49 @@ class Submitter:
         connection = RabbitConnection()
         connection.connect()
 
-        submission_buffer = []
-        delivery_tag_map = {}
         persisting_queue = RabbitQueue(
             connection.channel, "persisting_queue", durable=True
         )
 
         while True:
-            method_frame, header_frame, body = connection.channel.basic_get(
-                "submission_queue"
-            )
-            if method_frame:
-                flag = body.decode().strip()
-
-                submission_buffer.append(flag)
-                delivery_tag_map[flag] = method_frame.delivery_tag
-            else:
-                logger.info(
-                    "Pulled %d flags from the submission queue."
-                    % len(submission_buffer)
+            submission_buffer = []
+            delivery_tag_map = {}
+            while len(submission_buffer) < self.config.max_batch_size:
+                method, properties, body = connection.channel.basic_get(
+                    "submission_queue"
                 )
+                if method is None:
+                    if submission_buffer:
+                        logger.info(
+                            "Pulled all remaining %d flags from the submission queue."
+                            % len(submission_buffer)
+                        )
+                    else:
+                        logger.info(
+                            "No flags remaining in the submission queue. Submission skipped."
+                        )
+                    break
+
+                flag = body.decode().strip()
+                submission_buffer.append(flag)
+                delivery_tag_map[flag] = method.delivery_tag
+
+                if len(submission_buffer) == self.config.max_batch_size:
+                    logger.info(
+                        "Batch size reached. Pulled %d flags from the submission queue."
+                        % len(submission_buffer)
+                    )
+                    break
+
+            if not submission_buffer:
                 break
 
-        self._submit_flags(
-            submission_buffer,
-            delivery_tag_map,
-            persisting_queue,
-            connection.channel,
-        )
+            self._submit_flags(
+                submission_buffer,
+                delivery_tag_map,
+                persisting_queue,
+                connection.channel,
+            )
 
         connection.close()
 

@@ -31,19 +31,20 @@ async def enqueue(
             value for value in flags.values if value not in dup_flag_values
         ]
 
-        new_flags_metadata = [
-            {
-                "value": value,
-                "exploit": flags.exploit,
-                "target": flags.target,
-                "tick": get_tick_number(),
-                "player": flags.player,
-                "status": "queued",
-            }
-            for value in new_flag_values
-        ]
+        Flag.insert_many(
+            [
+                {
+                    "value": value,
+                    "exploit": flags.exploit,
+                    "target": flags.target,
+                    "tick": get_tick_number(),
+                    "player": flags.player,
+                    "status": "queued",
+                }
+                for value in new_flag_values
+            ]
+        ).on_conflict_ignore().execute()
 
-    Flag.insert_many(new_flags_metadata).on_conflict_ignore().execute()
     for flag in new_flag_values:
         bg.add_task(rabbit.queues.submission_queue.put, flag)
 
