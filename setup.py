@@ -39,6 +39,7 @@ setup(
             "av_server=server.main:main",
             "av_persister=server.workers.persister:main",
             "av_submitter=server.workers.submitter:main",
+            "av_client=client.main:main",
         ]
     },
 )

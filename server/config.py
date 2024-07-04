@@ -49,7 +49,7 @@ def load_user_config():
                 break
     else:
         logger.error(
-            "server.yaml not found in the current working directory. Exiting..."
+            "server.yaml/.yml not found in the current working directory. Exiting..."
         )
         exit(1)
 

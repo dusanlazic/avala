@@ -4,12 +4,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from .config import config
 
 
-scheduler: BackgroundScheduler = None
-
-
 def initialize_scheduler():
-    global scheduler
-    scheduler = BackgroundScheduler()
+    scheduler: BackgroundScheduler = BackgroundScheduler()
 
     now = datetime.now()
     scheduler.add_job(

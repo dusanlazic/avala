@@ -12,3 +12,12 @@ config = {
 
 logger = logger.opt(colors=True)
 logger.configure(**config)
+
+_error = logger.error
+
+
+def error(msg: str, *args, **kwargs):
+    _error(f"<red>{msg}</>", *args, **kwargs)
+
+
+logger.error = error

@@ -7,9 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from shared.logs import config as log_config
-from .mq.rabbit_async import rabbit, RabbitQueue
+from .mq.rabbit_async import rabbit
 from .database import connect_database, disconnect_database
 from .routes.flags import router as flags_router
+from .routes.connect import router as connect_router
 from .config import config, load_user_config, DOT_DIR_PATH
 from .models import create_tables
 from .scheduler import initialize_scheduler
@@ -18,8 +19,6 @@ from .websocket import sio, socketio
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    show_banner()
-
     create_dot_dir()
 
     connect_database()
@@ -44,9 +43,12 @@ app = FastAPI(lifespan=lifespan)
 
 
 def main():
+    show_banner()
     load_user_config()
 
     app.include_router(flags_router)
+    app.include_router(connect_router)
+
     configure_cors(app)
     configure_socketio(app)
 
@@ -108,15 +110,15 @@ def create_dot_dir():
 
 def show_banner():
     print(
-        f"""
-\033[32;1m     .___    ____\033[0m    ______         __ 
-\033[32;1m    /   /\__/   /\033[0m   / ____/_  ____ / /_  
-\033[32;1m   /   /   /  ❬` \033[0m  / /_/ __ `/ ___/ __/
-\033[32;1m  /___/   /____\ \033[0m / __/ /_/ (__  ) /_  
-\033[32;1m /    \___\/     \033[0m/_/  \__,_/____/\__/  
-\033[32;1m/\033[0m                      \033[32mserver\033[0m \033[2mv%s\033[0m
-"""
-        % "2.0.0"
+        """\033[32;1m
+      db                                            
+     ;MM:                                           
+    ,V^MM.    `7MM""Yq.  ,6"Yb.   `7M""MMF' ,6"Yb.  
+   ,M  `MM      MM   j8 8)   MM     M  MM  8)   MM  
+   AbmmmqMA     MM""Yq.  ,pm9MM    ,P  MM   ,pm9MM  
+  A'     VML    MM   j8 8M   MM  . d'  MM  8M   MM  
+.AMA.   .AMMA..JMMmmm9' `Moo9^Yo.8M' .JMML.`Moo9^Yo.
+\033[0m"""
     )
 
 
