@@ -11,7 +11,6 @@ from .api import client
 
 
 scheduler: BackgroundScheduler = BlockingScheduler()
-exploits: list[Exploit] = []
 
 
 def main():
@@ -54,7 +53,6 @@ def reload_exploits():
         logger.error("avala.yaml/.yml not found in the current working directory.")
         return
 
-    global exploits
     exploits = [Exploit(e) for e in user_config.get("exploits")]
 
     logger.debug(f"Loaded {len(exploits)} exploits.")

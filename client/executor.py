@@ -3,10 +3,10 @@ from shared.logs import logger
 
 
 def main(args):
-    logger.done(f"Running exploit {args.name} against {args.targets}.")
+    logger.debug(f"Running exploit {args.name} against {args.targets}.")
     import time
 
-    time.sleep(5)
+    time.sleep(1)
     logger.debug("Attacks finished.")
 
 
