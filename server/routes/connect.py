@@ -1,3 +1,4 @@
+import tzlocal
 from shared.logs import logger
 from typing import Annotated
 from fastapi import APIRouter, Depends
@@ -12,6 +13,9 @@ async def health(_: Annotated[str, Depends(basic_auth)]):
     return {"status": "ok"}
 
 
-@router.get("/game")
+@router.get("/params")
 async def enqueue(_: Annotated[str, Depends(basic_auth)]):
-    return config.game
+    params = config.game.deepcopy()
+    params.tz = tzlocal.get_localzone().key
+
+    return params

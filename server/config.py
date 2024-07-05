@@ -42,7 +42,7 @@ def load_user_config():
     for ext in ["yml", "yaml"]:
         if Path(f"server.{ext}").is_file():
             with open(f"server.{ext}", "r") as file:
-                user_config = yaml.safe_load(file)
+                user_config = Dict(yaml.safe_load(file))
                 if not user_config:
                     logger.error(f"No configuration found in server.{ext}. Exiting...")
                     exit(1)

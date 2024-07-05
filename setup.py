@@ -21,6 +21,7 @@ setup(
         "APScheduler==3.10.1",
         "addict",
         "pika",
+        "aio_pika",
     ],
     packages=["client", "server", "shared"],
     package_data={"web": ["dist/*", "dist/assets/*"]},
