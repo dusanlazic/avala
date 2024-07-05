@@ -38,7 +38,7 @@ exploit_schema = {
             "type": "array",
             "items": {"type": "string"},
         },
-        "script": {
+        "module": {
             "type": "string",
         },
         "command": {
@@ -57,6 +57,18 @@ exploit_schema = {
         "delay": {
             "type": "integer",
             "minimum": 0,
+        },
+        "batching": {
+            "type": "object",
+            "properties": {
+                "count": {"type": "integer", "minimum": 1},
+                "size": {"type": "integer", "minimum": 1},
+                "gap": {"type": "number", "exclusiveMinimum": 0},
+            },
+            "oneOf": [
+                {"required": ["gap", "count"], "not": {"required": ["size"]}},
+                {"required": ["gap", "size"], "not": {"required": ["count"]}},
+            ],
         },
         "timeout": {
             "type": "integer",

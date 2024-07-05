@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
     await rabbit.close()
 
     disconnect_database()
+    scheduler.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)

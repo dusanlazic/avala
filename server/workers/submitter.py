@@ -1,9 +1,8 @@
 import os
 import sys
-from addict import Dict
 from itertools import islice
 from shared.logs import logger
-from apscheduler.schedulers.background import BlockingScheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
 from datetime import datetime, timedelta
 from collections import Counter
 from importlib import import_module, reload

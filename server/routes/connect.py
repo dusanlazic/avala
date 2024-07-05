@@ -1,9 +1,16 @@
 import tzlocal
+from datetime import datetime
 from shared.logs import logger
 from typing import Annotated
 from fastapi import APIRouter, Depends
 from server.auth import basic_auth
 from server.config import config
+from server.scheduler import (
+    get_next_tick_start,
+    get_tick_elapsed,
+    get_tick_duration,
+    get_first_tick_start,
+)
 
 router = APIRouter(prefix="/connect", tags=["Connect"])
 
@@ -13,9 +20,21 @@ async def health(_: Annotated[str, Depends(basic_auth)]):
     return {"status": "ok"}
 
 
-@router.get("/params")
+@router.get("/game")
 async def enqueue(_: Annotated[str, Depends(basic_auth)]):
-    params = config.game.deepcopy()
-    params.tz = tzlocal.get_localzone().key
+    return {
+        "flag_format": config.game.flag_format,
+        "team_ip": config.game.team_ip,
+    }
 
-    return params
+
+@router.get("/schedule")
+async def schedule(_: Annotated[str, Depends(basic_auth)]):
+    now = datetime.now()
+    return {
+        "first_tick_start": get_first_tick_start(),
+        "next_tick_start": get_next_tick_start(now),
+        "tick_elapsed": get_tick_elapsed(now),
+        "tick_duration": get_tick_duration(),
+        "tz": tzlocal.get_localzone_name(),
+    }

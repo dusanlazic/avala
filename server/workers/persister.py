@@ -1,6 +1,6 @@
 from itertools import islice
 from shared.logs import logger
-from apscheduler.schedulers.background import BlockingScheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
 from ..models import Flag, FlagResponse
 from ..config import load_user_config
 from ..database import db, connect_database

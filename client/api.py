@@ -7,7 +7,8 @@ from .config import config
 class APIClient:
     def __init__(self) -> None:
         self.conn_str: str = None
-        self.params: Dict = None
+        self.game: Dict = None
+        self.schedule: Dict = None
 
     def connect(self):
         if config.connect.password:
@@ -43,10 +44,18 @@ class APIClient:
         logger.info("Fetching game information...")
 
         try:
-            self.params = Dict(requests.get(f"{conn_str}/connect/params").json())
+            self.params = Dict(requests.get(f"{conn_str}/connect/game").json())
         except Exception as e:
             logger.error("Failed to fetch game information: %s" % e)
             exit(1)
+
+        try:
+            self.schedule = Dict(requests.get(f"{conn_str}/connect/schedule").json())
+        except Exception as e:
+            logger.error("Failed to fetch scheduling information: %s" % e)
+            exit(1)
+
+        logger.info("Connected successfully.")
 
 
 client = APIClient()
