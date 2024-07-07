@@ -23,7 +23,11 @@ def main(args):
     exploit = import_func(args.module, "exploit")
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {executor.submit(exploit, target): target for target in args.targets}
+        futures = {
+            executor.submit(exploit, target): target
+            for target in args.targets
+            if target not in [client.game.team_ip, client.game.nop_team_ip]
+        }
 
         for future in concurrent.futures.as_completed(futures):
             target = futures[future]

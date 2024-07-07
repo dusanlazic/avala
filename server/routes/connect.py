@@ -25,6 +25,7 @@ async def enqueue(_: Annotated[str, Depends(basic_auth)]):
     return {
         "flag_format": config.game.flag_format,
         "team_ip": config.game.team_ip,
+        "nop_team_ip": config.game.nop_team_ip or None,
     }
 
 

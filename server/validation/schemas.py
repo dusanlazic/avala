@@ -9,13 +9,11 @@ game_schema = {
                 {"type": "array", "items": {"type": "string", "format": "hostname"}},
             ]
         },
+        "nop_team_ip": {"type": "string", "format": "hostname"},
         "start_time": {
             "type": "string",
             "pattern": "^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$",
         },
-        "teams_json_url": {"type": "string", "format": "uri"},
-        "teams_json_key": {"type": "string"},
-        "team_ip_format": {"type": "string"},
     },
     "required": ["tick_duration", "flag_format", "team_ip"],
     "additionalProperties": False,

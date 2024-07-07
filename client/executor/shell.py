@@ -17,6 +17,7 @@ def main(args):
         futures = {
             executor.submit(exploit, args.command, target): target
             for target in args.targets
+            if target not in [client.game.team_ip, client.game.nop_team_ip]
         }
 
         for future in concurrent.futures.as_completed(futures):
