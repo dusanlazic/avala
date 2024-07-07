@@ -104,9 +104,9 @@ def configure_socketio(app: FastAPI):
 def create_dot_dir():
     if not DOT_DIR_PATH.exists():
         DOT_DIR_PATH.mkdir()
-        logger.info("Created .fast directory.")
+        logger.info("Created .avala directory.")
     else:
-        logger.info("Found .fast directory.")
+        logger.info("Found .avala directory.")
 
 
 def show_banner():

@@ -18,6 +18,7 @@ def main():
     load_user_config()
 
     client.connect()
+    client.export_settings()
 
     next_tick_start = convert_to_local_tz(
         client.schedule.next_tick_start,
@@ -28,7 +29,7 @@ def main():
         func=schedule_exploits,
         trigger="interval",
         seconds=client.schedule.tick_duration,
-        id="exploit_scheduler",
+        id="schedule_exploits",
         next_run_time=next_tick_start,
     )
 

@@ -1,4 +1,5 @@
 from shared.logs import logger
+from shared.util import colorize
 from typing import Annotated
 from fastapi import APIRouter, Depends, BackgroundTasks
 from pydantic import BaseModel
@@ -14,7 +15,6 @@ router = APIRouter(prefix="/flags", tags=["Flags"])
 class EnqueueBody(BaseModel):
     values: list[str]
     exploit: str
-    player: str
     target: str
 
 
@@ -22,7 +22,7 @@ class EnqueueBody(BaseModel):
 async def enqueue(
     flags: EnqueueBody,
     bg: BackgroundTasks,
-    _: Annotated[str, Depends(basic_auth)],
+    username: Annotated[str, Depends(basic_auth)],
 ):
     with db.connection_context():
         duplicate_flags = Flag.select(Flag.value).where(Flag.value.in_(flags.values))
@@ -38,7 +38,7 @@ async def enqueue(
                     "exploit": flags.exploit,
                     "target": flags.target,
                     "tick": current_tick,
-                    "player": flags.player,
+                    "player": username,
                     "status": "queued",
                 }
                 for value in new_flag_values
@@ -49,15 +49,18 @@ async def enqueue(
         bg.add_task(rabbit.queues.submission_queue.put, flag)
 
     logger.info(
-        "<bold>%d</bold> flags from <bold>%s</bold> using <bold>%s, %s</bold> -> <green>%d new</green> - <yellow>%d duplicates</yellow>."
+        "📥 <bold>%d</> flags from <bold>%s</> via <bold>%s</> by <bold>%s</> (<green>%d</> new, <yellow>%d</> duplicates)."
         % (
             len(flags.values),
-            flags.target,
-            flags.exploit,
-            flags.player,
+            colorize(flags.target),
+            colorize(flags.exploit),
+            username,
             len(new_flag_values),
             len(dup_flag_values),
         )
     )
 
-    return {"discarded": dup_flag_values, "enqueued": new_flag_values}
+    return {
+        "discarded": len(dup_flag_values),
+        "enqueued": len(new_flag_values),
+    }

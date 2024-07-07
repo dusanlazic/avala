@@ -6,8 +6,7 @@ from shared.validation import validate_data
 from .validation.custom import validate_delay, validate_interval
 from .validation.schemas import server_yaml_schema
 
-DOT_DIR_PATH = Path(".fast")
-STATE_FILE_PATH = DOT_DIR_PATH / "state.json"
+DOT_DIR_PATH = Path(".avala")
 
 config = Dict(
     {

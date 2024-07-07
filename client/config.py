@@ -5,6 +5,8 @@ from shared.logs import logger
 from shared.validation import validate_data
 from .validation.schemas import client_yaml_schema
 
+DOT_DIR_PATH = Path(".avala")
+
 config = Dict(
     {
         "connect": {
