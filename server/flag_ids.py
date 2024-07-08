@@ -1,50 +1,38 @@
 import os
 import sys
 import json
-import time
 import hashlib
+import asyncio
 from importlib import import_module, reload
-from shared.logs import logger
-from .config import config
-from .state import set_state, get_state
+from .state import state
+
+
+flag_ids_updated_event: asyncio.Event = asyncio.Event()
 
 
 def reload_flag_ids():
-    logger.debug("Reloading flag ids")
+    fetch_json, process_json = import_user_functions()
 
-    fetch, process = import_user_functions()
+    json_updated = False
+    while not json_updated:
+        new_json = fetch_json()
 
-    flag_ids_updated = False
+        new_json_norm = normalize_dict(new_json)
+        new_json_str = json.dumps(new_json_norm)
+        new_json_hash = hashlib.md5(new_json_str.encode()).hexdigest()
 
-    attempts = 0
+        old_json_hash = state.teams_json_hash
 
-    while not flag_ids_updated:
-        time.sleep(1)
-        if attempts > 2:
-            break
+        json_updated = new_json_hash != old_json_hash or old_json_hash is None
+        break
 
-        teams_json = fetch()
+    processed_flag_ids = process_json(new_json)
 
-        teams_json_norm = normalize_dict(teams_json)
-        teams_json_str = json.dumps(teams_json_norm)
-        teams_json_hash = hashlib.md5(teams_json_str.encode()).hexdigest()
+    state.teams_json_hash = new_json_hash
+    state.flag_ids = json.dumps(processed_flag_ids)
 
-        old_teams_json_hash = get_state("teams_json_hash")
-
-        flag_ids_updated = (
-            old_teams_json_hash == teams_json_hash or old_teams_json_hash is None
-        )
-
-        attempts += 1
-
-    set_state("teams_json_hash", teams_json_hash)
-
-    logger.debug("Updated state %s" % teams_json_hash)
-
-    processed_flag_ids = process(teams_json)
-    set_state("flag_ids", json.dumps(processed_flag_ids))
-
-    logger.debug("Updated state flag_ids")
+    flag_ids_updated_event.set()
+    flag_ids_updated_event.clear()
 
 
 def normalize_dict(data):
@@ -72,7 +60,7 @@ def import_user_functions():
 
     imported_module = reload(import_module(module_name))
 
-    fetch_function = getattr(imported_module, "fetch_json")
-    process_function = getattr(imported_module, "process_json")
+    fetch_json = getattr(imported_module, "fetch_json")
+    process_json = getattr(imported_module, "process_json")
 
-    return fetch_function, process_function
+    return fetch_json, process_json

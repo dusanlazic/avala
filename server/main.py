@@ -16,7 +16,6 @@ from .config import config, load_user_config, DOT_DIR_PATH
 from .models import create_tables
 from .scheduler import initialize_scheduler
 from .websocket import sio, socketio
-from .state import initialize_state
 
 
 @asynccontextmanager
@@ -25,8 +24,6 @@ async def lifespan(app: FastAPI):
 
     connect_database()
     create_tables()
-
-    initialize_state()
 
     await rabbit.connect()
     await rabbit.create_queue("submission_queue", durable=True)

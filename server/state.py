@@ -2,27 +2,35 @@ from .database import db
 from .models import State
 
 
-def initialize_state():
-    with db.connection_context():
-        State.insert_many(
-            [
-                {"key": "teams_json_hash", "value": None},
-            ]
-        ).on_conflict_ignore().execute()
+class StateManager:
+    def __init__(self, db) -> None:
+        self.db = db
+
+    def get_state(self, key: str):
+        with self.db.connection_context():
+            state = State.get_or_none(State.key == key)
+            return state.value if state else None
+
+    def set_state(self, key: str, value: str):
+        with self.db.connection_context():
+            State.insert(
+                key=key,
+                value=value,
+            ).on_conflict(
+                conflict_target=[State.key],
+                preserve=[State.value],
+            ).execute()
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(f"'StateManager' object has no attribute '{name}'")
+        return self.get_state(name)
+
+    def __setattr__(self, name, value):
+        if name.startswith("_") or name == "db":
+            super().__setattr__(name, value)
+        else:
+            self.set_state(name, value)
 
 
-def get_state(key: str):
-    with db.connection_context():
-        state = State.get_or_none(State.key == key)
-        return state.value if state else None
-
-
-def set_state(key: str, value: str):
-    with db.connection_context():
-        State.insert(
-            key=key,
-            value=value,
-        ).on_conflict(
-            conflict_target=[State.key],
-            preserve=[State.value],
-        ).execute()
+state = StateManager(db)
