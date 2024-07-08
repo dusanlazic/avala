@@ -81,10 +81,9 @@ colors = [
 
 
 def hash_to_color(s):
-    hash_object = hashlib.md5(s.encode())
-    hash_hex = hash_object.hexdigest()
-    hash_int = int(hash_hex, 16)
-    return colors[hash_int % len(colors)]
+    hash_hex = hashlib.md5(s.encode()).hexdigest()
+    hash_dec = int(hash_hex, 16)
+    return colors[hash_dec % len(colors)]
 
 
 def colorize(s):

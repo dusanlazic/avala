@@ -2,7 +2,7 @@ import json
 from collections import namedtuple
 from shared.logs import logger
 from datetime import datetime
-from peewee import Model, CharField, DateTimeField, IntegerField, Check
+from peewee import Model, CharField, TextField, DateTimeField, IntegerField, Check
 from .database import db
 
 
@@ -33,8 +33,13 @@ class FlagResponse(namedtuple("FlagResponse", "value status response")):
         return FlagResponse(**json.loads(response))
 
 
+class State(BaseModel):
+    key = CharField(unique=True)
+    value = TextField(null=True)
+
+
 def create_tables():
-    db.create_tables([Flag])
+    db.create_tables([Flag, State])
     Flag.add_index(Flag.value)
 
     logger.info("Created tables and indexes.")

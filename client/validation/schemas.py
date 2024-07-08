@@ -38,6 +38,13 @@ exploit_schema = {
             "type": "array",
             "items": {"type": "string"},
         },
+        "skip": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "service": {
+            "type": "string",
+        },
         "module": {
             "type": "string",
         },
@@ -75,7 +82,10 @@ exploit_schema = {
             "exclusiveMinimum": 0,
         },
     },
-    "required": ["name", "targets"],
+    "oneOf": [
+        {"required": ["name", "targets"], "not": {"required": ["service"]}},
+        {"required": ["name", "service"], "not": {"required": ["targets"]}},
+    ],
     "additionalProperties": False,
 }
 

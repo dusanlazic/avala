@@ -11,10 +11,12 @@ from .mq.rabbit_async import rabbit
 from .database import connect_database, disconnect_database
 from .routes.flags import router as flags_router
 from .routes.connect import router as connect_router
+from .routes.flag_ids import router as flag_ids_router
 from .config import config, load_user_config, DOT_DIR_PATH
 from .models import create_tables
 from .scheduler import initialize_scheduler
 from .websocket import sio, socketio
+from .state import initialize_state
 
 
 @asynccontextmanager
@@ -23,6 +25,8 @@ async def lifespan(app: FastAPI):
 
     connect_database()
     create_tables()
+
+    initialize_state()
 
     await rabbit.connect()
     await rabbit.create_queue("submission_queue", durable=True)
@@ -49,6 +53,7 @@ def main():
 
     app.include_router(flags_router)
     app.include_router(connect_router)
+    app.include_router(flag_ids_router)
 
     configure_cors(app)
     configure_socketio(app)
