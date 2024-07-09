@@ -1,8 +1,8 @@
 import yaml
+import concurrent.futures
 from pathlib import Path
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
-from apscheduler.schedulers.background import BackgroundScheduler
 from shared.logs import logger
 from shared.util import convert_to_local_tz
 from .config import load_user_config
@@ -10,7 +10,7 @@ from .exploit import Exploit
 from .api import client
 
 
-scheduler: BackgroundScheduler = BlockingScheduler()
+scheduler: BlockingScheduler = BlockingScheduler()
 
 
 def main():
@@ -41,7 +41,7 @@ def main():
         logger.info("Thanks for using Avala!")
 
 
-def reload_exploits():
+def reload_exploits(future):
     for ext in ["yml", "yaml"]:
         if Path(f"avala.{ext}").is_file():
             with open(f"avala.{ext}", "r") as file:
@@ -54,21 +54,29 @@ def reload_exploits():
         logger.error("avala.yaml/.yml not found in the current working directory.")
         return
 
-    exploits = [Exploit(e) for e in user_config.get("exploits")]
+    exploits = [Exploit(e, future) for e in user_config.get("exploits")]
 
     logger.debug(f"Loaded {len(exploits)} exploits.")
     return exploits
 
 
 def schedule_exploits():
-    exploits = reload_exploits()
-    for exploit in exploits:
-        if not exploit.batching:
+    executor = concurrent.futures.ThreadPoolExecutor()
+    future = executor.submit(client.wait_for_flag_ids)
+
+    exploits = reload_exploits(future)
+
+    dynamic_target_exploits = [e for e in exploits if e.service]
+    fixed_target_exploits = [e for e in exploits if not e.service]
+
+    for exploit in fixed_target_exploits + dynamic_target_exploits:
+        exploit.setup()
+        if not exploit.batches:
             scheduler.add_job(
                 exploit.run, "date", run_date=datetime.now() + exploit.delay
             )
-        elif exploit.batching:
-            for batch_idx in range(len(exploit.batching.batches)):
+        else:
+            for batch_idx in range(len(exploit.batches)):
                 scheduler.add_job(
                     exploit.run,
                     "date",
@@ -77,6 +85,8 @@ def schedule_exploits():
                     + exploit.batching.gap * batch_idx,
                     args=[batch_idx],
                 )
+
+    executor.shutdown(wait=True)
 
 
 def show_banner():

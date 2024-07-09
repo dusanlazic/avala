@@ -11,8 +11,18 @@ DOT_DIR_PATH = Path(".avala")
 config = Dict(
     {
         "game": {},
-        "server": {"host": "0.0.0.0", "port": 2023},
-        "submitter": {"module": "submitter"},
+        "server": {
+            "host": "0.0.0.0",
+            "port": 2023,
+        },
+        "submitter": {
+            "module": "submitter",
+        },
+        "flag_ids": {
+            "module": "flag_ids",
+            "max_attempts": 5,
+            "retry_interval": 2,
+        },
         "database": {
             "name": "fastdb",
             "user": "admin",

@@ -118,5 +118,17 @@ class APIClient:
             # TODO: Backup flags somewhere
             # maybe even push them directlry to rabbitmq
 
+    def wait_for_flag_ids(self):
+        response = requests.get(f"{self.conn_str}/flag_ids/subscribe")
+        response.raise_for_status()
+
+        return Dict(response.json())
+
+    def get_flag_ids(self):
+        response = requests.get(f"{self.conn_str}/flag_ids/current")
+        response.raise_for_status()
+
+        return Dict(response.json())
+
 
 client = APIClient()

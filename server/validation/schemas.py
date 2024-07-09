@@ -38,6 +38,16 @@ submitter_schema = {
     "additionalProperties": False,
 }
 
+flag_ids_schema = {
+    "type": "object",
+    "properties": {
+        "module": {"type": "string"},
+        "max_attempts": {"type": "integer", "minimum": 1},
+        "retry_interval": {"type": "number", "exclusiveMinimum": 0},
+    },
+    "additionalProperties": False,
+}
+
 server_schema = {
     "type": "object",
     "properties": {
@@ -76,6 +86,7 @@ server_yaml_schema = {
     "properties": {
         "game": game_schema,
         "submitter": submitter_schema,
+        "flag_ids": flag_ids_schema,
         "server": server_schema,
         "database": database_schema,
         "rabbitmq": rabbitmq_schema,

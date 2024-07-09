@@ -1,38 +1,86 @@
 import os
 import sys
 import json
+import time
 import hashlib
 import asyncio
 from importlib import import_module, reload
+from shared.logs import logger
 from .state import state
+from .config import config
 
 
 flag_ids_updated_event: asyncio.Event = asyncio.Event()
 
 
 def reload_flag_ids():
+    flag_ids_updated_event.clear()
+
     fetch_json, process_json = import_user_functions()
 
+    old_json_hash = state.teams_json_hash
+
     json_updated = False
+    attempts_left = config.flag_ids.max_attempts
+
     while not json_updated:
-        new_json = fetch_json()
+        try:
+            new_json = fetch_json()
+        except Exception as e:
+            attempts_left -= 1
+            logger.error("An error occurred while fetching teams.json: %s" % e)
+            logger.info(
+                "Retrying in %ds, %d attempts left."
+                % (config.flag_ids.retry_interval, attempts_left)
+            )
+            time.sleep(config.flag_ids.retry_interval)
+            if not attempts_left:
+                logger.warning(
+                    "It seems that your <bold>%s.py</> module is not working properly. Please check it."
+                    % config.flag_ids.module
+                )
+                break
+            continue
 
         new_json_norm = normalize_dict(new_json)
         new_json_str = json.dumps(new_json_norm)
         new_json_hash = hashlib.md5(new_json_str.encode()).hexdigest()
 
-        old_json_hash = state.teams_json_hash
-
         json_updated = new_json_hash != old_json_hash or old_json_hash is None
-        break
 
-    processed_flag_ids = process_json(new_json)
+        if not json_updated and attempts_left:
+            attempts_left -= 1
+            logger.info(
+                "Fetched old teams.json (<yellow>%s</>). Retrying in %ds, %d attempts left."
+                % (old_json_hash[:8], config.flag_ids.retry_interval, attempts_left)
+            )
+            time.sleep(config.flag_ids.retry_interval)
+        else:
+            break
 
-    state.teams_json_hash = new_json_hash
-    state.flag_ids = json.dumps(processed_flag_ids)
+    if json_updated:
+        logger.info(
+            "Fetched new teams.json (<yellow>%s</> -> <green>%s</>)."
+            % (str(old_json_hash)[:8], new_json_hash[:8])
+        )
+
+        processed_flag_ids = process_json(new_json)
+
+        state.teams_json_hash = new_json_hash
+        state.flag_ids = json.dumps(processed_flag_ids)
+    elif old_json_hash:
+        logger.info(
+            "Reusing old teams.json (<yellow>%s</>) to avoid wasting tick time."
+            % old_json_hash[:8]
+        )
+    else:
+        logger.error(
+            "Failed to fetch teams.json. Please fix your <bold>fetch</> function in your <bold>%s.py</> module."
+            % config.flag_ids.module
+        )
+        return
 
     flag_ids_updated_event.set()
-    flag_ids_updated_event.clear()
 
 
 def normalize_dict(data):
