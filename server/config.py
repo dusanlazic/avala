@@ -10,7 +10,7 @@ DOT_DIR_PATH = Path(".avala")
 
 config = Dict(
     {
-        "game": {},
+        "game": {"flag_ttl": None},
         "server": {
             "host": "0.0.0.0",
             "port": 2023,

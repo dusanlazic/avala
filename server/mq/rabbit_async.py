@@ -17,9 +17,10 @@ class RabbitQueue:
         await self.channel.declare_queue(self.routing_key, durable=self.durable)
         logger.info(f"Declared queue {self.routing_key}.")
 
-    async def put(self, message):
+    async def put(self, message, ttl=None):
         await self.channel.default_exchange.publish(
-            aio_pika.Message(body=message.encode()), routing_key=self.routing_key
+            aio_pika.Message(body=message.encode(), expiration=ttl),
+            routing_key=self.routing_key,
         )
 
     async def ack(self, delivery_tag, multiple=False):

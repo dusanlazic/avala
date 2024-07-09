@@ -8,6 +8,7 @@ from server.models import Flag
 from server.database import db
 from server.mq.rabbit_async import rabbit
 from server.scheduler import get_tick_number
+from server.config import config
 
 router = APIRouter(prefix="/flags", tags=["Flags"])
 
@@ -46,7 +47,7 @@ async def enqueue(
         ).on_conflict_ignore().execute()
 
     for flag in new_flag_values:
-        bg.add_task(rabbit.queues.submission_queue.put, flag)
+        bg.add_task(rabbit.queues.submission_queue.put, flag, ttl=config.game.flag_ttl)
 
     logger.info(
         "📥 <bold>%d</> flags from <bold>%s</> via <bold>%s</> by <bold>%s</> (<green>%d</> new, <yellow>%d</> duplicates)."
