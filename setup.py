@@ -22,14 +22,12 @@ setup(
         "addict",
         "pika",
         "aio_pika",
+        "click",
     ],
     packages=["server", "client", "shared"],
     entry_points={
         "console_scripts": [
-            "av_server=server.main:main",
-            "av_persister=server.workers.persister:main",
-            "av_submitter=server.workers.submitter:main",
-            "av_client=client.main:main",
+            "av=shared.cli:cli",
         ]
     },
 )
