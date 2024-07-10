@@ -1,12 +1,12 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
-    name="fast",
-    version="2.0.0",
-    description="Flag Acquisition and Submission Tool ─ Easily manage your exploits in A/D competitions",
+    name="avala",
+    version="0.1.0",
+    description="Avala ─ A/D attack tool used by ECSC Team Serbia.",
     author="Dušan Lazić",
     author_email="lazicdusan@protonmail.com",
-    url="https://lazicdusan.com/fast",
+    url="https://lazicdusan.com/avala",
     install_requires=[
         "requests",
         "loguru",
@@ -23,18 +23,7 @@ setup(
         "pika",
         "aio_pika",
     ],
-    packages=["client", "server", "shared"],
-    package_data={"web": ["dist/*", "dist/assets/*"]},
-    py_modules=[
-        "cli",
-        "client",
-        "database",
-        "dsl",
-        "handler",
-        "models",
-        "runner",
-        "server",
-    ],
+    packages=["server", "client", "shared"],
     entry_points={
         "console_scripts": [
             "av_server=server.main:main",

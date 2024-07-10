@@ -24,7 +24,7 @@ config = Dict(
             "retry_interval": 2,
         },
         "database": {
-            "name": "fastdb",
+            "name": "avala",
             "user": "admin",
             "password": "admin",
             "host": "localhost",
