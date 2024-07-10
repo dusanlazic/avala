@@ -1,11 +1,12 @@
 import re
 import os
 import sys
+import json
 import shlex
 import argparse
 import subprocess
 import concurrent.futures
-from typing import Callable, Any
+from typing import Callable
 from importlib import import_module
 from shared.logs import logger
 from client.api import client
@@ -20,14 +21,23 @@ def main(args):
         elif prepare := import_func(args.module, "prepare"):
             prepare()
 
-    exploit = import_func(args.module, "exploit")
+    execute_attack = import_func(args.module, "exploit")
+
+    flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {
-            executor.submit(exploit, target): target
-            for target in args.targets
-            if target not in [client.game.team_ip, client.game.nop_team_ip]
-        }
+        if flag_ids:
+            futures = {
+                executor.submit(execute_attack, target, flag_ids[target]): target
+                for target in args.targets
+                if target not in [client.game.team_ip, client.game.nop_team_ip]
+            }
+        else:
+            futures = {
+                executor.submit(execute_attack, target): target
+                for target in args.targets
+                if target not in [client.game.team_ip, client.game.nop_team_ip]
+            }
 
         for future in concurrent.futures.as_completed(futures):
             target = futures[future]
@@ -57,7 +67,7 @@ def main(args):
             cleanup()
 
 
-def import_func(module, name) -> Callable[[str], Any]:
+def import_func(module, name) -> Callable:
     cwd = os.getcwd()
     if cwd not in sys.path:
         sys.path.append(cwd)
@@ -69,6 +79,26 @@ def import_func(module, name) -> Callable[[str], Any]:
 def match_flags(pattern: str, text: str) -> bool:
     matches = re.findall(pattern, text)
     return matches if matches else None
+
+
+def read_flag_ids(filepath: str):
+    try:
+        with open(filepath) as file:
+            return json.load(file)
+    except FileNotFoundError:
+        logger.error("Flag IDs file <bold>%s</> not found." % filepath)
+        return
+    except PermissionError:
+        logger.error("Flag IDs file <bold>%s</> is not accessible." % filepath)
+        return
+    except json.JSONDecodeError:
+        logger.error("Flag IDs file <bold>%s</> is not a valid JSON." % filepath)
+        return
+    except Exception as e:
+        logger.error(
+            "An error has occured while reading flag IDs file: %s" % e,
+        )
+        return
 
 
 if __name__ == "__main__":
@@ -97,8 +127,12 @@ if __name__ == "__main__":
         "--timeout",
         default=10,
         type=int,
-        required=True,
         help="Optional timeout for a single attack in seconds.",
+    )
+    parser.add_argument(
+        "--flag-ids-file",
+        type=str,
+        help="Path to a file containing flag IDs of the specified service.",
     )
     parser.add_argument(
         "--prepare",

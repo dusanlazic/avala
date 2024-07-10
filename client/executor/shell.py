@@ -87,6 +87,11 @@ if __name__ == "__main__":
         help="Optional timeout for a single attack in seconds.",
     )
     parser.add_argument(
+        "--flag-ids-file",
+        type=str,
+        help="Path to a file containing flag IDs of the specified service.",
+    )
+    parser.add_argument(
         "--prepare",
         type=str,
         help="Shell command to run before running the attack.",
