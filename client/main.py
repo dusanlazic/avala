@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from shared.logs import logger
-from shared.util import convert_to_local_tz
+from shared.util import convert_to_local_tz, deep_update
 from .config import load_user_config
 from .exploit import Exploit
 from .api import client
@@ -54,7 +54,12 @@ def reload_exploits(future):
         logger.error("avala.yaml/.yml not found in the current working directory.")
         return
 
-    exploits = [Exploit(e, future) for e in user_config.get("exploits")]
+    defaults = user_config.get("defaults") or {}
+
+    exploits = []
+    for exploit_def in user_config.get("exploits", []):
+        exploit_def = deep_update(defaults.copy(), exploit_def)
+        exploits.append(Exploit(exploit_def, future))
 
     logger.debug(f"Loaded {len(exploits)} exploits.")
     return exploits
