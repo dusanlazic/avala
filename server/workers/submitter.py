@@ -20,7 +20,7 @@ from ..scheduler import (
 def main():
     load_user_config()
 
-    if config.submitter.max_batch_size < 1:
+    if config.submitter.max_batch_size and config.submitter.max_batch_size < 1:
         config.submitter.max_batch_size = float("inf")
 
     worker = Submitter()
@@ -39,22 +39,7 @@ class Submitter:
         self.persisting_queue: RabbitQueue | None = None
 
         self.ready = False
-
-        try:
-            self.submit = self._import_submit_function()
-            self._initialize()
-        except ModuleNotFoundError:
-            logger.error(
-                "Module <bold>%s.py</> not found. Please make sure the file exists and it's under <bold>%s.</>"
-                % (config.submitter.module, os.getcwd())
-            )
-        except AttributeError:
-            logger.error(
-                "Required functions not found within <bold>%s.py</>. Please make sure the module contains <bold>submit</> function."
-                % config.submitter.module
-            )
-        else:
-            self.ready = True
+        self._initialize()
 
     def start(self):
         if not self.ready:
@@ -64,7 +49,11 @@ class Submitter:
         elif config.submitter.batch_size:
             self.connection.channel.start_consuming()
         elif config.submitter.streams:
-            pass
+            if self.prepare:
+                self.prepare()
+            self.connection.channel.start_consuming()
+            if self.cleanup:
+                self.cleanup()
 
     def _initialize(self):
         """Initializes threads, consumers and scheduled jobs for flag submission based on the configuration.
@@ -86,6 +75,24 @@ class Submitter:
         The function sets up different submission strategies based on the provided configuration. It automatically
         calculates the next run time for each submission job to synchronize with game ticks.
         """
+        try:
+            self.submit = self._import_user_function("submit")
+        except ModuleNotFoundError:
+            logger.error(
+                "Module <bold>%s.py</> not found. Please make sure the file exists and it's under <bold>%s.</>"
+                % (config.submitter.module, os.getcwd())
+            )
+            return
+
+        if self.submit is None:
+            logger.error(
+                "Required function not found within <bold>%s.py</>. Please make sure the module contains <bold>submit</> function."
+                % config.submitter.module
+            )
+            return
+
+        self.prepare = self._import_user_function("prepare")
+        self.cleanup = self._import_user_function("cleanup")
 
         if config.submitter.per_tick or config.submitter.interval:
             interval, next_run_time = self._calculate_next_run_time()
@@ -114,7 +121,19 @@ class Submitter:
 
             self.submission_queue.add_consumer(self._submit_flags_in_batches_consumer)
         elif config.submitter.streams:
+            self.connection = RabbitConnection()
+            self.connection.connect()
+
+            self.submission_queue = RabbitQueue(
+                self.connection.channel, "submission_queue", durable=True
+            )
+            self.persisting_queue = RabbitQueue(
+                self.connection.channel, "persisting_queue", durable=True
+            )
+
             self.submission_queue.add_consumer(self._submit_flags_in_stream_consumer)
+
+        self.ready = True
 
     def _submit_flags_in_batches_consumer(self, ch, method, properties, body):
         """TODO docstring"""
@@ -131,7 +150,7 @@ class Submitter:
         if len(self.submission_buffer) < config.submitter.batch_size:
             return  # Skip submission if batch size not reached
 
-        self._submit_flags(
+        self._submit_flags_from_buffer(
             self.submission_buffer,
             self.delivery_tag_map,
             self.persisting_queue,
@@ -183,7 +202,7 @@ class Submitter:
             if not submission_buffer:
                 break
 
-            self._submit_flags(
+            self._submit_flags_from_buffer(
                 submission_buffer,
                 delivery_tag_map,
                 persisting_queue,
@@ -192,7 +211,7 @@ class Submitter:
 
         connection.close()
 
-    def _submit_flags(
+    def _submit_flags_from_buffer(
         self,
         submission_buffer: list[str],
         delivery_tag_map: dict[str, int],
@@ -223,12 +242,32 @@ class Submitter:
             )
         )
 
+    def _submit_flag_or_exit(self, flag: str):
+        attempts = 10
+        while attempts:
+            try:
+                return self.submit(flag)
+            except:
+                attempts -= 1
+                if self.cleanup:
+                    self.cleanup()
+                if self.prepare:
+                    self.prepare()
+
+        logger.error(
+            "Failed to submit flag <bold>%s</bold>. Check your connection and rerun."
+            % flag
+        )
+        exit(1)
+
     def _submit_flags_in_stream_consumer(self, ch, method, properties, body):
         flag = body.decode().strip()
         logger.debug("Received flag <bold>%s</bold>" % flag)
 
-        response = FlagResponse(*self.submit(flag))
-        ch.ack(delivery_tag=method.delivery_tag)
+        response = FlagResponse(*self._submit_flag_or_exit(flag))
+
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        self.persisting_queue.put(response.to_json())
 
         logger.debug(
             "<green>Accepted</green> %s" % response.response
@@ -236,10 +275,8 @@ class Submitter:
             else "<red>Rejected</red> %s" % response.response
         )
 
-        self.persisting_queue.put(response.to_json())
-
-    def _import_submit_function(self):
-        """Imports and reloads the submit function that does the actual flag submission."""
+    def _import_user_function(self, function_name: str):
+        """Imports and reloads user written functions used for the actual flag submission."""
         module_name = (
             config.submitter.module if config.submitter.module else "submitter"
         )
@@ -249,9 +286,7 @@ class Submitter:
             sys.path.append(cwd)
 
         imported_module = reload(import_module(module_name))
-        submit_function = getattr(imported_module, "submit")
-
-        return submit_function
+        return getattr(imported_module, function_name, None)
 
     def _calculate_next_run_time(self) -> tuple[timedelta, datetime]:
         now = datetime.now()
