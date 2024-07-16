@@ -41,7 +41,7 @@ def main():
         logger.info("Thanks for using Avala!")
 
 
-def reload_exploits(future):
+def reload_exploits(flag_ids_future):
     for ext in ["yml", "yaml"]:
         if Path(f"avala.{ext}").is_file():
             with open(f"avala.{ext}", "r") as file:
@@ -59,7 +59,7 @@ def reload_exploits(future):
     exploits = []
     for exploit_def in user_config.get("exploits", []):
         exploit_def = deep_update(defaults.copy(), exploit_def)
-        exploits.append(Exploit(exploit_def, future))
+        exploits.append(Exploit(exploit_def, flag_ids_future))
 
     logger.debug(f"Loaded {len(exploits)} exploits.")
     return exploits
@@ -67,28 +67,32 @@ def reload_exploits(future):
 
 def schedule_exploits():
     executor = concurrent.futures.ThreadPoolExecutor()
-    future = executor.submit(client.wait_for_flag_ids)
+    flag_ids_future = executor.submit(client.wait_for_flag_ids)
 
-    exploits = reload_exploits(future)
+    exploits = reload_exploits(flag_ids_future)
 
     dynamic_target_exploits = [e for e in exploits if e.service]
     fixed_target_exploits = [e for e in exploits if not e.service]
+
+    now = datetime.now()
 
     for exploit in fixed_target_exploits + dynamic_target_exploits:
         exploit.setup()
         if not exploit.batches:
             scheduler.add_job(
-                exploit.run, "date", run_date=datetime.now() + exploit.delay
+                exploit.run,
+                "date",
+                run_date=now + exploit.delay,
+                misfire_grace_time=None,
             )
         else:
             for batch_idx in range(len(exploit.batches)):
                 scheduler.add_job(
                     exploit.run,
                     "date",
-                    run_date=datetime.now()
-                    + exploit.delay
-                    + exploit.batching.gap * batch_idx,
+                    run_date=now + exploit.delay + exploit.batching.gap * batch_idx,
                     args=[batch_idx],
+                    misfire_grace_time=None,
                 )
 
     executor.shutdown(wait=True)
