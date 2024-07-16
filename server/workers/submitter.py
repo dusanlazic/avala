@@ -1,6 +1,5 @@
 import os
 import sys
-from itertools import islice
 from shared.logs import logger
 from apscheduler.schedulers.blocking import BlockingScheduler
 from datetime import datetime, timedelta
@@ -28,14 +27,6 @@ def main():
     worker.start()
 
 
-def batched(iterable, n):
-    if n < 1:
-        raise ValueError("n must be at least one")
-    iterator = iter(iterable)
-    while batch := tuple(islice(iterator, n)):
-        yield batch
-
-
 class Submitter:
     def __init__(self) -> None:
         self.scheduler: BlockingScheduler | None = None
@@ -47,10 +38,27 @@ class Submitter:
         self.submission_queue: RabbitQueue | None = None
         self.persisting_queue: RabbitQueue | None = None
 
-        self.submit = self._import_submit_function()
-        self._initialize()
+        self.ready = False
+
+        try:
+            self.submit = self._import_submit_function()
+            self._initialize()
+        except ModuleNotFoundError:
+            logger.error(
+                "Module <bold>%s.py</> not found. Please make sure the file exists and it's under <bold>%s.</>"
+                % (config.submitter.module, os.getcwd())
+            )
+        except AttributeError:
+            logger.error(
+                "Required functions not found within <bold>%s.py</>. Please make sure the module contains <bold>submit</> function."
+                % config.submitter.module
+            )
+        else:
+            self.ready = True
 
     def start(self):
+        if not self.ready:
+            return
         if config.submitter.per_tick or config.submitter.interval:
             self.scheduler.start()
         elif config.submitter.batch_size:

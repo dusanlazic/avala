@@ -16,7 +16,18 @@ flag_ids_updated_event: asyncio.Event = asyncio.Event()
 def reload_flag_ids():
     flag_ids_updated_event.clear()
 
-    fetch_json, process_json = import_user_functions()
+    try:
+        fetch_json, process_json = import_user_functions()
+    except ModuleNotFoundError:
+        logger.error(
+            "Module <bold>%s.py</> not found. Please make sure the file exists and it's under <bold>%s.</>"
+            % (config.flag_ids.module, os.getcwd())
+        )
+    except AttributeError:
+        logger.error(
+            "Required functions not found within <bold>%s.py</>. Please make sure the module contains <bold>fetch_json</> and <bold>process_json</> functions."
+            % config.flag_ids.module
+        )
 
     old_json_hash = state.teams_json_hash
 

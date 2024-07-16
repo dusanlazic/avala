@@ -15,13 +15,29 @@ from client.api import client
 def main(args):
     client.import_settings()
 
+    execute_attack = None
+
+    try:
+        execute_attack = import_func(args.module, "exploit")
+    except ModuleNotFoundError:
+        logger.error(
+            "Exploit module <bold>%s.py</> not found. Please make sure the file exists and it's under <bold>%s.</>"
+            % (args.module, os.getcwd())
+        )
+    except AttributeError:
+        logger.error(
+            "Required exploit function not found within <bold>%s.py</>. Please make sure the module contains the <bold>exploit</> function."
+            % args.module
+        )
+
+    if not execute_attack:
+        exit(1)
+
     if args.prepare:
         if isinstance(args.prepare, str):
             subprocess.run(shlex.split(args.prepare), text=True)
         elif prepare := import_func(args.module, "prepare"):
             prepare()
-
-    execute_attack = import_func(args.module, "exploit")
 
     flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
 
