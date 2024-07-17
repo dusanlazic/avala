@@ -8,12 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from shared.logs import config as log_config
 from .mq.rabbit_async import rabbit
-from .database import connect_database, disconnect_database
 from .routes.flags import router as flags_router
 from .routes.connect import router as connect_router
 from .routes.flag_ids import router as flag_ids_router
 from .config import config, load_user_config, DOT_DIR_PATH
-from .models import create_tables
 from .scheduler import initialize_scheduler
 from .websocket import sio, socketio
 
@@ -21,9 +19,6 @@ from .websocket import sio, socketio
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_dot_dir()
-
-    connect_database()
-    create_tables()
 
     await rabbit.connect()
     await rabbit.create_queue("submission_queue", durable=True)
@@ -36,8 +31,6 @@ async def lifespan(app: FastAPI):
     print()  # Add a newline after the ^C
     logger.info("Shutting down...")
     await rabbit.close()
-
-    disconnect_database()
     scheduler.shutdown()
 
 

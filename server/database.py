@@ -1,33 +1,40 @@
 import sys
 from shared.logs import logger
-from peewee import DatabaseProxy
-from playhouse.postgres_ext import PostgresqlExtDatabase
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 from .config import config
 
-db = DatabaseProxy()
+SQLALCHEMY_DATABASE_URL = f"postgresql://{config.database.user}:{config.database.password}@{config.database.host}:{config.database.port}/{config.database.name}"
 
+try:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
 
-def connect_database():
-    postgres = PostgresqlExtDatabase(
-        config.database.name,
-        user=config.database.user,
-        password=config.database.password,
-        host=config.database.host,
-        port=config.database.port,
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    logger.error(
+        "An error occurred when connecting to the database:\n<red>%s</red>" % e
     )
+    sys.exit(1)
 
-    db.initialize(postgres)
+
+def get_db():
+    db = SessionLocal()
     try:
-        db.connect()
+        yield db
+    finally:
+        db.close()
+
+
+def test_connection():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        logger.info("Database connection established.")
     except Exception as e:
         logger.error(
             "An error occurred when connecting to the database:\n<red>%s</red>" % e
         )
         sys.exit(1)
-
-    logger.info("Connected to the database.")
-
-
-def disconnect_database():
-    db.close()
-    logger.info("Disconnected from the database.")

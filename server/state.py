@@ -1,25 +1,28 @@
-from .database import db
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import NoResultFound
+from sqlalchemy.dialects.postgresql import insert
 from .models import State
 
 
 class StateManager:
-    def __init__(self, db) -> None:
-        self.db = db
+    def __init__(self, db: Session) -> None:
+        self.db: Session = db
 
     def get_state(self, key: str):
-        with self.db.connection_context():
-            state = State.get_or_none(State.key == key)
-            return state.value if state else None
+        try:
+            state = self.db.query(State).filter(State.key == key).one()
+            return state.value
+        except NoResultFound:
+            return None
 
     def set_state(self, key: str, value: str):
-        with self.db.connection_context():
-            State.insert(
-                key=key,
-                value=value,
-            ).on_conflict(
-                conflict_target=[State.key],
-                preserve=[State.value],
-            ).execute()
+        stmt = insert(State).values(key=key, value=value)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[State.key],
+            set_={"value": value},
+        )
+        self.db.execute(stmt)
+        self.db.commit()
 
     def __getattr__(self, name):
         if name.startswith("_"):
@@ -32,5 +35,9 @@ class StateManager:
         else:
             self.set_state(name, value)
 
+    def __enter__(self):
+        return self
 
-state = StateManager(db)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.db.close()
+        self.db = None

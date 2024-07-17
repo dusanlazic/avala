@@ -1,9 +1,10 @@
 from itertools import islice
 from shared.logs import logger
+from sqlalchemy.orm import Session
 from apscheduler.schedulers.blocking import BlockingScheduler
 from ..models import Flag, FlagResponse
 from ..config import load_user_config
-from ..database import db, connect_database
+from ..database import SessionLocal
 from ..mq.rabbit import RabbitConnection
 
 BATCH_SIZE = 1000
@@ -12,9 +13,9 @@ INTERVAL = 5
 
 def main():
     load_user_config()
-    connect_database()
+    db = SessionLocal()
 
-    worker = Persister()
+    worker = Persister(db)
     worker.start()
 
 
@@ -27,8 +28,9 @@ def batched(iterable, n):
 
 
 class Persister:
-    def __init__(self) -> None:
+    def __init__(self, db: Session) -> None:
         self.scheduler: BlockingScheduler | None = None
+        self.db = db
         self._initialize()
 
     def start(self):
@@ -104,17 +106,26 @@ class Persister:
 
         flag_responses_map = {fr.value: fr for fr in persisting_buffer}
 
-        with db.atomic():
-            flag_records_to_update = Flag.select().where(
-                Flag.value.in_(list(flag_responses_map.keys()))
+        with self.db.begin():
+            flag_records_to_update = (
+                self.db.query(Flag)
+                .filter(Flag.value.in_(list(flag_responses_map.keys())))
+                .all()
             )
-            for flag in flag_records_to_update:
-                flag.status = flag_responses_map[flag.value].status
-                flag.response = flag_responses_map[flag.value].response
 
-            updated_count = Flag.bulk_update(
-                flag_records_to_update, fields=[Flag.status, Flag.response]
-            )
+            updates = []
+            for flag in flag_records_to_update:
+                updates.append(
+                    {
+                        "id": flag.id,
+                        "status": flag_responses_map[flag.value].status,
+                        "response": flag_responses_map[flag.value].response,
+                    }
+                )
+
+            self.db.bulk_update_mappings(Flag, updates)
+            self.db.commit()
+            updated_count = len(updates)
 
             logger.info("Updated %d records." % updated_count)
 

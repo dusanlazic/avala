@@ -1,27 +1,32 @@
 import json
+from sqlalchemy import Column, Text, Integer, String, DateTime, func
+from sqlalchemy.schema import CheckConstraint
 from collections import namedtuple
 from shared.logs import logger
-from datetime import datetime
-from peewee import Model, CharField, TextField, DateTimeField, IntegerField, Check
-from .database import db
+from .database import Base, engine
 
 
-class BaseModel(Model):
-    class Meta:
-        database = db
+class Flag(Base):
+    __tablename__ = "flags"
+
+    id = Column(Integer, primary_key=True)  # Add an explicit primary key column
+    value = Column(String, unique=True, index=True)
+    exploit = Column(String)
+    player = Column(String)
+    tick = Column(Integer)
+    target = Column(String)
+    timestamp = Column(DateTime, default=func.now())
+    status = Column(String, nullable=False)
+    response = Column(String, nullable=True)
+
+    __table_args__ = (CheckConstraint("status IN ('queued', 'accepted', 'rejected')"),)
 
 
-class Flag(BaseModel):
-    value = CharField(unique=True)
-    exploit = CharField()
-    player = CharField()
-    tick = IntegerField()
-    target = CharField()
-    timestamp = DateTimeField(default=datetime.now)
-    status = CharField(
-        constraints=[Check("status IN ('queued', 'accepted', 'rejected')")]
-    )
-    response = CharField(null=True)
+class State(Base):
+    __tablename__ = "states"
+
+    key = Column(String, primary_key=True)
+    value = Column(Text, nullable=True)
 
 
 class FlagResponse(namedtuple("FlagResponse", "value status response")):
@@ -31,15 +36,3 @@ class FlagResponse(namedtuple("FlagResponse", "value status response")):
     @staticmethod
     def from_json(response):
         return FlagResponse(**json.loads(response))
-
-
-class State(BaseModel):
-    key = CharField(unique=True)
-    value = TextField(null=True)
-
-
-def create_tables():
-    db.create_tables([Flag, State])
-    Flag.add_index(Flag.value)
-
-    logger.info("Created tables and indexes.")

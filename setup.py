@@ -11,7 +11,7 @@ setup(
         "requests",
         "loguru",
         "pyyaml",
-        "peewee",
+        "sqlalchemy",
         "psycopg2-binary",
         "pyparsing",
         "jsonschema",
