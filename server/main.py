@@ -11,6 +11,7 @@ from .mq.rabbit_async import rabbit
 from .routes.flags import router as flags_router
 from .routes.connect import router as connect_router
 from .routes.flag_ids import router as flag_ids_router
+from .database import create_tables
 from .config import config, load_user_config, DOT_DIR_PATH
 from .scheduler import initialize_scheduler
 from .websocket import sio, socketio
@@ -19,6 +20,7 @@ from .websocket import sio, socketio
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_dot_dir()
+    create_tables()
 
     await rabbit.connect()
     await rabbit.create_queue("submission_queue", durable=True)

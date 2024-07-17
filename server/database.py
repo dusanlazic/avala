@@ -11,8 +11,6 @@ try:
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base = declarative_base()
-
-    Base.metadata.create_all(bind=engine)
 except Exception as e:
     logger.error(
         "An error occurred when connecting to the database:\n<red>%s</red>" % e
@@ -26,6 +24,10 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def create_tables():
+    Base.metadata.create_all(bind=engine)
 
 
 def test_connection():
