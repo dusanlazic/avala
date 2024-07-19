@@ -1,6 +1,7 @@
 import json
 import asyncio
 import requests
+from datetime import datetime
 from requests.auth import HTTPBasicAuth
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
@@ -30,17 +31,11 @@ async def collect_queue_stats():
         submission_rate = int(data["message_stats"]["ack_details"]["rate"])
         retrieval_rate = int(data["message_stats"]["publish_details"]["rate"])
 
-        submission_history = calculate_differences(
-            [
-                sample["sample"]
-                for sample in data["message_stats"]["ack_details"]["samples"]
-            ][::-1]
+        submission_history = transform_rabbitmq_stats(
+            data["message_stats"]["ack_details"]["samples"][::-1]
         )
-        retrieval_history = calculate_differences(
-            [
-                sample["sample"]
-                for sample in data["message_stats"]["publish_details"]["samples"]
-            ][::-1]
+        retrieval_history = transform_rabbitmq_stats(
+            data["message_stats"]["publish_details"]["samples"][::-1]
         )
 
         queued_flags_count = data["messages"]
@@ -60,6 +55,15 @@ async def queues():
     return StreamingResponse(collect_queue_stats(), media_type="application/x-ndjson")
 
 
-calculate_differences = lambda numbers: list(
-    map(lambda x, y: x - y, numbers[1:], numbers[:-1])
+transform_rabbitmq_stats = lambda items: list(
+    map(
+        lambda x, y: {
+            "sample": x["sample"] - y["sample"],
+            "timestamp": datetime.fromtimestamp(x["timestamp"] / 1000).strftime(
+                "%H:%M:%S"
+            ),
+        },
+        items[1:],
+        items[:-1],
+    )
 )
