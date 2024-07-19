@@ -1,17 +1,22 @@
 import json
 import asyncio
 import requests
+from typing import Annotated
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from server.config import config
-from addict import Dict
+from server.database import get_db
+from server.models import Flag
+from server.scheduler import get_tick_number
 
 router = APIRouter(prefix="/stats", tags=["Statistics"])
 
 
-async def collect_queue_stats():
+async def collect_stats(db: Session):
     params = {
         "lengths_age": 90,
         "lengths_incr": 1,
@@ -20,6 +25,7 @@ async def collect_queue_stats():
         "data_rates_age": 90,
         "data_rates_incr": 1,
     }
+
     while True:
         response = requests.get(
             f"http://{config.rabbitmq.host}:15672/api/queues/%2F/submission_queue",
@@ -38,21 +44,25 @@ async def collect_queue_stats():
             data["message_stats"]["publish_details"]["samples"][::-1]
         )
 
-        queued_flags_count = data["messages"]
+        queued_count = data["messages"]
+
+        accepted_count = (
+            db.query(func.count(Flag.id)).filter(Flag.status == "accepted").scalar()
+        )
+        rejected_count = (
+            db.query(func.count(Flag.id)).filter(Flag.status == "rejected").scalar()
+        )
 
         yield json.dumps(
             {
-                "queued": queued_flags_count,
+                "queued": queued_count,
+                "accepted": accepted_count,
+                "rejected": rejected_count,
                 "submission": {"rate": submission_rate, "history": submission_history},
                 "retrieval": {"rate": retrieval_rate, "history": retrieval_history},
             }
         ) + "\n"
         await asyncio.sleep(1)
-
-
-@router.get("/queues")
-async def queues():
-    return StreamingResponse(collect_queue_stats(), media_type="application/x-ndjson")
 
 
 transform_rabbitmq_stats = lambda items: list(
@@ -67,3 +77,39 @@ transform_rabbitmq_stats = lambda items: list(
         items[:-1],
     )
 )
+
+
+@router.get("/subscribe")
+async def stats(db: Annotated[Session, Depends(get_db)]):
+    return StreamingResponse(collect_stats(db), media_type="application/x-ndjson")
+
+
+@router.get("/exploits")
+async def exploits(db: Annotated[Session, Depends(get_db)]):
+    last_tick = get_tick_number() - 1
+    ten_ticks_ago = last_tick - 9
+
+    results = (
+        db.query(Flag.exploit, Flag.tick, func.count(Flag.id).label("accepted_count"))
+        .filter(Flag.status == "accepted", Flag.tick >= ten_ticks_ago)
+        .group_by(Flag.exploit, Flag.tick)
+        .order_by(Flag.exploit, Flag.tick)
+        .all()
+    )
+
+    all_ticks = list(range(ten_ticks_ago, last_tick + 1))
+
+    exploits_history = {}
+    for result in results:
+        if result.exploit not in exploits_history:
+            exploits_history[result.exploit] = {
+                "name": result.exploit,
+                "history": [{"tick": tick, "accepted": 0} for tick in all_ticks],
+            }
+        # Update counts for ticks where flags were accepted
+        for item in exploits_history[result.exploit]["history"]:
+            if item["tick"] == result.tick:
+                item["accepted"] = result.accepted_count
+
+    response = [data for data in exploits_history.values()]
+    return response

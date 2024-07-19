@@ -10,6 +10,7 @@ from server.scheduler import (
     get_tick_elapsed,
     get_tick_duration,
     get_first_tick_start,
+    get_tick_number,
 )
 
 router = APIRouter(prefix="/connect", tags=["Connect"])
@@ -33,6 +34,7 @@ async def enqueue(_: Annotated[str, Depends(basic_auth)]):
 async def schedule(_: Annotated[str, Depends(basic_auth)]):
     now = datetime.now()
     return {
+        "tick_number": get_tick_number(),
         "first_tick_start": get_first_tick_start(),
         "next_tick_start": get_next_tick_start(now),
         "tick_elapsed": get_tick_elapsed(now),
