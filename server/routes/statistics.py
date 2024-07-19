@@ -1,17 +1,16 @@
+import json
+import asyncio
 import requests
 from requests.auth import HTTPBasicAuth
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from server.config import config
 from addict import Dict
 
 router = APIRouter(prefix="/stats", tags=["Statistics"])
 
 
-@router.get("/queues")
-async def queues():
-    vhost = "%2F"
-    queue_name = "submission_queue"
-
+async def collect_queue_stats():
     params = {
         "lengths_age": 90,
         "lengths_incr": 1,
@@ -20,34 +19,45 @@ async def queues():
         "data_rates_age": 90,
         "data_rates_incr": 1,
     }
+    while True:
+        response = requests.get(
+            f"http://{config.rabbitmq.host}:15672/api/queues/%2F/submission_queue",
+            auth=HTTPBasicAuth(config.rabbitmq.user, config.rabbitmq.password),
+            params=params,
+        )
+        data = response.json()
 
-    response = requests.get(
-        f"http://{config.rabbitmq.host}:15672/api/queues/{vhost}/{queue_name}",
-        auth=HTTPBasicAuth(
-            config.rabbitmq.user,
-            config.rabbitmq.password,
-        ),
-        params=params,
-    )
-    data = Dict(response.json())
+        submission_rate = int(data["message_stats"]["ack_details"]["rate"])
+        retrieval_rate = int(data["message_stats"]["publish_details"]["rate"])
 
-    submission_rate = int(data.message_stats.ack_details.rate)
-    retrieval_rate = int(data.message_stats.publish_details.rate)
+        submission_history = calculate_differences(
+            [
+                sample["sample"]
+                for sample in data["message_stats"]["ack_details"]["samples"]
+            ][::-1]
+        )
+        retrieval_history = calculate_differences(
+            [
+                sample["sample"]
+                for sample in data["message_stats"]["publish_details"]["samples"]
+            ][::-1]
+        )
 
-    submission_history = calculate_differences(
-        [sample.sample for sample in data.message_stats.ack_details.samples][::-1]
-    )
-    retrieval_history = calculate_differences(
-        [sample.sample for sample in data.message_stats.publish_details.samples][::-1]
-    )
+        queued_flags_count = data["messages"]
 
-    queued_flags_count = data.messages
+        yield json.dumps(
+            {
+                "queued": queued_flags_count,
+                "submission": {"rate": submission_rate, "history": submission_history},
+                "retrieval": {"rate": retrieval_rate, "history": retrieval_history},
+            }
+        ) + "\n"
+        await asyncio.sleep(1)
 
-    return {
-        "queued": queued_flags_count,
-        "submission": {"rate": submission_rate, "history": submission_history},
-        "retrieval": {"rate": retrieval_rate, "history": retrieval_history},
-    }
+
+@router.get("/queues")
+async def queues():
+    return StreamingResponse(collect_queue_stats(), media_type="application/x-ndjson")
 
 
 calculate_differences = lambda numbers: list(

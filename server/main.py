@@ -74,8 +74,8 @@ def configure_logging():
 
 
 def configure_cors(app: FastAPI):
-    dev_origins = ["*"]
-    prod_origins = ["*"]
+    dev_origins = ["http://localhost:5173"]
+    prod_origins = ["http://localhost:5173"]
 
     app.add_middleware(
         CORSMiddleware,
