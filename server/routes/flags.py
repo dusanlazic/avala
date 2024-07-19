@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +14,9 @@ from shared.util import colorize
 from typing import Annotated
 
 router = APIRouter(prefix="/flags", tags=["Flags"])
+
+
+flags_arrived_event_queue: asyncio.Queue = asyncio.Queue()
 
 
 class EnqueueBody(BaseModel):
@@ -52,6 +56,16 @@ async def enqueue(
 
     for flag in new_flag_values:
         bg.add_task(rabbit.queues.submission_queue.put, flag, ttl=config.game.flag_ttl)
+
+    flags_arrived_event_queue.put_nowait(
+        {
+            "target": flags.target,
+            "exploit": flags.exploit,
+            "player": username,
+            "duplicates": len(dup_flag_values),
+            "enqueued": len(new_flag_values),
+        }
+    )
 
     logger.info(
         "📥 <bold>%d</> flags from <bold>%s</> via <bold>%s</> by <bold>%s</> (<green>%d</> new, <yellow>%d</> duplicates)."

@@ -12,6 +12,7 @@ from server.config import config
 from server.database import get_db
 from server.models import Flag
 from server.scheduler import get_tick_number
+from server.routes.flags import flags_arrived_event_queue
 
 router = APIRouter(prefix="/stats", tags=["Statistics"])
 
@@ -113,3 +114,14 @@ async def exploits(db: Annotated[Session, Depends(get_db)]):
 
     response = [data for data in exploits_history.values()]
     return response
+
+
+async def arriving_flags():
+    while True:
+        event = await flags_arrived_event_queue.get()
+        yield json.dumps(event) + "\n"
+
+
+@router.get("/exploits/subscribe")
+async def live_exploits():
+    return StreamingResponse(arriving_flags(), media_type="application/x-ndjson")
