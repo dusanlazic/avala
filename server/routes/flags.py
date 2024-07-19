@@ -9,14 +9,12 @@ from server.database import get_db
 from server.mq.rabbit_async import rabbit
 from server.scheduler import get_tick_number
 from server.config import config
+from server.broadcast import broadcast
 from shared.logs import logger
 from shared.util import colorize
 from typing import Annotated
 
 router = APIRouter(prefix="/flags", tags=["Flags"])
-
-
-flags_arrived_event_queue: asyncio.Queue = asyncio.Queue()
 
 
 class EnqueueBody(BaseModel):
@@ -57,14 +55,15 @@ async def enqueue(
     for flag in new_flag_values:
         bg.add_task(rabbit.queues.submission_queue.put, flag, ttl=config.game.flag_ttl)
 
-    flags_arrived_event_queue.put_nowait(
-        {
+    await broadcast.publish(
+        channel="flag_reports",
+        message={
             "target": flags.target,
             "exploit": flags.exploit,
             "player": username,
             "duplicates": len(dup_flag_values),
             "enqueued": len(new_flag_values),
-        }
+        },
     )
 
     logger.info(

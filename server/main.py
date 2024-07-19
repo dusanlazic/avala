@@ -16,16 +16,16 @@ from .database import create_tables
 from .config import config, load_user_config, DOT_DIR_PATH
 from .scheduler import initialize_scheduler
 from .websocket import sio, socketio
+from .broadcast import broadcast
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_dot_dir()
     create_tables()
-
     await rabbit.connect()
     await rabbit.create_queue("submission_queue", durable=True)
-
+    await broadcast.connect()
     scheduler = initialize_scheduler()
     scheduler.start()
 
@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI):
     print()  # Add a newline after the ^C
     logger.info("Shutting down...")
     await rabbit.close()
+    await broadcast.disconnect()
     scheduler.shutdown()
 
 
