@@ -27,7 +27,7 @@ setup(
     packages=["server", "client", "shared"],
     entry_points={
         "console_scripts": [
-            "av=shared.cli:cli",
+            "avl=shared.cli:cli",
         ]
     },
 )
