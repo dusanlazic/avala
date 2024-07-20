@@ -137,18 +137,14 @@ async def search(
         )
 
     # Select sorting
-    sort_expressions = (
-        [
-            (
-                getattr(Flag, item["field"]).desc()
-                if item["direction"] == "desc"
-                else getattr(Flag, item["field"])
-            )
-            for item in sort
-        ]
-        if sort
-        else []
-    )
+    sort_expressions = []
+    if sort:
+        for item in sort:
+            field, *order = item.split()
+            expression = getattr(Flag, field)
+            if order and order[0] == "desc":
+                expression = expression.desc()
+            sort_expressions.append(expression)
 
     # Run query
     start = time.time()
