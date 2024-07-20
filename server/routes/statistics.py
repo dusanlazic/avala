@@ -18,20 +18,18 @@ router = APIRouter(prefix="/stats", tags=["Statistics"])
 
 
 async def collect_stats(db: Session):
-    params = {
-        "lengths_age": 90,
-        "lengths_incr": 1,
-        "msg_rates_age": 90,
-        "msg_rates_incr": 1,
-        "data_rates_age": 90,
-        "data_rates_incr": 1,
-    }
-
     while True:
         response = requests.get(
             f"http://{config.rabbitmq.host}:15672/api/queues/%2F/submission_queue",
             auth=HTTPBasicAuth(config.rabbitmq.user, config.rabbitmq.password),
-            params=params,
+            params={
+                "lengths_age": 90,
+                "lengths_incr": 1,
+                "msg_rates_age": 90,
+                "msg_rates_incr": 1,
+                "data_rates_age": 90,
+                "data_rates_incr": 1,
+            },
         )
         data = response.json()
 
@@ -85,7 +83,7 @@ async def stats(db: Annotated[Session, Depends(get_db)]):
     return StreamingResponse(collect_stats(db), media_type="application/x-ndjson")
 
 
-@router.get("/exploits")
+@router.get("/exploits/tick-summary")
 async def exploits(db: Annotated[Session, Depends(get_db)]):
     last_tick = get_tick_number() - 1
     ten_ticks_ago = last_tick - 9
@@ -116,12 +114,14 @@ async def exploits(db: Annotated[Session, Depends(get_db)]):
     return response
 
 
-async def arriving_flags():
-    async with broadcast.subscribe(channel="flag_reports") as subscriber:
-        async for event in subscriber:
+async def broadcast_incoming_flags():
+    async with broadcast.subscribe(channel="incoming_flags") as subscription:
+        async for event in subscription:
             yield json.dumps(event.message) + "\n"
 
 
-@router.get("/exploits/subscribe")
-async def live_exploits():
-    return StreamingResponse(arriving_flags(), media_type="application/x-ndjson")
+@router.get("/flags/subscribe")
+async def incoming_flags():
+    return StreamingResponse(
+        broadcast_incoming_flags(), media_type="application/x-ndjson"
+    )
