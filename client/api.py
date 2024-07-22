@@ -65,6 +65,8 @@ class APIClient:
 
     def export_settings(self):
         """Export the API client settings to a JSON file so executors can reuse it."""
+        DOT_DIR_PATH.mkdir(exist_ok=True)
+
         with open(DOT_DIR_PATH / "api_client.json", "w") as file:
             json.dump(
                 {
