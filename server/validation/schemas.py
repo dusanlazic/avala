@@ -55,6 +55,7 @@ server_schema = {
         "host": {"type": "string", "format": "hostname"},
         "port": {"type": "integer", "minimum": 1, "maximum": 65535},
         "password": {"type": "string"},
+        "cors": {"type": "array", "items": {"type": "string"}},
     },
     "additionalProperties": False,
 }

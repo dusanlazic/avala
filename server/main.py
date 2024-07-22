@@ -74,16 +74,9 @@ def configure_logging():
 
 
 def configure_cors(app: FastAPI):
-    dev_origins = ["http://fast.s1.ctf.rs:2023", "http://fast.s1.ctf.rs"]
-    prod_origins = ["http://fast.s1.ctf.rs:2023", "http://fast.s1.ctf.rs"]
-
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=(
-            dev_origins
-            if os.environ.get("PYTHON_ENV") == "development"
-            else prod_origins
-        ),
+        allow_origins=(config.server.cors),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

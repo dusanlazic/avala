@@ -14,6 +14,7 @@ config = Dict(
         "server": {
             "host": "0.0.0.0",
             "port": 2023,
+            "cors": ["*"],
         },
         "submitter": {
             "module": "submitter",
