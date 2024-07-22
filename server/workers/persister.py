@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from apscheduler.schedulers.blocking import BlockingScheduler
 from ..models import Flag, FlagResponse
 from ..config import load_user_config
-from ..database import SessionLocal
+from ..database import get_db_context
 from ..mq.rabbit import RabbitConnection
 
 BATCH_SIZE = 1000
@@ -13,10 +13,10 @@ INTERVAL = 5
 
 def main():
     load_user_config()
-    db = SessionLocal()
 
-    worker = Persister(db)
-    worker.start()
+    with get_db_context() as db:
+        worker = Persister(db)
+        worker.start()
 
 
 def batched(iterable, n):

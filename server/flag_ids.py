@@ -8,7 +8,7 @@ from importlib import import_module, reload
 from shared.logs import logger
 from .state import StateManager
 from .config import config
-from .database import SessionLocal
+from .database import get_db_context
 
 
 flag_ids_updated_event: asyncio.Event = asyncio.Event()
@@ -30,8 +30,7 @@ def reload_flag_ids():
             % config.flag_ids.module
         )
 
-    db = SessionLocal()
-    with StateManager(db) as state:
+    with get_db_context() as db, StateManager(db) as state:
         old_json_hash = state.teams_json_hash
 
         json_updated = False

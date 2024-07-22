@@ -12,16 +12,16 @@ from .routes.flags import router as flags_router
 from .routes.connect import router as connect_router
 from .routes.flag_ids import router as flag_ids_router
 from .routes.statistics import router as statistics_router
-from .database import create_tables
+from .database import setup_db_conn, create_tables
 from .config import config, load_user_config, DOT_DIR_PATH
 from .scheduler import initialize_scheduler
-from .websocket import sio, socketio
 from .broadcast import broadcast
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_dot_dir()
+    setup_db_conn()
     create_tables()
     await rabbit.connect()
     await rabbit.create_queue("submission_queue", durable=True)
@@ -51,7 +51,6 @@ def main():
     app.include_router(statistics_router)
 
     configure_cors(app)
-    configure_socketio(app)
 
     try:
         uvicorn.run(
@@ -75,8 +74,8 @@ def configure_logging():
 
 
 def configure_cors(app: FastAPI):
-    dev_origins = ["http://localhost:5173"]
-    prod_origins = ["http://localhost:5173"]
+    dev_origins = ["http://fast.s1.ctf.rs:2023", "http://fast.s1.ctf.rs"]
+    prod_origins = ["http://fast.s1.ctf.rs:2023", "http://fast.s1.ctf.rs"]
 
     app.add_middleware(
         CORSMiddleware,
@@ -95,10 +94,6 @@ def configure_static(app: FastAPI):
     base_dir = Path(__file__).resolve().parent
     static_folder_path = base_dir / ".." / "frontend" / "dist"
     app.mount("", StaticFiles(directory=static_folder_path), name="static")
-
-
-def configure_socketio(app: FastAPI):
-    app.mount("/", socketio.ASGIApp(sio))
 
 
 def create_dot_dir():
