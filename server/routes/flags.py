@@ -93,17 +93,18 @@ async def db_stats(db: Annotated[Session, Depends(get_db)]):
 
     current_tick_flags = db.query(Flag).filter(Flag.tick == current_tick).count()
     last_tick_flags = db.query(Flag).filter(Flag.tick == current_tick - 1).count()
-
     manually_submitted = (
         db.query(Flag)
         .filter(Flag.target == "unknown", Flag.exploit == "manual")
         .count()
     )
+    total_flags = db.query(Flag).count()
 
     return {
         "current_tick": current_tick_flags,
         "last_tick": last_tick_flags,
         "manual": manually_submitted,
+        "total": total_flags,
     }
 
 
