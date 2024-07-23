@@ -108,6 +108,25 @@ async def db_stats(db: Annotated[Session, Depends(get_db)]):
     }
 
 
+@router.get("/tick-stats")
+async def tick_stats(db: Annotated[Session, Depends(get_db)]):
+    current_tick = get_tick_number()
+
+    tick_stats = (
+        db.query(Flag.tick, func.count(Flag.id).label("count"))
+        .group_by(Flag.tick)
+        .order_by(Flag.tick)
+        .all()
+    )
+
+    tick_stats_dict = {tick: count for tick, count in tick_stats}
+
+    return [
+        {"tick": tick, "accepted": tick_stats_dict.get(tick, 0)}
+        for tick in range(1, current_tick + 1)
+    ]
+
+
 @router.get("/search")
 async def search(
     query: Optional[str] = Query(None),

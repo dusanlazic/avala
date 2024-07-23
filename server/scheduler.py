@@ -52,9 +52,9 @@ def get_tick_elapsed(now=None) -> timedelta:
 def get_tick_number(now=None) -> int:
     now = now or datetime.now()
     if not game_has_started():
-        return -1
+        return 0
 
-    return (now - get_first_tick_start()) // get_tick_duration()
+    return (now - get_first_tick_start()) // get_tick_duration() + 1
 
 
 def get_next_tick_start(now=None) -> datetime:
