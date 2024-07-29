@@ -4,3 +4,4 @@ __pycache__
 dist
 .fast
 server.yaml
+build

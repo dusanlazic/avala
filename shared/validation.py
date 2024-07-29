@@ -1,5 +1,5 @@
 from jsonschema import validate, ValidationError
-from shared.logs import logger
+from .logs import logger
 
 
 def validate_data(data, schema, custom=None):
