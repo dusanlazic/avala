@@ -8,26 +8,23 @@ import subprocess
 import concurrent.futures
 from typing import Callable
 from importlib import import_module
-from ..shared.logs import logger
-from ..api import client
+from avala.shared.logs import logger
+from avala.shared.util import colorize
+from avala.api import APIClient
 
 
 def main(args):
+    client = APIClient()
     client.import_settings()
 
     execute_attack = None
 
     try:
-        execute_attack = import_func(args.module, "exploit")
-    except ModuleNotFoundError:
+        execute_attack = import_func(args.func_name, args.module, args.directory)
+    except Exception as e:
         logger.error(
-            "Exploit module <bold>%s.py</> not found. Please make sure the file exists and it's under <bold>%s.</>"
-            % (args.module, os.getcwd())
-        )
-    except AttributeError:
-        logger.error(
-            "Required exploit function not found within <bold>%s.py</>. Please make sure the module contains the <bold>exploit</> function."
-            % args.module
+            "An error has occured while importing exploit function <bold>%s</> from <bold>%s.py</>: %s"
+            % (args.func_name, args.module, e)
         )
 
     if not execute_attack:
@@ -36,7 +33,7 @@ def main(args):
     if args.prepare:
         if isinstance(args.prepare, str):
             subprocess.run(shlex.split(args.prepare), text=True)
-        elif prepare := import_func(args.module, "prepare"):
+        elif prepare := import_func("prepare", args.module, args.directory): # TODO: Adapt to decorator API
             prepare()
 
     flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
@@ -62,7 +59,7 @@ def main(args):
             except Exception as e:
                 logger.error(
                     f"An error has occured while attacking <bold>%s</> via <bold>%s</>: %s"
-                    % (target, args.name, e),
+                    % (target, colorize(args.alias), e),
                 )
                 continue
 
@@ -70,23 +67,22 @@ def main(args):
             if not flags:
                 logger.warning(
                     "No flags retrieved from attacking <bold>%s</> via <bold>%s</>."
-                    % (target, args.name)
+                    % (target, colorize(args.alias))
                 )
                 continue
 
-            client.enqueue(flags, args.name, target)
+            client.enqueue(flags, args.alias, target)
 
     if args.cleanup:
         if isinstance(args.cleanup, str):
             subprocess.run(shlex.split(args.cleanup), text=True)
-        elif cleanup := import_func(args.module, "cleanup"):
+        elif cleanup := import_func("cleanup", args.module, args.directory):
             cleanup()
 
 
-def import_func(module, name) -> Callable:
-    cwd = os.getcwd()
-    if cwd not in sys.path:
-        sys.path.append(cwd)
+def import_func(name, module, directory = os.getcwd()) -> Callable:
+    if directory not in sys.path:
+        sys.path.append(directory)
 
     module = import_module(module)
     return getattr(module, name, None)
@@ -128,16 +124,28 @@ if __name__ == "__main__":
         help="IP addresses or hostnames of targeted teams.",
     )
     parser.add_argument(
-        "--name",
+        "--alias",
         type=str,
         required=True,
         help="Alias of the exploit for its identification.",
     )
     parser.add_argument(
+        "--func-name",
+        type=str,
+        required=True,
+        help="Name of the exploit function to be imported and executed.",
+    )
+    parser.add_argument(
         "--module",
         type=str,
         required=True,
-        help="Name of the Python module of the exploit (must contain 'exploit' function).",
+        help="Name of the Python module of the exploit.",
+    )
+    parser.add_argument(
+        "--directory",
+        type=str,
+        required=True,
+        help="Directory of the Python module of the exploit.",
     )
     parser.add_argument(
         "--timeout",

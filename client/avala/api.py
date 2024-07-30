@@ -3,11 +3,13 @@ import requests
 from addict import Dict
 from .shared.logs import logger
 from .shared.util import colorize
-from .config import config, DOT_DIR_PATH
+from .config import ConnectionConfig, DOT_DIR_PATH
 
 
 class APIClient:
-    def __init__(self) -> None:
+    def __init__(self, config: ConnectionConfig = None) -> None:
+        self.config: ConnectionConfig | None = config
+
         self.conn_str: str = None
         self.game: Dict = None
         self.schedule: Dict = None
@@ -15,24 +17,24 @@ class APIClient:
     def connect(self):
         """Connect to the server and fetch game information."""
 
-        if config.connect.password:
+        if self.config.password:
             self.conn_str = "%s://%s:%s@%s:%s" % (
-                config.connect.protocol,
-                config.connect.username,
-                config.connect.password,
-                config.connect.host,
-                config.connect.port,
+                self.config.protocol,
+                self.config.username,
+                self.config.password,
+                self.config.host,
+                self.config.port,
             )
         else:
             self.conn_str = "%s://%s:%s" % (
-                config.connect.protocol,
-                config.connect.host,
-                config.connect.port,
+                self.config.protocol,
+                self.config.host,
+                self.config.port,
             )
 
         logger.info(
             "Connecting to <blue>%s</blue>"
-            % self.conn_str.replace(":" + config.connect.password + "@", ":*****@")
+            % self.conn_str.replace(":" + self.config.password + "@", ":*****@")
         )
 
         try:
@@ -87,10 +89,10 @@ class APIClient:
             self.game = data.game
             self.schedule = data.schedule
 
-    def enqueue(self, flags, exploit_name, target):
+    def enqueue(self, flags, exploit_alias, target):
         enqueue_body = {
             "values": flags,
-            "exploit": exploit_name,
+            "exploit": exploit_alias,
             "target": target,
         }
 
@@ -105,7 +107,7 @@ class APIClient:
                     data["enqueued"],
                     len(flags),
                     colorize(target),
-                    colorize(exploit_name),
+                    colorize(exploit_alias),
                 )
             )
         except Exception as e:
@@ -113,7 +115,7 @@ class APIClient:
                 "Failed to enqueue flags from <bold>%s</> via <bold>%s</>: %s"
                 % (
                     target,
-                    exploit_name,
+                    exploit_alias,
                     e,
                 )
             )
@@ -131,6 +133,3 @@ class APIClient:
         response.raise_for_status()
 
         return Dict(response.json())
-
-
-client = APIClient()

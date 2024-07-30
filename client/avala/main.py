@@ -1,111 +1,133 @@
-import yaml
+import importlib
 import concurrent.futures
+import importlib.util
 from pathlib import Path
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from .shared.logs import logger
-from .shared.util import convert_to_local_tz, deep_update
-from .config import load_user_config
+from .shared.util import convert_to_local_tz
+from .config import ConnectionConfig
 from .exploit import Exploit
-from .api import client
-
-
-scheduler: BlockingScheduler = BlockingScheduler()
+from .api import APIClient
 
 
 class Avala:
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        protocol: str = "http",
+        host: str = "localhost",
+        port: int = 2024,
+        username: str = "anon",
+        password: str | None = None,
+    ):
+        self.config: ConnectionConfig = ConnectionConfig(
+            protocol=protocol,
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+        )
+        self.client: APIClient = None
+        self.scheduler: BlockingScheduler = None
 
+        self.exploit_directories: list[Path] = []
 
-def main():
-    show_banner()
-    load_user_config()
+        self._show_banner()
 
-    client.connect()
-    client.export_settings()
+    def run(self):
+        self._initialize_client()
+        self._initialize_scheduler()
 
-    next_tick_start = convert_to_local_tz(
-        client.schedule.next_tick_start,
-        client.schedule.tz,
-    )
+        next_tick_start = convert_to_local_tz(
+            self.client.schedule.next_tick_start,
+            self.client.schedule.tz,
+        )
 
-    scheduler.add_job(
-        func=schedule_exploits,
-        trigger="interval",
-        seconds=client.schedule.tick_duration,
-        id="schedule_exploits",
-        next_run_time=next_tick_start,
-    )
+        self.scheduler.add_job(
+            func=self._schedule_exploits,
+            trigger="interval",
+            seconds=self.client.schedule.tick_duration,
+            id="schedule_exploits",
+            next_run_time=next_tick_start,
+        )
 
-    try:
-        scheduler.start()
-    except KeyboardInterrupt:
-        print()  # Add a newline after the ^C
-        scheduler.shutdown()
-        logger.info("Thanks for using Avala!")
+        try:
+            self.scheduler.start()
+        except KeyboardInterrupt:
+            print()  # Add a newline after the ^C
+            self.scheduler.shutdown()
+            logger.info("Thanks for using Avala!")
 
+    def register_directory(self, dir_path):
+        path = Path(dir_path)
+        if not path.exists() or not path.is_dir():
+            logger.error(f"Directory not found: {path}")
+            return
 
-def reload_exploits(flag_ids_future):
-    for ext in ["yml", "yaml"]:
-        if Path(f"avala.{ext}").is_file():
-            with open(f"avala.{ext}", "r") as file:
-                user_config = yaml.safe_load(file)
-                if not user_config:
-                    logger.error(f"No configuration found in avala.{ext}. Exiting...")
-                    return
-                break
-    else:
-        logger.error("avala.yaml/.yml not found in the current working directory.")
-        return
+        if path not in self.exploit_directories:
+            self.exploit_directories.append(path)
+            logger.info(f"Registered directory: {path}")
 
-    defaults = user_config.get("defaults") or {}
+    def _initialize_client(self):
+        self.client = APIClient(self.config)
+        self.client.connect()
+        self.client.export_settings()
 
-    exploits = []
-    for exploit_def in user_config.get("exploits", []):
-        exploit_def = deep_update(defaults.copy(), exploit_def)
-        exploits.append(Exploit(exploit_def, flag_ids_future))
+    def _initialize_scheduler(self):
+        self.scheduler = BlockingScheduler()
 
-    logger.debug(f"Loaded {len(exploits)} exploits.")
-    return exploits
+    def _reload_exploits(self, flag_ids_future):
+        exploits = []
+        for directory in self.exploit_directories:
+            for python_file in directory.glob("*.py"):
+                python_module_name = python_file.stem
+                spec = importlib.util.spec_from_file_location(
+                    python_module_name, python_file.absolute()
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                for _, func in module.__dict__.items():
+                    if callable(func) and hasattr(func, "exploit_config"):
+                        exploits.append(Exploit(func.exploit_config, flag_ids_future))
 
+        logger.debug(f"Loaded {len(exploits)} exploits.")
+        return exploits
 
-def schedule_exploits():
-    executor = concurrent.futures.ThreadPoolExecutor()
-    flag_ids_future = executor.submit(client.wait_for_flag_ids)
+    def _schedule_exploits(self):
+        executor = concurrent.futures.ThreadPoolExecutor()
+        flag_ids_future = executor.submit(self.client.wait_for_flag_ids)
 
-    exploits = reload_exploits(flag_ids_future)
+        exploits = self._reload_exploits(flag_ids_future)
 
-    dynamic_target_exploits = [e for e in exploits if e.service]
-    fixed_target_exploits = [e for e in exploits if not e.service]
+        dynamic_target_exploits = [e for e in exploits if not e.targets]
+        fixed_target_exploits = [e for e in exploits if e.targets]
 
-    now = datetime.now()
+        now = datetime.now()
 
-    for exploit in fixed_target_exploits + dynamic_target_exploits:
-        exploit.setup()
-        if not exploit.batches:
-            scheduler.add_job(
-                exploit.run,
-                "date",
-                run_date=now + exploit.delay,
-                misfire_grace_time=None,
-            )
-        else:
-            for batch_idx in range(len(exploit.batches)):
-                scheduler.add_job(
+        for exploit in fixed_target_exploits + dynamic_target_exploits:
+            exploit.setup()
+            if not exploit.batches:
+                self.scheduler.add_job(
                     exploit.run,
                     "date",
-                    run_date=now + exploit.delay + exploit.batching.gap * batch_idx,
-                    args=[batch_idx],
+                    run_date=now + exploit.delay,
                     misfire_grace_time=None,
                 )
+            else:
+                for batch_idx in range(len(exploit.batches)):
+                    self.scheduler.add_job(
+                        exploit.run,
+                        "date",
+                        run_date=now + exploit.delay + exploit.batching.gap * batch_idx,
+                        args=[batch_idx],
+                        misfire_grace_time=None,
+                    )
 
-    executor.shutdown(wait=True)
+        executor.shutdown(wait=True)
 
-
-def show_banner():
-    print(
-        """\033[34;1m
+    def _show_banner(self):
+        print(
+            """\033[34;1m
       db 
      ;MM:
     ,V^MM. 7MM""Yq.  ,6"Yb.  `7M""MMF',6"Yb.  
@@ -114,7 +136,7 @@ def show_banner():
   A'     VML`M   j8 8M   MM . d'  MM 8M   MM  
 .AMA.   .AMMA.mmm9' `Moo9^Yo8M' .JMML`Moo9^Yo.
 \033[0m"""
-    )
+        )
 
 
 if __name__ == "__main__":
