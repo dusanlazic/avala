@@ -31,10 +31,7 @@ def main(args):
         exit(1)
 
     if args.prepare:
-        if isinstance(args.prepare, str):
-            subprocess.run(shlex.split(args.prepare), text=True)
-        elif prepare := import_func("prepare", args.module, args.directory): # TODO: Adapt to decorator API
-            prepare()
+        subprocess.run(shlex.split(args.prepare), text=True)
 
     flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
 
@@ -74,13 +71,10 @@ def main(args):
             client.enqueue(flags, args.alias, target)
 
     if args.cleanup:
-        if isinstance(args.cleanup, str):
-            subprocess.run(shlex.split(args.cleanup), text=True)
-        elif cleanup := import_func("cleanup", args.module, args.directory):
-            cleanup()
+        subprocess.run(shlex.split(args.cleanup), text=True)
 
 
-def import_func(name, module, directory = os.getcwd()) -> Callable:
+def import_func(name, module, directory=os.getcwd()) -> Callable:
     if directory not in sys.path:
         sys.path.append(directory)
 
@@ -162,15 +156,13 @@ if __name__ == "__main__":
         "--prepare",
         nargs="?",
         const=True,
-        default=None,
-        help="Run prepare Python function if exists, or run provided shell command before running the attack.",
+        help="Run provided shell command before running the first attack.",
     )
     parser.add_argument(
         "--cleanup",
         nargs="?",
         const=True,
-        default=None,
-        help="Run cleanup Python function if exists, or run provided shell command after running the attack.",
+        help="Run provided shell command after running the last attacks.",
     )
 
     args = parser.parse_args()
