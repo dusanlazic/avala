@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import NamedTuple
 from datetime import timedelta
 
@@ -14,19 +15,26 @@ class BatchByCount:
         self.gap = timedelta(seconds=gap)
 
 
-class FunctionMeta(NamedTuple):
+class ExploitFuncMeta(NamedTuple):
     name: str
     module: str
     directory: str
+    arg_count: int
+
+
+class TargetingStrategy(Enum):
+    AUTO = "auto"
+    NOP_TEAM = "nop_team"
+    OWN_TEAM = "own_team"
 
 
 class ExploitConfig:
     def __init__(
         self,
         service: str,
-        meta: FunctionMeta,
+        meta: ExploitFuncMeta,
         alias: str | None = None,
-        targets: list[str] | None = None,
+        targets: list[str] | TargetingStrategy = TargetingStrategy.AUTO,
         skip: list[str] | None = None,
         prepare: str | None = None,
         cleanup: str | None = None,
@@ -37,7 +45,7 @@ class ExploitConfig:
         timeout: int = 0,
     ):
         self.service: str = service
-        self.meta: FunctionMeta = meta
+        self.meta: ExploitFuncMeta = meta
         self.alias: str = alias or meta.module + "." + meta.name
         self.targets: list[str] | None = targets
         self.skip: list[str] | None = skip
@@ -48,5 +56,3 @@ class ExploitConfig:
         self.delay: timedelta = timedelta(seconds=delay or 0)
         self.batching: BatchBySize | BatchByCount | None = batching
         self.timeout: int = timeout
-
-        self.automatic_targets: bool = not bool(targets)

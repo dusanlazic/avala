@@ -32,9 +32,9 @@ class Avala:
 
         self.exploit_directories: list[Path] = []
 
-        self._show_banner()
-
     def run(self):
+        self._show_banner()
+        self._check_directories()
         self._initialize_client()
         self._initialize_scheduler()
 
@@ -58,15 +58,21 @@ class Avala:
             self.scheduler.shutdown()
             logger.info("Thanks for using Avala!")
 
+    def workshop(self):
+        self.client = APIClient(self.config)
+        self.client.import_settings()
+
+        flag_ids = self.client.get_flag_ids()
+
+        exploits = self._reload_draft_exploits(flag_ids)
+        for exploit in exploits:
+            exploit.setup()
+            exploit.run()
+
     def register_directory(self, dir_path):
         path = Path(dir_path)
-        if not path.exists() or not path.is_dir():
-            logger.error(f"Directory not found: {path}")
-            return
-
         if path not in self.exploit_directories:
-            self.exploit_directories.append(path)
-            logger.info(f"Registered directory: {path}")
+            self.exploit_directories.append(Path(dir_path))
 
     def _initialize_client(self):
         self.client = APIClient(self.config)
@@ -76,8 +82,21 @@ class Avala:
     def _initialize_scheduler(self):
         self.scheduler = BlockingScheduler()
 
-    def _reload_exploits(self, flag_ids_future):
-        exploits = []
+    def _check_directories(self):
+        valid_directories = []
+        for path in self.exploit_directories:
+            if not path.exists() or not path.is_dir():
+                logger.error(f"Directory not found: {path}")
+            else:
+                valid_directories.append(path)
+
+        logger.info(
+            f"Registered exploit directories: <green>{', '.join([d.name for d in valid_directories])}</>"
+        )
+        self.exploit_directories = valid_directories
+
+    def _reload_exploits(self, flag_ids_future) -> list[Exploit]:
+        exploits: list[Exploit] = []
         for directory in self.exploit_directories:
             for python_file in directory.glob("*.py"):
                 python_module_name = python_file.stem
@@ -88,9 +107,34 @@ class Avala:
                 spec.loader.exec_module(module)
                 for _, func in module.__dict__.items():
                     if callable(func) and hasattr(func, "exploit_config"):
-                        exploits.append(Exploit(func.exploit_config, flag_ids_future))
+                        e = Exploit(
+                            func.exploit_config,
+                            flag_ids_future=flag_ids_future,
+                        )
+                        exploits.append(e)
 
         logger.debug(f"Loaded {len(exploits)} exploits.")
+        return exploits
+
+    def _reload_draft_exploits(self, flag_ids):
+        exploits: list[Exploit] = []
+        for directory in self.exploit_directories:
+            for python_file in directory.glob("*.py"):
+                python_module_name = python_file.stem
+                spec = importlib.util.spec_from_file_location(
+                    python_module_name, python_file.absolute()
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                for _, func in module.__dict__.items():
+                    if callable(func) and hasattr(func, "draft_exploit_config"):
+                        e = Exploit(
+                            func.draft_exploit_config,
+                            flag_ids=flag_ids,
+                        )
+                        exploits.append(e)
+
+        logger.debug(f"Loaded {len(exploits)} drafts.")
         return exploits
 
     def _schedule_exploits(self):
@@ -99,12 +143,15 @@ class Avala:
 
         exploits = self._reload_exploits(flag_ids_future)
 
-        dynamic_target_exploits = [e for e in exploits if not e.targets]
-        fixed_target_exploits = [e for e in exploits if e.targets]
+        automatic_target_exploits = [e for e in exploits if e.requires_flag_ids]
+        manual_target_exploits = [e for e in exploits if not e.requires_flag_ids]
 
         now = datetime.now()
 
-        for exploit in fixed_target_exploits + dynamic_target_exploits:
+        # Manual target exploits are scheduled first because they can be ran immediately,
+        # as opposed to automatic target exploits which need to wait for flag IDs.
+
+        for exploit in manual_target_exploits + automatic_target_exploits:
             exploit.setup()
             if not exploit.batches:
                 self.scheduler.add_job(
@@ -137,7 +184,3 @@ class Avala:
 .AMA.   .AMMA.mmm9' `Moo9^Yo8M' .JMML`Moo9^Yo.
 \033[0m"""
         )
-
-
-if __name__ == "__main__":
-    main()
