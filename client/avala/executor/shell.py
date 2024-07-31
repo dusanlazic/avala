@@ -1,24 +1,44 @@
+import os
 import re
+import json
 import shlex
 import argparse
+import tempfile
 import subprocess
 import concurrent.futures
-from ..shared.logs import logger
-from ..api import client
+from avala.shared.logs import logger
+from avala.shared.util import colorize
+from avala.api import APIClient
+
+
+TARGET_PLACEHOLDER = "{target}"
+FLAG_IDS_PATH_PLACEHOLDER = "{flag_ids_path}"
 
 
 def main(args):
+    client = APIClient()
     client.import_settings()
 
     if args.prepare:
         subprocess.run(shlex.split(args.prepare), text=True)
 
+    flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {
-            executor.submit(exploit, args.command, target): target
-            for target in args.targets
-            if target not in [client.game.team_ip, client.game.nop_team_ip]
-        }
+        if flag_ids:
+            futures = {
+                executor.submit(
+                    execute_attack, args.command, target, flag_ids[target]
+                ): target
+                for target in args.targets
+                if target not in [client.game.team_ip, client.game.nop_team_ip]
+            }
+        else:
+            futures = {
+                executor.submit(execute_attack, args.command, target): target
+                for target in args.targets
+                if target not in [client.game.team_ip, client.game.nop_team_ip]
+            }
 
         for future in concurrent.futures.as_completed(futures):
             target = futures[future]
@@ -27,7 +47,7 @@ def main(args):
             except Exception as e:
                 logger.error(
                     f"An error has occured while attacking <bold>%s</> via <bold>%s</>: %s"
-                    % (target, args.name, e),
+                    % (target, colorize(args.alias), e),
                 )
                 continue
 
@@ -35,26 +55,70 @@ def main(args):
             if not flags:
                 logger.warning(
                     "No flags retrieved from attacking <bold>%s</> via <bold>%s</>."
-                    % (target, args.name)
+                    % (target, colorize(args.alias))
                 )
                 continue
 
-            client.enqueue(flags, args.name, target)
+            client.enqueue(flags, args.alias, target)
 
     if args.cleanup:
         subprocess.run(shlex.split(args.cleanup), text=True)
 
 
-def exploit(command, target):
-    command_args = [target if arg == "[ip]" else arg for arg in shlex.split(command)]
+def execute_attack(command, target, flag_ids=None):
+    command_args = [
+        target if arg == TARGET_PLACEHOLDER else arg for arg in shlex.split(command)
+    ]
+
+    if flag_ids is not None:
+        flag_ids_path = export_flag_ids(flag_ids)
+        if FLAG_IDS_PATH_PLACEHOLDER in command_args:
+            command_args = [
+                flag_ids_path if arg == FLAG_IDS_PATH_PLACEHOLDER else arg
+                for arg in command_args
+            ]
+
     result = subprocess.run(command_args, text=True, capture_output=True)
     result.check_returncode()
+
+    try:
+        if flag_ids:
+            os.unlink(flag_ids_path)
+    except FileNotFoundError:
+        pass
+
     return result.stdout
 
 
 def match_flags(pattern: str, text: str) -> bool:
     matches = re.findall(pattern, text)
     return matches if matches else None
+
+
+def read_flag_ids(filepath: str):
+    try:
+        with open(filepath) as file:
+            return json.load(file)
+    except FileNotFoundError:
+        logger.error("Flag IDs file <bold>%s</> not found." % filepath)
+        return
+    except PermissionError:
+        logger.error("Flag IDs file <bold>%s</> is not accessible." % filepath)
+        return
+    except json.JSONDecodeError:
+        logger.error("Flag IDs file <bold>%s</> is not a valid JSON." % filepath)
+        return
+    except Exception as e:
+        logger.error(
+            "An error has occured while reading flag IDs file: %s" % e,
+        )
+        return
+
+
+def export_flag_ids(flag_ids):
+    with tempfile.NamedTemporaryFile(mode="w", delete=False) as file:
+        json.dump(flag_ids, file)
+        return file.name
 
 
 if __name__ == "__main__":
@@ -68,7 +132,7 @@ if __name__ == "__main__":
         help="IP addresses or hostnames of targeted teams.",
     )
     parser.add_argument(
-        "--name",
+        "--alias",
         type=str,
         required=True,
         help="Alias of the exploit for its identification.",
