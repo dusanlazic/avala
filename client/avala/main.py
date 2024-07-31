@@ -59,8 +59,14 @@ class Avala:
             logger.info("Thanks for using Avala!")
 
     def workshop(self):
+        self._check_directories()
+
         self.client = APIClient(self.config)
-        self.client.import_settings()
+        try:
+            self.client.import_settings()
+        except FileNotFoundError:
+            self.client.connect()
+            self.client.export_settings()
 
         flag_ids = self.client.get_flag_ids()
 

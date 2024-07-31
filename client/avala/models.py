@@ -3,15 +3,24 @@ from typing import NamedTuple
 from datetime import timedelta
 
 
-class BatchBySize:
-    def __init__(self, size: int, gap: int):
-        self.size = size
-        self.gap = timedelta(seconds=gap)
+class Batching:
+    def __init__(
+        self,
+        size: int | None = None,
+        count: int | None = None,
+        gap: float = 0,
+    ):
+        if size is None and count is None:
+            raise ValueError("Either 'size' or 'count' must be set.")
+        if size is not None and size <= 0:
+            raise ValueError("'size' must be a positive integer.")
+        if count is not None and count <= 0:
+            raise ValueError("'count' must be a positive integer.")
+        if gap <= 0:
+            raise ValueError("'gap' must be a positive number.")
 
-
-class BatchByCount:
-    def __init__(self, count: int, gap: int):
-        self.count = count
+        self.size: int | None = size
+        self.count: int | None = count
         self.gap = timedelta(seconds=gap)
 
 
@@ -41,7 +50,7 @@ class ExploitConfig:
         command: str | None = None,
         env: dict[str, str] = {},
         delay: int = 0,
-        batching: BatchBySize | BatchByCount | None = None,
+        batching: Batching | None = None,
         timeout: int = 0,
     ):
         self.service: str = service
@@ -54,5 +63,5 @@ class ExploitConfig:
         self.command: str | None = command
         self.env: dict[str, str] | None = env
         self.delay: timedelta = timedelta(seconds=delay or 0)
-        self.batching: BatchBySize | BatchByCount | None = batching
+        self.batching: Batching | None = batching
         self.timeout: int = timeout

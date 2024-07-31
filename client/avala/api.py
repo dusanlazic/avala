@@ -81,7 +81,7 @@ class APIClient:
 
     def import_settings(self):
         """Import the API client settings from a JSON file instead of calling connect().
-        Used when running executors.
+        Used when running executors or running client in workshop mode.
         """
         with open(DOT_DIR_PATH / "api_client.json", "r") as file:
             data = Dict(json.load(file))

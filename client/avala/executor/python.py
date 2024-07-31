@@ -36,6 +36,7 @@ def main(args):
     flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
+        # TODO: Handle KeyError
         if flag_ids:
             futures = {
                 executor.submit(execute_attack, target, flag_ids[target]): target

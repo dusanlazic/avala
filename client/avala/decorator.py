@@ -1,29 +1,24 @@
 import os
 from functools import wraps
 from .models import (
-    BatchBySize,
-    BatchByCount,
+    Batching,
     ExploitFuncMeta,
     ExploitConfig,
     TargetingStrategy,
 )
 
-AUTO = TargetingStrategy.AUTO
-NOP_TEAM = TargetingStrategy.NOP_TEAM
-OWN_TEAM = TargetingStrategy.OWN_TEAM
-
 
 def exploit(
     service: str,
     alias: str | None = None,
-    targets: list[str] | TargetingStrategy = AUTO,
+    targets: list[str] | TargetingStrategy = TargetingStrategy.AUTO,
     skip: list[str] | None = None,
     prepare: str | None = None,
     cleanup: str | None = None,
     command: str | None = None,
     env: dict[str, str] = {},
     delay: int = 0,
-    batching: BatchBySize | BatchByCount | None = None,
+    batching: Batching | None = None,
     timeout: int = 0,
 ):
     def decorator_exploit(func):
@@ -65,6 +60,8 @@ def draft(
     cleanup: str | None = None,
     command: str | None = None,
     env: dict[str, str] = {},
+    delay: int = 0,
+    batching: Batching | None = None,
     timeout: int = 0,
 ):
     def decorator_exploit(func):
