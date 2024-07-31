@@ -56,7 +56,7 @@ def main(args):
             except Exception as e:
                 logger.error(
                     f"An error has occured while attacking <bold>%s</> via <bold>%s</>: %s"
-                    % (target, colorize(args.alias), e),
+                    % (colorize(target), colorize(args.alias), e),
                 )
                 continue
 
@@ -64,7 +64,7 @@ def main(args):
             if not flags:
                 logger.warning(
                     "No flags retrieved from attacking <bold>%s</> via <bold>%s</>."
-                    % (target, colorize(args.alias))
+                    % (colorize(target), colorize(args.alias))
                 )
                 continue
 
