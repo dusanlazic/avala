@@ -99,19 +99,22 @@ class Avala:
         exploits: list[Exploit] = []
         for directory in self.exploit_directories:
             for python_file in directory.glob("*.py"):
-                python_module_name = python_file.stem
-                spec = importlib.util.spec_from_file_location(
-                    python_module_name, python_file.absolute()
-                )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                for _, func in module.__dict__.items():
-                    if callable(func) and hasattr(func, "exploit_config"):
-                        e = Exploit(
-                            func.exploit_config,
-                            flag_ids_future=flag_ids_future,
-                        )
-                        exploits.append(e)
+                try:
+                    python_module_name = python_file.stem
+                    spec = importlib.util.spec_from_file_location(
+                        python_module_name, python_file.absolute()
+                    )
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    for _, func in module.__dict__.items():
+                        if callable(func) and hasattr(func, "exploit_config"):
+                            e = Exploit(
+                                func.exploit_config,
+                                flag_ids_future=flag_ids_future,
+                            )
+                            exploits.append(e)
+                except Exception as e:
+                    logger.error(f"Failed to load exploit from {python_file}: {e}")
 
         logger.debug(f"Loaded {len(exploits)} exploits.")
         return exploits
@@ -120,19 +123,22 @@ class Avala:
         exploits: list[Exploit] = []
         for directory in self.exploit_directories:
             for python_file in directory.glob("*.py"):
-                python_module_name = python_file.stem
-                spec = importlib.util.spec_from_file_location(
-                    python_module_name, python_file.absolute()
-                )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                for _, func in module.__dict__.items():
-                    if callable(func) and hasattr(func, "draft_exploit_config"):
-                        e = Exploit(
-                            func.draft_exploit_config,
-                            flag_ids=flag_ids,
-                        )
-                        exploits.append(e)
+                try:
+                    python_module_name = python_file.stem
+                    spec = importlib.util.spec_from_file_location(
+                        python_module_name, python_file.absolute()
+                    )
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    for _, func in module.__dict__.items():
+                        if callable(func) and hasattr(func, "draft_exploit_config"):
+                            e = Exploit(
+                                func.draft_exploit_config,
+                                flag_ids=flag_ids,
+                            )
+                            exploits.append(e)
+                except Exception as e:
+                    logger.error(f"Failed to load exploit from {python_file}: {e}")
 
         logger.debug(f"Loaded {len(exploits)} drafts.")
         return exploits
