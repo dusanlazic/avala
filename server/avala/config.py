@@ -19,7 +19,7 @@ config = Dict(
         "submitter": {
             "module": "submitter",
         },
-        "flag_ids": {
+        "attack_data": {
             "module": "flag_ids",
             "max_attempts": 5,
             "retry_interval": 2,

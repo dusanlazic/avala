@@ -11,6 +11,7 @@ from importlib import import_module
 from avala.shared.logs import logger
 from avala.shared.util import colorize
 from avala.api import APIClient
+from avala.models import ServiceScopedAttackData
 
 
 def main(args):
@@ -33,13 +34,16 @@ def main(args):
     if args.prepare:
         subprocess.run(shlex.split(args.prepare), text=True)
 
-    flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
+    service_attack_data = (
+        read_flag_ids(args.attack_data_file) if args.attack_data_file else None
+    )
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        # TODO: Handle KeyError
-        if flag_ids:
+        if service_attack_data:
             futures = {
-                executor.submit(execute_attack, target, flag_ids[target]): target
+                executor.submit(
+                    execute_attack, target, (service_attack_data / target).serialize()
+                ): target
                 for target in args.targets
                 if target not in [client.game.team_ip, client.game.nop_team_ip]
             }
@@ -88,10 +92,10 @@ def match_flags(pattern: str, text: str) -> bool:
     return matches if matches else None
 
 
-def read_flag_ids(filepath: str):
+def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
     try:
         with open(filepath) as file:
-            return json.load(file)
+            return ServiceScopedAttackData(json.load(file))
     except FileNotFoundError:
         logger.error("Flag IDs file <bold>%s</> not found." % filepath)
         return
@@ -149,9 +153,16 @@ if __name__ == "__main__":
         help="Optional timeout for a single attack in seconds.",
     )
     parser.add_argument(
-        "--flag-ids-file",
+        "--attack-data-file",
         type=str,
-        help="Path to a file containing flag IDs of the specified service.",
+        help="Path to a file containing attack data of all targets of the specified service.",
+    )
+    parser.add_argument(
+        "--tick-scope",
+        type=str,
+        default="single",
+        choices=["single", "all"],
+        help="Tick scope of the flag_ids object to be used for the exploit.",
     )
     parser.add_argument(
         "--prepare",

@@ -4,6 +4,8 @@ import importlib.util
 from pathlib import Path
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
+from concurrent.futures import Future
+from .models import UnscopedAttackData
 from .shared.logs import logger
 from .shared.util import convert_to_local_tz
 from .config import ConnectionConfig
@@ -68,9 +70,9 @@ class Avala:
             self.client.connect()
             self.client.export_settings()
 
-        flag_ids = self.client.get_flag_ids()
+        attack_data = self.client.get_attack_data()
 
-        exploits = self._reload_draft_exploits(flag_ids)
+        exploits = self._reload_exploits(attack_data)
         for exploit in exploits:
             exploit.setup()
             exploit.run()
@@ -101,7 +103,12 @@ class Avala:
         )
         self.exploit_directories = valid_directories
 
-    def _reload_exploits(self, flag_ids_future) -> list[Exploit]:
+    def _reload_exploits(
+        self,
+        attack_data: UnscopedAttackData | Future[UnscopedAttackData],
+    ) -> list[Exploit]:
+        should_be_draft = isinstance(attack_data, UnscopedAttackData)
+
         exploits: list[Exploit] = []
         for directory in self.exploit_directories:
             for python_file in directory.glob("*.py"):
@@ -113,11 +120,12 @@ class Avala:
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
                     for _, func in module.__dict__.items():
-                        if callable(func) and hasattr(func, "exploit_config"):
-                            e = Exploit(
-                                func.exploit_config,
-                                flag_ids_future=flag_ids_future,
-                            )
+                        if (
+                            callable(func)
+                            and hasattr(func, "exploit_config")
+                            and func.is_draft == should_be_draft
+                        ):
+                            e = Exploit(func.exploit_config, attack_data)
                             exploits.append(e)
                 except Exception as e:
                     logger.error(f"Failed to load exploit from {python_file}: {e}")
@@ -125,35 +133,11 @@ class Avala:
         logger.debug(f"Loaded {len(exploits)} exploits.")
         return exploits
 
-    def _reload_draft_exploits(self, flag_ids):
-        exploits: list[Exploit] = []
-        for directory in self.exploit_directories:
-            for python_file in directory.glob("*.py"):
-                try:
-                    python_module_name = python_file.stem
-                    spec = importlib.util.spec_from_file_location(
-                        python_module_name, python_file.absolute()
-                    )
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
-                    for _, func in module.__dict__.items():
-                        if callable(func) and hasattr(func, "draft_exploit_config"):
-                            e = Exploit(
-                                func.draft_exploit_config,
-                                flag_ids=flag_ids,
-                            )
-                            exploits.append(e)
-                except Exception as e:
-                    logger.error(f"Failed to load exploit from {python_file}: {e}")
-
-        logger.debug(f"Loaded {len(exploits)} drafts.")
-        return exploits
-
     def _schedule_exploits(self):
         executor = concurrent.futures.ThreadPoolExecutor()
-        flag_ids_future = executor.submit(self.client.wait_for_flag_ids)
+        attack_data_future = executor.submit(self.client.wait_for_attack_data)
 
-        exploits = self._reload_exploits(flag_ids_future)
+        exploits = self._reload_exploits(attack_data_future)
 
         automatic_target_exploits = [e for e in exploits if e.requires_flag_ids]
         manual_target_exploits = [e for e in exploits if not e.requires_flag_ids]

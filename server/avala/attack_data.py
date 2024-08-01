@@ -11,46 +11,46 @@ from .config import config
 from .database import get_db_context
 
 
-flag_ids_updated_event: asyncio.Event = asyncio.Event()
+attack_data_updated_event: asyncio.Event = asyncio.Event()
 
 
-def reload_flag_ids():
-    flag_ids_updated_event.clear()
+def reload_attack_data():
+    attack_data_updated_event.clear()
 
     try:
         fetch_json, process_json = import_user_functions()
     except ModuleNotFoundError:
         logger.error(
             "Module <bold>%s.py</> not found. Please make sure the file exists and it's under <bold>%s.</>"
-            % (config.flag_ids.module, os.getcwd())
+            % (config.attack_data.module, os.getcwd())
         )
     except AttributeError:
         logger.error(
             "Required functions not found within <bold>%s.py</>. Please make sure the module contains <bold>fetch_json</> and <bold>process_json</> functions."
-            % config.flag_ids.module
+            % config.attack_data.module
         )
 
     with get_db_context() as db, StateManager(db) as state:
-        old_json_hash = state.teams_json_hash
+        old_json_hash = state.attack_data_hash
 
         json_updated = False
-        attempts_left = config.flag_ids.max_attempts
+        attempts_left = config.attack_data.max_attempts
 
         while not json_updated:
             try:
                 new_json = fetch_json()
             except Exception as e:
                 attempts_left -= 1
-                logger.error("An error occurred while fetching teams.json: %s" % e)
+                logger.error("An error occurred while fetching attack data: %s" % e)
                 logger.info(
                     "Retrying in %ds, %d attempts left."
-                    % (config.flag_ids.retry_interval, attempts_left)
+                    % (config.attack_data.retry_interval, attempts_left)
                 )
-                time.sleep(config.flag_ids.retry_interval)
+                time.sleep(config.attack_data.retry_interval)
                 if not attempts_left:
                     logger.warning(
                         "It seems that your <bold>%s.py</> module is not working properly. Please check it."
-                        % config.flag_ids.module
+                        % config.attack_data.module
                     )
                     break
                 continue
@@ -64,36 +64,40 @@ def reload_flag_ids():
             if not json_updated and attempts_left:
                 attempts_left -= 1
                 logger.info(
-                    "Fetched old teams.json (<yellow>%s</>). Retrying in %ds, %d attempts left."
-                    % (old_json_hash[:8], config.flag_ids.retry_interval, attempts_left)
+                    "Fetched old attack data (<yellow>%s</>). Retrying in %ds, %d attempts left."
+                    % (
+                        old_json_hash[:8],
+                        config.attack_data.retry_interval,
+                        attempts_left,
+                    )
                 )
-                time.sleep(config.flag_ids.retry_interval)
+                time.sleep(config.attack_data.retry_interval)
             else:
                 break
 
         if json_updated:
             logger.info(
-                "Fetched new teams.json (<yellow>%s</> -> <green>%s</>)."
+                "Fetched new attack data (<yellow>%s</> -> <green>%s</>)."
                 % (str(old_json_hash)[:8], new_json_hash[:8])
             )
 
-            processed_flag_ids = process_json(new_json)
+            processed_attack_data = process_json(new_json)
 
-            state.teams_json_hash = new_json_hash
-            state.flag_ids = json.dumps(processed_flag_ids)
+            state.attack_data_hash = new_json_hash
+            state.attack_data = json.dumps(processed_attack_data)
         elif old_json_hash:
             logger.info(
-                "Reusing old teams.json (<yellow>%s</>) to avoid wasting tick time."
+                "Reusing old attack data (<yellow>%s</>) to avoid wasting tick time."
                 % old_json_hash[:8]
             )
         else:
             logger.error(
-                "Failed to fetch teams.json. Please fix your <bold>fetch</> function in your <bold>%s.py</> module."
-                % config.flag_ids.module
+                "Failed to fetch attack data. Please fix your <bold>fetch</> function in your <bold>%s.py</> module."
+                % config.attack_data.module
             )
             return
 
-    flag_ids_updated_event.set()
+    attack_data_updated_event.set()
 
 
 def normalize_dict(data):
@@ -112,7 +116,7 @@ def compare_dicts(dict1, dict2):
 
 
 def import_user_functions():
-    """Imports and reloads the fetch and process functions that fetch and process teams.json file."""
+    """Imports and reloads the fetch and process functions that fetch and process attack data json file."""
     module_name = "flag_ids"
 
     cwd = os.getcwd()

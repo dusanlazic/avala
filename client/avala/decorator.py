@@ -5,6 +5,7 @@ from .models import (
     ExploitFuncMeta,
     ExploitConfig,
     TargetingStrategy,
+    TickScope,
 )
 
 
@@ -12,6 +13,7 @@ def exploit(
     service: str,
     alias: str | None = None,
     targets: list[str] | TargetingStrategy = TargetingStrategy.AUTO,
+    tick_scope: TickScope = TickScope.SINGLE,
     skip: list[str] | None = None,
     prepare: str | None = None,
     cleanup: str | None = None,
@@ -26,10 +28,12 @@ def exploit(
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
+        wrapper.is_draft = False
         wrapper.exploit_config = ExploitConfig(
             service=service,
             alias=alias,
             targets=targets,
+            tick_scope=tick_scope,
             skip=skip,
             prepare=prepare,
             cleanup=cleanup,
@@ -55,6 +59,7 @@ def draft(
     service: str,
     targets: list[str] | TargetingStrategy,
     alias: str | None = None,
+    tick_scope: TickScope = TickScope.SINGLE,
     skip: list[str] | None = None,
     prepare: str | None = None,
     cleanup: str | None = None,
@@ -69,10 +74,12 @@ def draft(
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        wrapper.draft_exploit_config = ExploitConfig(
+        wrapper.is_draft = True
+        wrapper.exploit_config = ExploitConfig(
             service=service,
             alias=alias,
             targets=targets,
+            tick_scope=tick_scope,
             skip=skip,
             prepare=prepare,
             cleanup=cleanup,

@@ -10,7 +10,7 @@ from .shared.logs import logger
 from .shared.logs import config as log_config
 from .routes.flags import router as flags_router
 from .routes.connect import router as connect_router
-from .routes.flag_ids import router as flag_ids_router
+from .routes.attack_data import router as attack_data_router
 from .routes.statistics import router as statistics_router
 from .database import setup_db_conn, create_tables
 from .config import config, load_user_config, DOT_DIR_PATH
@@ -47,7 +47,7 @@ def main():
 
     app.include_router(flags_router)
     app.include_router(connect_router)
-    app.include_router(flag_ids_router)
+    app.include_router(attack_data_router)
     app.include_router(statistics_router)
 
     configure_cors(app)

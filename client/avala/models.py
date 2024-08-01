@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import NamedTuple
 from datetime import timedelta
+from dataclasses import dataclass, field
 
 
 class Batching:
@@ -37,6 +38,83 @@ class TargetingStrategy(Enum):
     OWN_TEAM = "own_team"
 
 
+class TickScope(Enum):
+    SINGLE = "single"
+    ALL = "all"
+
+
+class TickScopedAttackData:
+    def __init__(
+        self,
+        flag_ids: any,
+    ):
+        self.flag_ids: any = flag_ids
+
+    def serialize(self) -> any:
+        return self.flag_ids
+
+
+class TargetScopedAttackData:
+    def __init__(
+        self,
+        ticks: list[any],
+    ):
+        self.ticks: list[TickScopedAttackData] = [
+            TickScopedAttackData(flag_ids) for flag_ids in ticks
+        ]
+
+    def serialize(self) -> list[any]:
+        return [tick.serialize() for tick in self.ticks]
+
+    def __truediv__(self, index: int) -> any:
+        if 0 <= index < len(self.ticks):
+            return self.ticks[index].flag_ids
+        else:
+            raise IndexError(f"Tick index '{index}' out of range")
+
+
+class ServiceScopedAttackData:
+    def __init__(
+        self,
+        targets: dict[str, list[any]],
+    ):
+        self.targets: dict[str, TargetScopedAttackData] = {
+            target: TargetScopedAttackData(ticks) for target, ticks in targets.items()
+        }
+
+    def get_targets(self) -> list[str]:
+        return list(self.targets.keys())
+
+    def serialize(self) -> dict[str, list[any]]:
+        return {target: ticks.serialize() for target, ticks in self.targets.items()}
+
+    def __truediv__(self, target: str) -> TargetScopedAttackData:
+        if target in self.targets:
+            return self.targets[target]
+        else:
+            raise KeyError(f"Target '{target}' not found")
+
+
+class UnscopedAttackData:
+    def __init__(self, data):
+        self.services: dict[str, ServiceScopedAttackData] = {
+            service: ServiceScopedAttackData(targets)
+            for service, targets in data.items()
+        }
+
+    def serialize(self) -> dict[
+        str,
+        dict[str, list[any]],
+    ]:
+        return {service: data.serialize() for service, data in self.services.items()}
+
+    def __truediv__(self, service: str) -> ServiceScopedAttackData:
+        if service in self.services:
+            return self.services[service]
+        else:
+            raise KeyError(f"Service '{service}' not found")
+
+
 class ExploitConfig:
     def __init__(
         self,
@@ -44,6 +122,7 @@ class ExploitConfig:
         meta: ExploitFuncMeta,
         alias: str | None = None,
         targets: list[str] | TargetingStrategy = TargetingStrategy.AUTO,
+        tick_scope: TickScope = TickScope.SINGLE,
         skip: list[str] | None = None,
         prepare: str | None = None,
         cleanup: str | None = None,
@@ -57,6 +136,7 @@ class ExploitConfig:
         self.meta: ExploitFuncMeta = meta
         self.alias: str = alias or meta.module + "." + meta.name
         self.targets: list[str] | None = targets
+        self.tick_scope: TickScope = tick_scope
         self.skip: list[str] | None = skip
         self.prepare: str | None = prepare
         self.cleanup: str | None = cleanup

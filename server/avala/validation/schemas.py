@@ -39,7 +39,7 @@ submitter_schema = {
     "additionalProperties": False,
 }
 
-flag_ids_schema = {
+attack_data_schema = {
     "type": "object",
     "properties": {
         "module": {"type": "string"},
@@ -88,7 +88,7 @@ server_yaml_schema = {
     "properties": {
         "game": game_schema,
         "submitter": submitter_schema,
-        "flag_ids": flag_ids_schema,
+        "attack_data": attack_data_schema,
         "server": server_schema,
         "database": database_schema,
         "rabbitmq": rabbitmq_schema,

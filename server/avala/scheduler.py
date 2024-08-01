@@ -1,7 +1,7 @@
 from .shared.logs import logger
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
-from .flag_ids import reload_flag_ids
+from .attack_data import reload_attack_data
 from .config import config
 
 
@@ -18,7 +18,7 @@ def initialize_scheduler():
     )
 
     scheduler.add_job(
-        func=reload_flag_ids,
+        func=reload_attack_data,
         trigger="interval",
         seconds=get_tick_duration().seconds,
         id="teams_json_reloader",

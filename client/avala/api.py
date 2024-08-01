@@ -4,6 +4,7 @@ from addict import Dict
 from .shared.logs import logger
 from .shared.util import colorize
 from .config import ConnectionConfig, DOT_DIR_PATH
+from .models import UnscopedAttackData
 
 
 class APIClient:
@@ -122,14 +123,14 @@ class APIClient:
             # TODO: Backup flags somewhere
             # maybe even push them directlry to rabbitmq
 
-    def wait_for_flag_ids(self):
-        response = requests.get(f"{self.conn_str}/flag_ids/subscribe")
+    def wait_for_attack_data(self) -> UnscopedAttackData:
+        response = requests.get(f"{self.conn_str}/attack_data/subscribe")
         response.raise_for_status()
 
-        return Dict(response.json())
+        return UnscopedAttackData(response.json())
 
-    def get_flag_ids(self):
-        response = requests.get(f"{self.conn_str}/flag_ids/current")
+    def get_attack_data(self) -> UnscopedAttackData:
+        response = requests.get(f"{self.conn_str}/attack_data/current")
         response.raise_for_status()
 
-        return Dict(response.json())
+        return UnscopedAttackData(response.json())

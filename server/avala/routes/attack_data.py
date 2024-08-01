@@ -4,41 +4,41 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..auth import basic_auth
 from ..state import StateManager
-from ..flag_ids import flag_ids_updated_event
+from ..attack_data import attack_data_updated_event
 from ..database import get_db
 
-router = APIRouter(prefix="/flag_ids", tags=["Flag IDs"])
+router = APIRouter(prefix="/attack_data", tags=["Attack data"])
 
 
 @router.get("/subscribe")
-async def get_latest_flag_ids(
+async def get_latest_attack_data(
     _: Annotated[str, Depends(basic_auth)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    await flag_ids_updated_event.wait()
+    await attack_data_updated_event.wait()
 
     with StateManager(db) as state:
-        flag_ids = state.flag_ids
+        attack_data = state.attack_data
         return (
-            json.loads(flag_ids)
-            if flag_ids
+            json.loads(attack_data)
+            if attack_data
             else {
-                "detail": "teams.json not fetched yet.",
+                "detail": "Attack data not fetched yet.",
             }
         )
 
 
 @router.get("/current")
-async def get_current_flag_ids(
+async def get_current_attack_data(
     _: Annotated[str, Depends(basic_auth)],
     db: Annotated[Session, Depends(get_db)],
 ):
     with StateManager(db) as state:
-        flag_ids = state.flag_ids
+        attack_data = state.attack_data
         return (
-            json.loads(flag_ids)
-            if flag_ids
+            json.loads(attack_data)
+            if attack_data
             else {
-                "detail": "teams.json not fetched yet.",
+                "detail": "Attack data not fetched yet.",
             }
         )
