@@ -3,15 +3,23 @@ import os
 import sys
 import json
 import shlex
+import hashlib
 import argparse
 import subprocess
 import concurrent.futures
+from sqlalchemy.dialects.sqlite import insert
 from typing import Callable
 from importlib import import_module
 from avala.shared.logs import logger
 from avala.shared.util import colorize
 from avala.api import APIClient
-from avala.models import ServiceScopedAttackData, TickScope
+from avala.models import (
+    ServiceScopedAttackData,
+    TickScopedAttackData,
+    TickScope,
+    FlagIdsHash,
+)
+from avala.database import get_db_context
 
 
 def main(args):
@@ -38,17 +46,19 @@ def main(args):
         read_flag_ids(args.attack_data_file) if args.attack_data_file else None
     )
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    with concurrent.futures.ThreadPoolExecutor() as executor, get_db_context() as db:
         if service_attack_data:
             if args.tick_scope == TickScope.SINGLE.value:
                 futures = {
                     executor.submit(
                         execute_attack,
                         target,
-                        tick,
-                    ): target
+                        flag_ids,
+                    ): (target, flag_ids)
                     for target in args.targets
-                    for tick in (service_attack_data / target).serialize()
+                    for flag_ids in (service_attack_data / target)
+                    .remove_repeated(args.alias, target)
+                    .serialize()
                     if target not in [client.game.team_ip, client.game.nop_team_ip]
                 }
             elif args.tick_scope == TickScope.LAST_N.value:
@@ -56,8 +66,10 @@ def main(args):
                     executor.submit(
                         execute_attack,
                         target,
-                        (service_attack_data / target).serialize(),
-                    ): target
+                        (service_attack_data / target)
+                        .remove_repeated(args.alias, target)
+                        .serialize(),
+                    ): (target, None)
                     for target in args.targets
                     if target not in [client.game.team_ip, client.game.nop_team_ip]
                 }
@@ -68,8 +80,10 @@ def main(args):
                 if target not in [client.game.team_ip, client.game.nop_team_ip]
             }
 
+        used_flag_id_hashes: list[str] = []
+
         for future in concurrent.futures.as_completed(futures):
-            target = futures[future]
+            target, flag_ids = futures[future]
             try:
                 result = future.result()
             except Exception as e:
@@ -88,6 +102,23 @@ def main(args):
                 continue
 
             client.enqueue(flags, args.alias, target)
+
+            if flag_ids:
+                used_flag_id_hashes.append(
+                    TickScopedAttackData.hash_flag_ids(args.alias, target, flag_ids)
+                )
+
+        if used_flag_id_hashes:
+            db.execute(
+                insert(FlagIdsHash)
+                .values([{"value": value} for value in used_flag_id_hashes])
+                .on_conflict_do_nothing(index_elements=["value"])
+            )
+
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
 
     if args.cleanup:
         subprocess.run(shlex.split(args.cleanup), text=True)

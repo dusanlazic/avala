@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from concurrent.futures import Future
+from .database import setup_db_conn, create_tables
 from .models import UnscopedAttackData
 from .shared.logs import logger
 from .shared.util import convert_to_local_tz
@@ -36,6 +37,7 @@ class Avala:
 
     def run(self):
         self._show_banner()
+        self._setup_db()
         self._check_directories()
         self._initialize_client()
         self._initialize_scheduler()
@@ -61,6 +63,7 @@ class Avala:
             logger.info("Thanks for using Avala!")
 
     def workshop(self):
+        self._setup_db()
         self._check_directories()
 
         self.client = APIClient(self.config)
@@ -167,6 +170,10 @@ class Avala:
                     )
 
         executor.shutdown(wait=True)
+
+    def _setup_db(self):
+        setup_db_conn()
+        create_tables()
 
     def _show_banner(self):
         print(

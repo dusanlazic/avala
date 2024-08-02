@@ -1,6 +1,9 @@
+import hashlib
 from enum import Enum
 from typing import NamedTuple
 from datetime import timedelta
+from sqlalchemy import Column, String
+from .database import Base, get_db_context
 
 
 class Batching:
@@ -42,12 +45,22 @@ class TickScope(Enum):
     LAST_N = "last_n"
 
 
+class FlagIdsHash(Base):
+    __tablename__ = "hashes"
+
+    value = Column(String, primary_key=True)
+
+
 class TickScopedAttackData:
     def __init__(
         self,
         flag_ids: any,
     ):
         self.flag_ids: any = flag_ids
+
+    @classmethod
+    def hash_flag_ids(cls, alias: str, target: str, flag_ids: any) -> str:
+        return hashlib.md5((alias + target + str(flag_ids)).encode()).hexdigest()
 
     def serialize(self) -> any:
         return self.flag_ids
@@ -61,6 +74,26 @@ class TargetScopedAttackData:
         self.ticks: list[TickScopedAttackData] = [
             TickScopedAttackData(flag_ids) for flag_ids in ticks
         ]
+
+    def remove_repeated(self, alias: str, target: str) -> "TargetScopedAttackData":
+        with get_db_context() as db:
+            hashes = [
+                TickScopedAttackData.hash_flag_ids(alias, target, tick.flag_ids)
+                for tick in self.ticks
+            ]
+
+            existing_hashes = [
+                value
+                for (value,) in db.query(FlagIdsHash.value)
+                .filter(FlagIdsHash.value.in_(hashes))
+                .all()
+            ]
+
+            self.ticks = [
+                t for t, h in zip(self.ticks, hashes) if h not in existing_hashes
+            ]
+
+        return self
 
     def serialize(self) -> list[any]:
         return [tick.serialize() for tick in self.ticks]
