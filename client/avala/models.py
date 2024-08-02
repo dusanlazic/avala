@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import NamedTuple
 from datetime import timedelta
-from dataclasses import dataclass, field
 
 
 class Batching:
@@ -40,7 +39,7 @@ class TargetingStrategy(Enum):
 
 class TickScope(Enum):
     SINGLE = "single"
-    ALL = "all"
+    LAST_N = "last_n"
 
 
 class TickScopedAttackData:

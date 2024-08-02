@@ -11,7 +11,7 @@ from importlib import import_module
 from avala.shared.logs import logger
 from avala.shared.util import colorize
 from avala.api import APIClient
-from avala.models import ServiceScopedAttackData
+from avala.models import ServiceScopedAttackData, TickScope
 
 
 def main(args):
@@ -40,13 +40,27 @@ def main(args):
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         if service_attack_data:
-            futures = {
-                executor.submit(
-                    execute_attack, target, (service_attack_data / target).serialize()
-                ): target
-                for target in args.targets
-                if target not in [client.game.team_ip, client.game.nop_team_ip]
-            }
+            if args.tick_scope == TickScope.SINGLE.value:
+                futures = {
+                    executor.submit(
+                        execute_attack,
+                        target,
+                        tick,
+                    ): target
+                    for target in args.targets
+                    for tick in (service_attack_data / target).serialize()
+                    if target not in [client.game.team_ip, client.game.nop_team_ip]
+                }
+            elif args.tick_scope == TickScope.LAST_N.value:
+                futures = {
+                    executor.submit(
+                        execute_attack,
+                        target,
+                        (service_attack_data / target).serialize(),
+                    ): target
+                    for target in args.targets
+                    if target not in [client.game.team_ip, client.game.nop_team_ip]
+                }
         else:
             futures = {
                 executor.submit(execute_attack, target): target
@@ -161,7 +175,7 @@ if __name__ == "__main__":
         "--tick-scope",
         type=str,
         default="single",
-        choices=["single", "all"],
+        choices=["single", "last_n"],
         help="Tick scope of the flag_ids object to be used for the exploit.",
     )
     parser.add_argument(
