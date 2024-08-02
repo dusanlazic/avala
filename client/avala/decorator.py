@@ -28,7 +28,6 @@ def exploit(
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        wrapper.is_draft = False
         wrapper.exploit_config = ExploitConfig(
             service=service,
             alias=alias,
@@ -74,7 +73,6 @@ def draft(
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        wrapper.is_draft = True
         wrapper.exploit_config = ExploitConfig(
             service=service,
             alias=alias,
@@ -87,6 +85,7 @@ def draft(
             env=env,
             delay=0,
             timeout=timeout,
+            is_draft=True,
             meta=ExploitFuncMeta(
                 name=func.__name__,
                 module=func.__module__,

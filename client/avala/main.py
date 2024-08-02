@@ -126,7 +126,7 @@ class Avala:
                         if (
                             callable(func)
                             and hasattr(func, "exploit_config")
-                            and func.is_draft == should_be_draft
+                            and func.exploit_config.is_draft == should_be_draft
                         ):
                             e = Exploit(func.exploit_config, attack_data)
                             exploits.append(e)

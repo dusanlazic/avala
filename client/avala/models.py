@@ -75,7 +75,15 @@ class TargetScopedAttackData:
             TickScopedAttackData(flag_ids) for flag_ids in ticks
         ]
 
-    def remove_repeated(self, alias: str, target: str) -> "TargetScopedAttackData":
+    def remove_repeated(
+        self,
+        alias: str,
+        target: str,
+        is_draft: bool = False,
+    ) -> "TargetScopedAttackData":
+        if is_draft:
+            return self
+
         with get_db_context() as db:
             hashes = [
                 TickScopedAttackData.hash_flag_ids(alias, target, tick.flag_ids)
@@ -163,6 +171,7 @@ class ExploitConfig:
         delay: int = 0,
         batching: Batching | None = None,
         timeout: int = 0,
+        is_draft: bool = False,
     ):
         self.service: str = service
         self.meta: ExploitFuncMeta = meta
@@ -177,3 +186,4 @@ class ExploitConfig:
         self.delay: timedelta = timedelta(seconds=delay or 0)
         self.batching: Batching | None = batching
         self.timeout: int = timeout
+        self.is_draft: bool = is_draft

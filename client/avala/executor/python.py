@@ -3,7 +3,6 @@ import os
 import sys
 import json
 import shlex
-import hashlib
 import argparse
 import subprocess
 import concurrent.futures
@@ -57,7 +56,7 @@ def main(args):
                     ): (target, flag_ids)
                     for target in args.targets
                     for flag_ids in (service_attack_data / target)
-                    .remove_repeated(args.alias, target)
+                    .remove_repeated(args.alias, target, is_draft=args.draft)
                     .serialize()
                     if target not in [client.game.team_ip, client.game.nop_team_ip]
                 }
@@ -67,7 +66,7 @@ def main(args):
                         execute_attack,
                         target,
                         (service_attack_data / target)
-                        .remove_repeated(args.alias, target)
+                        .remove_repeated(args.alias, target, is_draft=args.draft)
                         .serialize(),
                     ): (target, None)
                     for target in args.targets
@@ -157,6 +156,10 @@ def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
         return
 
 
+def process_flag_ids():
+    pass
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run attacks concurrently against provided teams using provided exploit."
@@ -220,6 +223,12 @@ if __name__ == "__main__":
         nargs="?",
         const=True,
         help="Run provided shell command after running the last attacks.",
+    )
+    parser.add_argument(
+        "--draft",
+        action="store_true",
+        default=False,
+        help="Do not skip attacks that use already used flag ids.",
     )
 
     args = parser.parse_args()
