@@ -6,9 +6,17 @@ import argparse
 import tempfile
 import subprocess
 import concurrent.futures
+from sqlalchemy.dialects.sqlite import insert
 from avala.shared.logs import logger
 from avala.shared.util import colorize
 from avala.api import APIClient
+from avala.models import (
+    ServiceScopedAttackData,
+    TickScopedAttackData,
+    TickScope,
+    FlagIdsHash,
+)
+from avala.database import get_db_context
 
 
 TARGET_PLACEHOLDER = "{target}"
@@ -22,18 +30,39 @@ def main(args):
     if args.prepare:
         subprocess.run(shlex.split(args.prepare), text=True)
 
-    flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
+    service_attack_data = (
+        read_flag_ids(args.attack_data_file) if args.attack_data_file else None
+    )
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # TODO: Handle KeyError
-        if flag_ids:
-            futures = {
-                executor.submit(
-                    execute_attack, args.command, target, flag_ids[target]
-                ): target
-                for target in args.targets
-                if target not in [client.game.team_ip, client.game.nop_team_ip]
-            }
+    with concurrent.futures.ThreadPoolExecutor() as executor, get_db_context() as db:
+        if service_attack_data:
+            if args.tick_scope == TickScope.SINGLE.value:
+                futures = {
+                    executor.submit(
+                        execute_attack,
+                        args.command,
+                        target,
+                        flag_ids,
+                    ): (target, flag_ids)
+                    for target in args.targets
+                    for flag_ids in (service_attack_data / target)
+                    .remove_repeated(args.alias, target, is_draft=args.draft)
+                    .serialize()
+                    if target not in [client.game.team_ip, client.game.nop_team_ip]
+                }
+            elif args.tick_scope == TickScope.LAST_N.value:
+                futures = {
+                    executor.submit(
+                        execute_attack,
+                        args.command,
+                        target,
+                        (service_attack_data / target)
+                        .remove_repeated(args.alias, target, is_draft=args.draft)
+                        .serialize(),
+                    ): (target, None)
+                    for target in args.targets
+                    if target not in [client.game.team_ip, client.game.nop_team_ip]
+                }
         else:
             futures = {
                 executor.submit(execute_attack, args.command, target): target
@@ -41,8 +70,10 @@ def main(args):
                 if target not in [client.game.team_ip, client.game.nop_team_ip]
             }
 
+        used_flag_id_hashes: list[str] = []
+
         for future in concurrent.futures.as_completed(futures):
-            target = futures[future]
+            target, flag_ids = futures[future]
             try:
                 result = future.result()
             except Exception as e:
@@ -61,6 +92,23 @@ def main(args):
                 continue
 
             client.enqueue(flags, args.alias, target)
+
+            if flag_ids:
+                used_flag_id_hashes.append(
+                    TickScopedAttackData.hash_flag_ids(args.alias, target, flag_ids)
+                )
+
+        if used_flag_id_hashes:
+            db.execute(
+                insert(FlagIdsHash)
+                .values([{"value": value} for value in used_flag_id_hashes])
+                .on_conflict_do_nothing(index_elements=["value"])
+            )
+
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
 
     if args.cleanup:
         subprocess.run(shlex.split(args.cleanup), text=True)
@@ -88,6 +136,17 @@ def execute_attack(command, target, flag_ids=None):
     except FileNotFoundError:
         pass
 
+    logger.debug(
+        "🔎 <bold>%s</>-><bold>%s</> (stdout):\n%s"
+        % (colorize(args.alias), colorize(target), result.stdout)
+    )
+
+    if result.stderr:
+        logger.debug(
+            "🔎 <bold>%s</>-><bold>%s</> (stderr):\n%s"
+            % (colorize(args.alias), colorize(target), result.stderr)
+        )
+
     return result.stdout
 
 
@@ -96,10 +155,10 @@ def match_flags(pattern: str, text: str) -> bool:
     return matches if matches else None
 
 
-def read_flag_ids(filepath: str):
+def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
     try:
         with open(filepath) as file:
-            return json.load(file)
+            return ServiceScopedAttackData(json.load(file))
     except FileNotFoundError:
         logger.error("Flag IDs file <bold>%s</> not found." % filepath)
         return
@@ -152,9 +211,16 @@ if __name__ == "__main__":
         help="Optional timeout for a single attack in seconds.",
     )
     parser.add_argument(
-        "--flag-ids-file",
+        "--attack-data-file",
         type=str,
-        help="Path to a file containing flag IDs of the specified service.",
+        help="Path to a file containing attack data of all targets of the specified service.",
+    )
+    parser.add_argument(
+        "--tick-scope",
+        type=str,
+        default="single",
+        choices=["single", "last_n"],
+        help="Tick scope of the flag_ids object to be used for the exploit.",
     )
     parser.add_argument(
         "--prepare",
@@ -165,6 +231,12 @@ if __name__ == "__main__":
         "--cleanup",
         type=str,
         help="Shell command to run after running the attack.",
+    )
+    parser.add_argument(
+        "--draft",
+        action="store_true",
+        default=False,
+        help="Do not skip attacks that use already used flag ids.",
     )
 
     args = parser.parse_args()

@@ -156,10 +156,6 @@ def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
         return
 
 
-def process_flag_ids():
-    pass
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run attacks concurrently against provided teams using provided exploit."
