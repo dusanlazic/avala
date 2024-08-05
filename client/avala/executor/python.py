@@ -84,7 +84,7 @@ def main(args):
         for future in concurrent.futures.as_completed(futures):
             target, flag_ids = futures[future]
             try:
-                result = future.result()
+                result = str(future.result())
             except Exception as e:
                 logger.error(
                     f"An error has occured while attacking <bold>%s</> via <bold>%s</>: %s"
