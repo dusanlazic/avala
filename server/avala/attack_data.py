@@ -8,7 +8,7 @@ from importlib import import_module, reload
 from .shared.logs import logger
 from .state import StateManager
 from .config import config
-from .database import get_db_context
+from .database import get_db
 
 
 attack_data_updated_event: asyncio.Event = asyncio.Event()
@@ -30,7 +30,7 @@ def reload_attack_data():
             % config.attack_data.module
         )
 
-    with get_db_context() as db, StateManager(db) as state:
+    with get_db() as db, StateManager(db) as state:
         old_json_hash = state.attack_data_hash
 
         json_updated = False

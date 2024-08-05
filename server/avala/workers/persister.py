@@ -4,7 +4,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from ..shared.logs import logger
 from ..models import Flag, FlagResponse
 from ..config import load_user_config
-from ..database import get_db_context
+from ..database import get_db
 from ..mq.rabbit import RabbitConnection
 
 BATCH_SIZE = 1000
@@ -14,7 +14,7 @@ INTERVAL = 5
 def main():
     load_user_config()
 
-    with get_db_context() as db:
+    with get_db() as db:
         worker = Persister(db)
         worker.start()
 
@@ -124,7 +124,6 @@ class Persister:
                 )
 
             self.db.bulk_update_mappings(Flag, updates)
-            self.db.commit()
             updated_count = len(updates)
 
             logger.info("Updated %d records." % updated_count)

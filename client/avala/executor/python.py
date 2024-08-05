@@ -18,7 +18,7 @@ from avala.models import (
     TickScope,
     FlagIdsHash,
 )
-from avala.database import get_db_context
+from avala.database import get_db
 
 
 def main(args):
@@ -45,7 +45,7 @@ def main(args):
         read_flag_ids(args.attack_data_file) if args.attack_data_file else None
     )
 
-    with concurrent.futures.ThreadPoolExecutor() as executor, get_db_context() as db:
+    with concurrent.futures.ThreadPoolExecutor() as executor, get_db() as db:
         if service_attack_data:
             if args.tick_scope == TickScope.SINGLE.value:
                 futures = {
@@ -113,11 +113,6 @@ def main(args):
                 .values([{"value": value} for value in used_flag_id_hashes])
                 .on_conflict_do_nothing(index_elements=["value"])
             )
-
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
 
     if args.cleanup:
         subprocess.run(shlex.split(args.cleanup), text=True)

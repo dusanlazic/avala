@@ -9,7 +9,7 @@ from requests.auth import HTTPBasicAuth
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from ..config import config
-from ..database import get_db
+from ..database import get_db_for_request
 from ..models import Flag
 from ..scheduler import get_tick_number
 from ..broadcast import broadcast
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/stats", tags=["Statistics"])
 async def collect_stats(db: Session):
     while True:
         response = requests.get(
-            f"http://{config.rabbitmq.host}:15672/api/queues/%2F/submission_queue",
+            f"http://{config.rabbitmq.host}:15672/api/queues/%2F/submission_queue",  # TODO: Make configurable
             auth=HTTPBasicAuth(config.rabbitmq.user, config.rabbitmq.password),
             params={
                 "lengths_age": 90,
@@ -33,15 +33,21 @@ async def collect_stats(db: Session):
         )
         data = response.json()
 
-        submission_rate = int(data["message_stats"]["ack_details"]["rate"])
-        retrieval_rate = int(data["message_stats"]["publish_details"]["rate"])
+        try:
+            submission_rate = int(data["message_stats"]["ack_details"]["rate"])
+            retrieval_rate = int(data["message_stats"]["publish_details"]["rate"])
 
-        submission_history = transform_rabbitmq_stats(
-            data["message_stats"]["ack_details"]["samples"][::-1]
-        )
-        retrieval_history = transform_rabbitmq_stats(
-            data["message_stats"]["publish_details"]["samples"][::-1]
-        )
+            submission_history = transform_rabbitmq_stats(
+                data["message_stats"]["ack_details"]["samples"][::-1]
+            )
+            retrieval_history = transform_rabbitmq_stats(
+                data["message_stats"]["publish_details"]["samples"][::-1]
+            )
+        except KeyError:
+            submission_rate = 0
+            retrieval_rate = 0
+            submission_history = []
+            retrieval_history = []
 
         queued_count = data["messages"]
 
@@ -79,12 +85,12 @@ transform_rabbitmq_stats = lambda items: list(
 
 
 @router.get("/subscribe")
-async def stats(db: Annotated[Session, Depends(get_db)]):
+async def stats(db: Annotated[Session, Depends(get_db_for_request)]):
     return StreamingResponse(collect_stats(db), media_type="application/x-ndjson")
 
 
 @router.get("/exploits/tick-summary")
-async def exploits(db: Annotated[Session, Depends(get_db)]):
+async def exploits(db: Annotated[Session, Depends(get_db_for_request)]):
     last_tick = get_tick_number() - 1
     ten_ticks_ago = last_tick - 9
 

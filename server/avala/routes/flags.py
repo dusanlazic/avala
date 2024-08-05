@@ -3,12 +3,11 @@ from fastapi import APIRouter, Depends, BackgroundTasks, Query, HTTPException
 from pyparsing import ParseException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from typing import Annotated, List, Optional
 from ..auth import basic_auth
 from ..models import Flag
-from ..database import get_db
+from ..database import get_db_for_request
 from ..mq.rabbit_async import rabbit
 from ..scheduler import get_tick_number
 from ..config import config
@@ -30,7 +29,7 @@ class EnqueueBody(BaseModel):
 async def enqueue(
     flags: EnqueueBody,
     bg: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_db_for_request)],
     username: Annotated[str, Depends(basic_auth)],
 ):
     current_tick = get_tick_number()
@@ -50,10 +49,6 @@ async def enqueue(
         for value in new_flag_values
     ]
     db.bulk_save_objects(new_flags)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
 
     for flag in new_flag_values:
         bg.add_task(rabbit.queues.submission_queue.put, flag, ttl=config.game.flag_ttl)
@@ -88,7 +83,7 @@ async def enqueue(
 
 
 @router.get("/db-stats")
-async def db_stats(db: Annotated[Session, Depends(get_db)]):
+async def db_stats(db: Annotated[Session, Depends(get_db_for_request)]):
     current_tick = get_tick_number()
 
     current_tick_flags = db.query(Flag).filter(Flag.tick == current_tick).count()
@@ -109,7 +104,7 @@ async def db_stats(db: Annotated[Session, Depends(get_db)]):
 
 
 @router.get("/tick-stats")
-async def tick_stats(db: Annotated[Session, Depends(get_db)]):
+async def tick_stats(db: Annotated[Session, Depends(get_db_for_request)]):
     current_tick = get_tick_number()
 
     tick_stats = (
@@ -133,7 +128,7 @@ async def search(
     page: int = Query(1),
     show: int = Query(25, le=100),
     sort: Optional[List[str]] = Query(None),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_db_for_request),
     username: Annotated[str, Depends(basic_auth)] = None,
 ):
     if not query:

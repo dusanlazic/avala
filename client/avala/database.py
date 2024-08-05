@@ -31,21 +31,16 @@ def setup_db_conn():
         sys.exit(1)
 
 
+@contextmanager
 def get_db():
     setup_db_conn()
     db = SessionLocal()
     try:
         yield db
-    finally:
-        db.close()
-
-
-@contextmanager
-def get_db_context():
-    setup_db_conn()
-    db = SessionLocal()
-    try:
-        yield db
+        db.commit()
+    except:
+        db.rollback()
+        raise
     finally:
         db.close()
 

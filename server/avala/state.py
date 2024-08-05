@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import NoResultFound
 from sqlalchemy.dialects.postgresql import insert
 from .models import State
 
@@ -9,20 +8,18 @@ class StateManager:
         self.db: Session = db
 
     def get_state(self, key: str):
-        try:
-            state = self.db.query(State).filter(State.key == key).one()
-            return state.value
-        except NoResultFound:
-            return None
+        state = self.db.query(State).filter(State.key == key).first()
+        return state.value if state else None
 
     def set_state(self, key: str, value: str):
-        stmt = insert(State).values(key=key, value=value)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=[State.key],
-            set_={"value": value},
+        self.db.execute(
+            insert(State)
+            .values(key=key, value=value)
+            .on_conflict_do_update(
+                index_elements=[State.key],
+                set_={"value": value},
+            )
         )
-        self.db.execute(stmt)
-        self.db.commit()
 
     def __getattr__(self, name):
         if name.startswith("_"):
@@ -39,5 +36,4 @@ class StateManager:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.db.close()
         self.db = None

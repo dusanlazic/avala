@@ -2,8 +2,8 @@ import hashlib
 from enum import Enum
 from typing import NamedTuple
 from datetime import timedelta
-from sqlalchemy import Column, String
-from .database import Base, get_db_context
+from sqlalchemy import Column, String, LargeBinary
+from .database import Base, get_db
 
 
 class Batching:
@@ -51,6 +51,13 @@ class FlagIdsHash(Base):
     value = Column(String, primary_key=True)
 
 
+class StoredObject(Base):
+    __tablename__ = "objects"
+
+    key = Column(String, primary_key=True)
+    value = Column(LargeBinary)
+
+
 class TickScopedAttackData:
     def __init__(
         self,
@@ -84,7 +91,7 @@ class TargetScopedAttackData:
         if is_draft:
             return self
 
-        with get_db_context() as db:
+        with get_db() as db:
             hashes = [
                 TickScopedAttackData.hash_flag_ids(alias, target, tick.flag_ids)
                 for tick in self.ticks
