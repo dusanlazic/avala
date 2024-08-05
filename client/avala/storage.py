@@ -4,64 +4,82 @@ from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
 from .models import StoredObject
 from .database import get_db
-from .shared.logs import logger
 
 
 @contextmanager
 def _use_or_get_db(db: Session | None = None):
-    if db is None:
+    if not db:
         with get_db() as new_db:
             yield new_db
     else:
         yield db
 
 
-def store(
-    key: str,
-    value: any,
-    overwrite: bool = True,
-    db: Session | None = None,
-):
-    obj_blob = pickle.dumps(value)
+class BlobStorage:
+    def __init__(self) -> None:
+        pass
 
-    if not overwrite and exists(key, db):
-        return None
+    def __getitem__(self, key: str) -> any:
+        return self.get(key)
 
-    with _use_or_get_db(db) as db:
-        db.execute(
-            insert(StoredObject)
-            .values(key=key, value=obj_blob)
-            .on_conflict_do_update(
-                index_elements=["key"],
-                set_={"value": obj_blob},
-            )
-        )
+    def __setitem__(self, key: str, value: any) -> None:
+        self.put(key, value, overwrite=True)
 
+    def __delitem__(self, key: str) -> None:
+        self.delete(key)
 
-def exists(
-    key: str,
-    db: Session | None = None,
-):
-    with _use_or_get_db(db) as db:
-        return db.query(StoredObject).filter(StoredObject.key == key).count() > 0
+    def __contains__(self, key: str) -> bool:
+        return self.get(key) is not None
 
+    def put(
+        self,
+        key: str,
+        value: any,
+        overwrite: bool = True,
+    ) -> any:
+        if value is None:
+            raise ValueError("Cannot store None value.")
 
-def retrieve(
-    key: str,
-    db: Session | None = None,
-):
-    with _use_or_get_db(db) as db:
-        stored_obj = (
-            db.query(StoredObject.value).filter(StoredObject.key == key).first()
-        )
-
-        if stored_obj is None:
-            return None
+        obj_blob = pickle.dumps(value)
 
         try:
-            obj = pickle.loads(stored_obj.value)
+            if not overwrite and self.get(key, db):
+                return None
         except pickle.UnpicklingError:
-            logger.error("Failed to unpickle stored object for key %s" % key)
-            return None
+            pass
 
-        return obj
+        with get_db() as db:
+            db.execute(
+                insert(StoredObject)
+                .values(key=key, value=obj_blob)
+                .on_conflict_do_update(
+                    index_elements=["key"],
+                    set_={"value": obj_blob},
+                )
+            )
+
+        return value
+
+    def get(
+        self,
+        key: str,
+        db: Session | None = None,
+    ) -> any:
+        with _use_or_get_db(db) as db:
+            stored_obj = db.query(StoredObject).filter(StoredObject.key == key).first()
+
+            if stored_obj is None:
+                return None
+
+            return pickle.loads(stored_obj.value)
+
+    def delete(
+        self,
+        key: str,
+        db: Session | None = None,
+    ) -> bool:
+        with _use_or_get_db(db) as db:
+            return db.query(StoredObject).filter(StoredObject.key == key).delete() > 0
+
+
+storage = BlobStorage()
