@@ -2,11 +2,12 @@ import importlib
 import concurrent.futures
 import importlib.util
 from pathlib import Path
+from sqlalchemy import func
 from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from concurrent.futures import Future
-from .database import setup_db_conn, create_tables
-from .models import UnscopedAttackData
+from .database import setup_db_conn, create_tables, get_db
+from .models import UnscopedAttackData, PendingFlag
 from .shared.logs import logger
 from .shared.util import convert_to_local_tz
 from .config import ConnectionConfig
@@ -41,6 +42,7 @@ class Avala:
         self._check_directories()
         self._initialize_client()
         self._initialize_scheduler()
+        self.client.get_attack_data()
 
         next_tick_start = convert_to_local_tz(
             self.client.schedule.next_tick_start,
@@ -53,6 +55,13 @@ class Avala:
             seconds=self.client.schedule.tick_duration,
             id="schedule_exploits",
             next_run_time=next_tick_start,
+        )
+
+        self.scheduler.add_job(
+            func=self._enqueue_pending_flags,
+            trigger="interval",
+            seconds=15,
+            id="enqueue_pending_flags",
         )
 
         try:
@@ -92,6 +101,10 @@ class Avala:
 
     def _initialize_scheduler(self):
         self.scheduler = BlockingScheduler()
+
+    def _setup_db(self):
+        setup_db_conn()
+        create_tables()
 
     def _check_directories(self):
         valid_directories = []
@@ -171,9 +184,29 @@ class Avala:
 
         executor.shutdown(wait=True)
 
-    def _setup_db(self):
-        setup_db_conn()
-        create_tables()
+    def _enqueue_pending_flags(self):
+        with get_db() as db:
+            try:
+                self.client.heartbeat()
+            except:
+                logger.warning(
+                    "⚠️ Cannot establish connection with the server. <bold>%d</> flags are waiting to be submitted."
+                    % db.query(func.count(PendingFlag.value)).scalar()
+                )
+            else:
+                logger.info("Server is back online! Submitting pending flags...")
+                results = (
+                    db.query(
+                        PendingFlag.target,
+                        PendingFlag.alias,
+                        func.group_concat(PendingFlag.value).label("flags"),
+                    )
+                    .group_by(PendingFlag.target, PendingFlag.alias)
+                    .all()
+                )
+                for row in results:
+                    flags = row.flags.split(",")
+                    self.client.enqueue(flags, row.alias, row.target)
 
     def _show_banner(self):
         print(

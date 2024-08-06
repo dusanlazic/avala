@@ -17,7 +17,7 @@ router = APIRouter(prefix="/connect", tags=["Connect"])
 
 
 @router.get("/health")
-async def health(_: Annotated[str, Depends(basic_auth)]):
+async def health():
     return {"status": "ok"}
 
 

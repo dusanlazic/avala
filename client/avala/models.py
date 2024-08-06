@@ -58,6 +58,14 @@ class StoredObject(Base):
     value = Column(LargeBinary)
 
 
+class PendingFlag(Base):
+    __tablename__ = "pending_flags"
+
+    value = Column(String, primary_key=True)
+    target = Column(String)
+    alias = Column(String)
+
+
 class TickScopedAttackData:
     def __init__(
         self,

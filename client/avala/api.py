@@ -66,6 +66,12 @@ class APIClient:
 
         logger.info("Connected successfully.")
 
+    def heartbeat(self):
+        if not self.conn_str:
+            raise RuntimeError("Not connected to the server.")
+
+        requests.get(f"{self.conn_str}/connect/health").raise_for_status()
+
     def export_settings(self):
         """Export the API client settings to a JSON file so executors can reuse it."""
         DOT_DIR_PATH.mkdir(exist_ok=True)
@@ -90,47 +96,52 @@ class APIClient:
             self.game = data.game
             self.schedule = data.schedule
 
-    def enqueue(self, flags, exploit_alias, target):
+    def enqueue(self, flags: list[str], exploit_alias: str, target: str):
         enqueue_body = {
             "values": flags,
             "exploit": exploit_alias,
             "target": target,
         }
 
-        try:
-            response = requests.post(f"{self.conn_str}/flags/queue", json=enqueue_body)
-            response.raise_for_status()
+        response = requests.post(f"{self.conn_str}/flags/queue", json=enqueue_body)
+        response.raise_for_status()
 
-            data = response.json()
-            logger.info(
-                "✅ Enqueued <bold>%d/%d</> flags from <bold>%s</> via <bold>%s</>."
-                % (
-                    data["enqueued"],
-                    len(flags),
-                    colorize(target),
-                    colorize(exploit_alias),
-                )
+        data = response.json()
+        logger.info(
+            "✅ Enqueued <bold>%d/%d</> flags from <bold>%s</> via <bold>%s</>."
+            % (
+                data["enqueued"],
+                len(flags),
+                colorize(target),
+                colorize(exploit_alias),
             )
-        except Exception as e:
-            logger.error(
-                "Failed to enqueue flags from <bold>%s</> via <bold>%s</>: %s"
-                % (
-                    target,
-                    exploit_alias,
-                    e,
-                )
-            )
-            # TODO: Backup flags somewhere
-            # maybe even push them directlry to rabbitmq
+        )
 
     def wait_for_attack_data(self) -> UnscopedAttackData:
-        response = requests.get(f"{self.conn_str}/attack_data/subscribe")
-        response.raise_for_status()
+        try:
+            response = requests.get(f"{self.conn_str}/attack_data/subscribe")
+            response.raise_for_status()
+            self._cache_attack_data(response.json())
 
-        return UnscopedAttackData(response.json())
+            return UnscopedAttackData(response.json())
+        except:
+            return self._get_cached_attack_data()
 
     def get_attack_data(self) -> UnscopedAttackData:
-        response = requests.get(f"{self.conn_str}/attack_data/current")
-        response.raise_for_status()
+        try:
+            response = requests.get(f"{self.conn_str}/attack_data/current")
+            response.raise_for_status()
+            self._cache_attack_data(response.json())
 
-        return UnscopedAttackData(response.json())
+            return UnscopedAttackData(response.json())
+        except:
+            return self._get_cached_attack_data()
+
+    def _cache_attack_data(self, response_json) -> None:
+        with open(DOT_DIR_PATH / "cached_attack_data.json", "w") as file:
+            json.dump(response_json, file)
+
+    def _get_cached_attack_data(self) -> UnscopedAttackData:
+        logger.warning("Failed to fetch attack data. Using cached attack data instead.")
+        with open(DOT_DIR_PATH / "cached_attack_data.json") as file:
+            return UnscopedAttackData(json.load(file))
