@@ -43,7 +43,7 @@ class BlobStorage:
         obj_blob = pickle.dumps(value)
 
         try:
-            if not overwrite and self.get(key, db):
+            if not overwrite and self.get(key):
                 return None
         except pickle.UnpicklingError:
             pass
