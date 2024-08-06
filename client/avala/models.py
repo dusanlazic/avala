@@ -178,6 +178,7 @@ class ExploitConfig:
         delay: int = 0,
         batching: Batching | None = None,
         timeout: int = 0,
+        workers: int = 128,
         is_draft: bool = False,
     ):
         self.service: str = service
@@ -193,4 +194,5 @@ class ExploitConfig:
         self.delay: timedelta = timedelta(seconds=delay or 0)
         self.batching: Batching | None = batching
         self.timeout: int = timeout
+        self.workers: int = workers
         self.is_draft: bool = is_draft

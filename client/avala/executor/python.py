@@ -45,7 +45,9 @@ def main(args):
         read_flag_ids(args.attack_data_file) if args.attack_data_file else None
     )
 
-    with concurrent.futures.ThreadPoolExecutor() as executor, get_db() as db:
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=args.workers
+    ) as executor, get_db() as db:
         if service_attack_data:
             if args.tick_scope == TickScope.SINGLE.value:
                 futures = {
@@ -220,6 +222,12 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="Do not skip attacks that use already used flag ids.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=128,
+        help="Maximum number of workers to be used for concurrent attacks.",
     )
 
     args = parser.parse_args()

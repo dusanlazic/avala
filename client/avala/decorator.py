@@ -22,6 +22,7 @@ def exploit(
     delay: int = 0,
     batching: Batching | None = None,
     timeout: int = 0,
+    workers: int = 128,
 ):
     def decorator_exploit(func):
         @wraps(func)
@@ -41,6 +42,7 @@ def exploit(
             delay=delay,
             batching=batching,
             timeout=timeout,
+            workers=workers,
             meta=ExploitFuncMeta(
                 name=func.__name__,
                 module=func.__module__,
@@ -67,6 +69,7 @@ def draft(
     delay: int = 0,
     batching: Batching | None = None,
     timeout: int = 0,
+    workers: int = 128,
 ):
     def decorator_exploit(func):
         @wraps(func)
@@ -85,6 +88,7 @@ def draft(
             env=env,
             delay=0,
             timeout=timeout,
+            workers=workers,
             is_draft=True,
             meta=ExploitFuncMeta(
                 name=func.__name__,
