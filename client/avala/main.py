@@ -1,6 +1,7 @@
+import inspect
 import importlib
-import concurrent.futures
 import importlib.util
+import concurrent.futures
 from pathlib import Path
 from sqlalchemy import func
 from datetime import datetime
@@ -35,6 +36,8 @@ class Avala:
         self.scheduler: BlockingScheduler = None
 
         self.exploit_directories: list[Path] = []
+
+        self.workspace_root: Path = Path(inspect.stack()[1].filename).parent
 
     def run(self):
         self._show_banner()
@@ -75,7 +78,7 @@ class Avala:
         self._setup_db()
         self._check_directories()
 
-        self.client = APIClient(self.config)
+        self.client = APIClient(self.workspace_root, self.config)
         try:
             self.client.import_settings()
         except FileNotFoundError:
@@ -89,13 +92,18 @@ class Avala:
             exploit.setup()
             exploit.run()
 
-    def register_directory(self, dir_path):
+    def register_directory(self, dir_path: str):
         path = Path(dir_path)
+        if not path.is_absolute():
+            path = self.workspace_root / path
+
+        path = path.resolve()
+
         if path not in self.exploit_directories:
-            self.exploit_directories.append(Path(dir_path))
+            self.exploit_directories.append(path)
 
     def _initialize_client(self):
-        self.client = APIClient(self.config)
+        self.client = APIClient(self.workspace_root, self.config)
         self.client.connect()
         self.client.export_settings()
 
@@ -103,7 +111,7 @@ class Avala:
         self.scheduler = BlockingScheduler()
 
     def _setup_db(self):
-        setup_db_conn()
+        setup_db_conn(self.workspace_root)
         create_tables()
 
     def _check_directories(self):

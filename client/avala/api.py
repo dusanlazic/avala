@@ -1,6 +1,7 @@
 import json
 import requests
 from addict import Dict
+from pathlib import Path
 from .shared.logs import logger
 from .shared.util import colorize
 from .config import ConnectionConfig, DOT_DIR_PATH
@@ -8,8 +9,9 @@ from .models import UnscopedAttackData
 
 
 class APIClient:
-    def __init__(self, config: ConnectionConfig = None) -> None:
+    def __init__(self, workspace_root: Path, config: ConnectionConfig = None) -> None:
         self.config: ConnectionConfig | None = config
+        self.workspace_dot_dir = workspace_root / DOT_DIR_PATH
 
         self.conn_str: str = None
         self.game: Dict = None
@@ -74,9 +76,9 @@ class APIClient:
 
     def export_settings(self):
         """Export the API client settings to a JSON file so executors can reuse it."""
-        DOT_DIR_PATH.mkdir(exist_ok=True)
+        self.workspace_dot_dir.mkdir(exist_ok=True)
 
-        with open(DOT_DIR_PATH / "api_client.json", "w") as file:
+        with open(self.workspace_dot_dir / "api_client.json", "w") as file:
             json.dump(
                 {
                     "conn_str": self.conn_str,
@@ -90,7 +92,7 @@ class APIClient:
         """Import the API client settings from a JSON file instead of calling connect().
         Used when running executors or running client in workshop mode.
         """
-        with open(DOT_DIR_PATH / "api_client.json", "r") as file:
+        with open(self.workspace_dot_dir / "api_client.json", "r") as file:
             data = Dict(json.load(file))
             self.conn_str = data.conn_str
             self.game = data.game
@@ -138,10 +140,10 @@ class APIClient:
             return self._get_cached_attack_data()
 
     def _cache_attack_data(self, response_json) -> None:
-        with open(DOT_DIR_PATH / "cached_attack_data.json", "w") as file:
+        with open(self.workspace_dot_dir / "cached_attack_data.json", "w") as file:
             json.dump(response_json, file)
 
     def _get_cached_attack_data(self) -> UnscopedAttackData:
         logger.warning("Failed to fetch attack data. Using cached attack data instead.")
-        with open(DOT_DIR_PATH / "cached_attack_data.json") as file:
+        with open(self.workspace_dot_dir / "cached_attack_data.json") as file:
             return UnscopedAttackData(json.load(file))
