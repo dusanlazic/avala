@@ -35,18 +35,20 @@ async def collect_stats(db: Session):
 
         try:
             submission_rate = int(data["message_stats"]["ack_details"]["rate"])
-            retrieval_rate = int(data["message_stats"]["publish_details"]["rate"])
-
             submission_history = transform_rabbitmq_stats(
                 data["message_stats"]["ack_details"]["samples"][::-1]
             )
+        except KeyError:
+            submission_rate = 0
+            submission_history = []
+
+        try:
+            retrieval_rate = int(data["message_stats"]["publish_details"]["rate"])
             retrieval_history = transform_rabbitmq_stats(
                 data["message_stats"]["publish_details"]["samples"][::-1]
             )
         except KeyError:
-            submission_rate = 0
             retrieval_rate = 0
-            submission_history = []
             retrieval_history = []
 
         queued_count = data["messages"]

@@ -1,7 +1,6 @@
 import json
 import requests
 from addict import Dict
-from pathlib import Path
 from .shared.logs import logger
 from .shared.util import colorize
 from .config import ConnectionConfig, DOT_DIR_PATH
@@ -9,9 +8,8 @@ from .models import UnscopedAttackData
 
 
 class APIClient:
-    def __init__(self, workspace_root: Path, config: ConnectionConfig = None) -> None:
+    def __init__(self, config: ConnectionConfig = None) -> None:
         self.config: ConnectionConfig | None = config
-        self.workspace_dot_dir = workspace_root / DOT_DIR_PATH
 
         self.conn_str: str = None
         self.game: Dict = None
@@ -48,7 +46,7 @@ class APIClient:
                 logger.error(
                     "Note: Invalid credentials. Check the password with your teammates."
                 )
-            exit(1)
+            raise
 
         logger.info("Fetching game information...")
 
@@ -56,7 +54,7 @@ class APIClient:
             self.game = Dict(requests.get(f"{self.conn_str}/connect/game").json())
         except Exception as e:
             logger.error("Failed to fetch game information: %s" % e)
-            exit(1)
+            raise
 
         try:
             self.schedule = Dict(
@@ -64,7 +62,7 @@ class APIClient:
             )
         except Exception as e:
             logger.error("Failed to fetch scheduling information: %s" % e)
-            exit(1)
+            raise
 
         logger.info("Connected successfully.")
 
@@ -76,9 +74,9 @@ class APIClient:
 
     def export_settings(self):
         """Export the API client settings to a JSON file so executors can reuse it."""
-        self.workspace_dot_dir.mkdir(exist_ok=True)
+        DOT_DIR_PATH.mkdir(exist_ok=True)
 
-        with open(self.workspace_dot_dir / "api_client.json", "w") as file:
+        with open(DOT_DIR_PATH / "api_client.json", "w") as file:
             json.dump(
                 {
                     "conn_str": self.conn_str,
@@ -92,7 +90,11 @@ class APIClient:
         """Import the API client settings from a JSON file instead of calling connect().
         Used when running executors or running client in workshop mode.
         """
-        with open(self.workspace_dot_dir / "api_client.json", "r") as file:
+        if not (DOT_DIR_PATH / "api_client.json").exists():
+            logger.error("Settings file not found. Unable to start the client.")
+            exit(1)
+
+        with open(DOT_DIR_PATH / "api_client.json", "r") as file:
             data = Dict(json.load(file))
             self.conn_str = data.conn_str
             self.game = data.game
@@ -140,10 +142,10 @@ class APIClient:
             return self._get_cached_attack_data()
 
     def _cache_attack_data(self, response_json) -> None:
-        with open(self.workspace_dot_dir / "cached_attack_data.json", "w") as file:
+        with open(DOT_DIR_PATH / "cached_attack_data.json", "w") as file:
             json.dump(response_json, file)
 
     def _get_cached_attack_data(self) -> UnscopedAttackData:
         logger.warning("Failed to fetch attack data. Using cached attack data instead.")
-        with open(self.workspace_dot_dir / "cached_attack_data.json") as file:
+        with open(DOT_DIR_PATH / "cached_attack_data.json") as file:
             return UnscopedAttackData(json.load(file))

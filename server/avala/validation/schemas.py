@@ -11,9 +11,29 @@ game_schema = {
         },
         "nop_team_ip": {"type": "string", "format": "hostname"},
         "flag_ttl": {"type": "integer", "minimum": 1},
-        "start_time": {
+        "game_starts_at": {
             "type": "string",
             "pattern": "^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$",
+        },
+        "networks_open_after": {
+            "type": "object",
+            "properties": {
+                "hours": {"type": "integer", "minimum": 0},
+                "minutes": {"type": "integer", "minimum": 0},
+                "seconds": {"type": "integer", "minimum": 0},
+            },
+            "additionalProperties": False,
+            "minProperties": 1,
+        },
+        "game_ends_after": {
+            "type": "object",
+            "properties": {
+                "hours": {"type": "integer", "minimum": 0},
+                "minutes": {"type": "integer", "minimum": 0},
+                "seconds": {"type": "integer", "minimum": 0},
+            },
+            "additionalProperties": False,
+            "minProperties": 1,
         },
     },
     "required": ["tick_duration", "flag_format", "team_ip"],

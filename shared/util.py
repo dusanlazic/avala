@@ -1,23 +1,10 @@
 import pytz
 import tzlocal
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
-def deep_update(left, right):
-    """
-    Update a dictionary recursively in-place.
-    """
-    for key, value in right.items():
-        if isinstance(value, dict) and value:
-            returned = deep_update(left.get(key, {}), value)
-            left[key] = returned
-        else:
-            left[key] = right[key]
-    return left
-
-
-def convert_to_local_tz(dt_iso_str: str, tz: str):
+def convert_to_local_tz(dt_iso_str: str, tz: str) -> datetime:
     source_tz = pytz.timezone(tz)
     target_tz = tzlocal.get_localzone()
 
@@ -25,6 +12,16 @@ def convert_to_local_tz(dt_iso_str: str, tz: str):
     dt_with_tz = source_tz.localize(dt)
 
     return dt_with_tz.astimezone(target_tz)
+
+
+def get_next_tick_start(
+    first_tick_start: datetime, tick_duration: timedelta
+) -> datetime:
+    now = datetime.now(tzlocal.get_localzone())
+    if now < first_tick_start:
+        return first_tick_start
+
+    return now + tick_duration - ((now - first_tick_start) % tick_duration)
 
 
 colors = [

@@ -12,18 +12,17 @@ SessionLocal = None
 Base = declarative_base()
 
 
-def setup_db_conn(workspace_root: Path):
+def setup_db_conn():
     global engine, SessionLocal
-    workspace_dot_dir = workspace_root / DOT_DIR_PATH
 
     if engine is not None and SessionLocal is not None:
         return
 
-    workspace_dot_dir.mkdir(exist_ok=True)
+    DOT_DIR_PATH.mkdir(exist_ok=True)
 
     try:
         engine = create_engine(
-            "sqlite:///%s" % (workspace_dot_dir / "database.db").resolve().as_posix()
+            "sqlite:///%s" % (DOT_DIR_PATH / "database.db").resolve().as_posix()
         )
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     except Exception as e:

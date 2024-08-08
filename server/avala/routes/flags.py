@@ -109,6 +109,7 @@ async def tick_stats(db: Annotated[Session, Depends(get_db_for_request)]):
 
     tick_stats = (
         db.query(Flag.tick, func.count(Flag.id).label("count"))
+        .filter(Flag.status == "accepted")
         .group_by(Flag.tick)
         .order_by(Flag.tick)
         .all()

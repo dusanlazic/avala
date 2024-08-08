@@ -1,16 +1,15 @@
-import inspect
 import importlib
 import importlib.util
 import concurrent.futures
 from pathlib import Path
 from sqlalchemy import func
-from datetime import datetime
+from datetime import datetime, timedelta
 from apscheduler.schedulers.blocking import BlockingScheduler
 from concurrent.futures import Future
 from .database import setup_db_conn, create_tables, get_db
 from .models import UnscopedAttackData, PendingFlag
 from .shared.logs import logger
-from .shared.util import convert_to_local_tz
+from .shared.util import convert_to_local_tz, get_next_tick_start
 from .config import ConnectionConfig
 from .exploit import Exploit
 from .api import APIClient
@@ -37,8 +36,6 @@ class Avala:
 
         self.exploit_directories: list[Path] = []
 
-        self.workspace_root: Path = Path(inspect.stack()[1].filename).parent
-
     def run(self):
         self._show_banner()
         self._setup_db()
@@ -47,9 +44,14 @@ class Avala:
         self._initialize_scheduler()
         self.client.get_attack_data()
 
-        next_tick_start = convert_to_local_tz(
-            self.client.schedule.next_tick_start,
+        first_tick_start = convert_to_local_tz(
+            self.client.schedule.first_tick_start,
             self.client.schedule.tz,
+        )
+
+        next_tick_start = get_next_tick_start(
+            first_tick_start,
+            timedelta(seconds=self.client.schedule.tick_duration),
         )
 
         self.scheduler.add_job(
@@ -78,7 +80,7 @@ class Avala:
         self._setup_db()
         self._check_directories()
 
-        self.client = APIClient(self.workspace_root, self.config)
+        self.client = APIClient(self.config)
         try:
             self.client.import_settings()
         except FileNotFoundError:
@@ -93,25 +95,24 @@ class Avala:
             exploit.run()
 
     def register_directory(self, dir_path: str):
-        path = Path(dir_path)
-        if not path.is_absolute():
-            path = self.workspace_root / path
-
-        path = path.resolve()
-
+        path = Path(dir_path).resolve()
         if path not in self.exploit_directories:
             self.exploit_directories.append(path)
 
     def _initialize_client(self):
-        self.client = APIClient(self.workspace_root, self.config)
-        self.client.connect()
-        self.client.export_settings()
+        self.client = APIClient(self.config)
+        try:
+            self.client.connect()
+        except:
+            self.client.import_settings()
+        else:
+            self.client.export_settings()
 
     def _initialize_scheduler(self):
         self.scheduler = BlockingScheduler()
 
     def _setup_db(self):
-        setup_db_conn(self.workspace_root)
+        setup_db_conn()
         create_tables()
 
     def _check_directories(self):

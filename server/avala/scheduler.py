@@ -34,11 +34,43 @@ def get_tick_duration() -> timedelta:
 
 
 def get_first_tick_start() -> datetime:
-    start_time_str = config.game.start_time
+    start_time_str = config.game.game_starts_at
     return datetime.strptime(
         start_time_str,
         "%Y-%m-%d %H:%M:%S" if len(start_time_str) == 19 else "%Y-%m-%d %H:%M",
     )
+
+
+def get_networks_open_after() -> timedelta:
+    return timedelta(
+        hours=config.game.networks_open_after.hours or 0,
+        minutes=config.game.networks_open_after.minutes or 0,
+        seconds=config.game.networks_open_after.seconds or 0,
+    )
+
+
+def get_game_ends_after() -> timedelta:
+    return timedelta(
+        hours=config.game.game_ends_after.hours or 0,
+        minutes=config.game.game_ends_after.minutes or 0,
+        seconds=config.game.game_ends_after.seconds or 0,
+    )
+
+
+def get_networks_open_at() -> datetime:
+    return get_first_tick_start() + get_networks_open_after()
+
+
+def get_game_ends_at() -> datetime:
+    return get_first_tick_start() + get_game_ends_after()
+
+
+def get_network_open_at_tick() -> int:
+    return (get_networks_open_at() - get_first_tick_start()) // get_tick_duration()
+
+
+def get_game_ends_at_tick() -> int:
+    return (get_game_ends_at() - get_first_tick_start()) // get_tick_duration()
 
 
 def get_tick_elapsed(now=None) -> timedelta:

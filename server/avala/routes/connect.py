@@ -1,16 +1,13 @@
 import tzlocal
-from datetime import datetime
 from typing import Annotated
 from fastapi import APIRouter, Depends
-from ..shared.logs import logger
 from ..auth import basic_auth
 from ..config import config
 from ..scheduler import (
-    get_next_tick_start,
-    get_tick_elapsed,
     get_tick_duration,
     get_first_tick_start,
-    get_tick_number,
+    get_network_open_at_tick,
+    get_game_ends_at_tick,
 )
 
 router = APIRouter(prefix="/connect", tags=["Connect"])
@@ -32,12 +29,10 @@ async def enqueue(_: Annotated[str, Depends(basic_auth)]):
 
 @router.get("/schedule")
 async def schedule(_: Annotated[str, Depends(basic_auth)]):
-    now = datetime.now()
     return {
-        "tick_number": get_tick_number(),
         "first_tick_start": get_first_tick_start(),
-        "next_tick_start": get_next_tick_start(now),
-        "tick_elapsed": get_tick_elapsed(now),
-        "tick_duration": get_tick_duration(),
+        "tick_duration": get_tick_duration().total_seconds(),
+        "network_open_tick": get_network_open_at_tick(),
+        "total_ticks": get_game_ends_at_tick(),
         "tz": tzlocal.get_localzone_name(),
     }
