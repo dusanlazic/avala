@@ -200,22 +200,32 @@ class Avala:
             except:
                 logger.warning(
                     "⚠️ Cannot establish connection with the server. <bold>%d</> flags are waiting to be submitted."
-                    % db.query(func.count(PendingFlag.value)).scalar()
+                    % db.query(func.count(PendingFlag.value))
+                    .filter(PendingFlag.submitted == False)
+                    .scalar()
                 )
             else:
-                logger.info("Server is back online! Submitting pending flags...")
                 results = (
                     db.query(
                         PendingFlag.target,
                         PendingFlag.alias,
                         func.group_concat(PendingFlag.value).label("flags"),
                     )
+                    .filter(PendingFlag.submitted == False)
                     .group_by(PendingFlag.target, PendingFlag.alias)
                     .all()
                 )
+
+                if results:
+                    logger.info("Server is back online! Submitting pending flags...")
+
                 for row in results:
                     flags = row.flags.split(",")
                     self.client.enqueue(flags, row.alias, row.target)
+                    db.query(PendingFlag).filter(
+                        PendingFlag.target == row.target,
+                        PendingFlag.alias == row.alias,
+                    ).update({PendingFlag.submitted: True})
 
     def _show_banner(self):
         print(

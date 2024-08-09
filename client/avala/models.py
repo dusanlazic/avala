@@ -2,7 +2,7 @@ import hashlib
 from enum import Enum
 from typing import NamedTuple
 from datetime import timedelta
-from sqlalchemy import Column, String, LargeBinary
+from sqlalchemy import Column, String, Boolean, LargeBinary
 from .database import Base, get_db
 
 
@@ -64,6 +64,7 @@ class PendingFlag(Base):
     value = Column(String, primary_key=True)
     target = Column(String)
     alias = Column(String)
+    submitted = Column(Boolean, default=False)
 
 
 class TickScopedAttackData:
