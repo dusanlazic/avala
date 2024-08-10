@@ -92,7 +92,7 @@ class APIClient:
         """
         if not (DOT_DIR_PATH / "api_client.json").exists():
             logger.error("Settings file not found. Unable to start the client.")
-            exit(1)
+            raise FileNotFoundError()
 
         with open(DOT_DIR_PATH / "api_client.json", "r") as file:
             data = Dict(json.load(file))

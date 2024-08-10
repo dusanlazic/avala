@@ -15,6 +15,7 @@ from avala.models import (
     TickScopedAttackData,
     TickScope,
     FlagIdsHash,
+    PendingFlag,
 )
 from avala.database import get_db
 
@@ -33,6 +34,9 @@ def main(args):
     service_attack_data = (
         read_flag_ids(args.attack_data_file) if args.attack_data_file else None
     )
+
+    used_flag_id_hashes: list[dict] = []
+    pending_flags: list[dict] = []
 
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=args.workers
@@ -72,8 +76,6 @@ def main(args):
                 if target not in [client.game.team_ip, client.game.nop_team_ip]
             }
 
-        used_flag_id_hashes: list[str] = []
-
         for future in concurrent.futures.as_completed(futures):
             target, flag_ids = futures[future]
             try:
@@ -93,18 +95,56 @@ def main(args):
                 )
                 continue
 
-            client.enqueue(flags, args.alias, target)
+            try:
+                client.enqueue(flags, args.alias, target)
+            except Exception as e:
+                logger.error(
+                    "Failed to enqueue flags from <bold>%s</> via <bold>%s</>: %s"
+                    % (
+                        target,
+                        args.alias,
+                        e,
+                    )
+                )
+                pending_flags.extend(
+                    [
+                        {
+                            "value": value,
+                            "target": target,
+                            "alias": args.alias,
+                        }
+                        for value in flags
+                    ]
+                )
 
             if flag_ids:
                 used_flag_id_hashes.append(
-                    TickScopedAttackData.hash_flag_ids(args.alias, target, flag_ids)
+                    {
+                        "value": TickScopedAttackData.hash_flag_ids(
+                            args.alias, target, flag_ids
+                        )
+                    }
                 )
 
         if used_flag_id_hashes:
             db.execute(
                 insert(FlagIdsHash)
-                .values([{"value": value} for value in used_flag_id_hashes])
+                .values(used_flag_id_hashes)
                 .on_conflict_do_nothing(index_elements=["value"])
+            )
+
+        if pending_flags:
+            db.execute(
+                insert(PendingFlag)
+                .values(pending_flags)
+                .on_conflict_do_nothing(index_elements=["value"])
+            )
+            logger.warning(
+                "<bold>%d</> more flags obtained via <bold>%s</> are stored into the local flag store."
+                % (
+                    len(pending_flags),
+                    colorize(args.alias),
+                )
             )
 
     if args.cleanup:
