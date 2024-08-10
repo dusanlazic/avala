@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="avala-server",
@@ -24,7 +24,8 @@ setup(
         "click",
         "broadcaster",
     ],
-    packages=["avala"],
+    packages=find_packages(),
+    include_package_data=True,
     entry_points={
         "console_scripts": [
             "avl=avala.cli:cli",

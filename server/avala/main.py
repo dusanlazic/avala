@@ -51,6 +51,7 @@ def main():
     app.include_router(statistics_router)
 
     configure_cors(app)
+    configure_static(app)
 
     try:
         uvicorn.run(
@@ -84,9 +85,14 @@ def configure_cors(app: FastAPI):
 
 
 def configure_static(app: FastAPI):
+    if not config.server.frontend:
+        return
+
     base_dir = Path(__file__).resolve().parent
-    static_folder_path = base_dir / ".." / "frontend" / "dist"
-    app.mount("", StaticFiles(directory=static_folder_path), name="static")
+    static_folder_path = base_dir / "static" / "dist"
+    app.mount("", StaticFiles(directory=static_folder_path, html=True), name="static")
+
+    logger.info("Serving frontend.")
 
 
 def create_dot_dir():

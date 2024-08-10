@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="avala-client",
@@ -17,5 +17,5 @@ setup(
         "APScheduler==3.10.1",
         "addict",
     ],
-    packages=["avala"],
+    packages=find_packages(),
 )

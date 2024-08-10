@@ -1,4 +1,5 @@
 venv
+*.tar.gz
 __pycache__
 *.egg-info
 dist

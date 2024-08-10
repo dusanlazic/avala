@@ -13,8 +13,9 @@ config = Dict(
         "game": {"flag_ttl": None},
         "server": {
             "host": "0.0.0.0",
-            "port": 2023,
+            "port": 2024,
             "cors": ["*"],
+            "frontend": True,
         },
         "submitter": {
             "module": "submitter",
