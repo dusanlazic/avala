@@ -35,6 +35,8 @@ class Avala:
         self.scheduler: BlockingScheduler = None
 
         self.exploit_directories: list[Path] = []
+        self.before_all_hook = None
+        self.after_all_hook = None
 
     def run(self):
         self._show_banner()
@@ -89,15 +91,33 @@ class Avala:
 
         attack_data = self.client.get_attack_data()
 
+        self._run_hook(self.before_all_hook)
+
         exploits = self._reload_exploits(attack_data)
         for exploit in exploits:
             exploit.setup()
             exploit.run()
 
+        self._run_hook(self.after_all_hook)
+
     def register_directory(self, dir_path: str):
         path = Path(dir_path).resolve()
         if path not in self.exploit_directories:
             self.exploit_directories.append(path)
+
+    def before_all(self):
+        def decorator(func):
+            self.before_all_hook = func
+            return func
+
+        return decorator
+
+    def after_all(self):
+        def decorator(func):
+            self.after_all_hook = func
+            return func
+
+        return decorator
 
     def _initialize_client(self):
         self.client = APIClient(self.config)
@@ -162,6 +182,9 @@ class Avala:
         executor = concurrent.futures.ThreadPoolExecutor()
         attack_data_future = executor.submit(self.client.wait_for_attack_data)
 
+        if self.before_all_hook:
+            self.before_all_hook()
+
         exploits = self._reload_exploits(attack_data_future)
 
         automatic_target_exploits = [e for e in exploits if e.requires_flag_ids]
@@ -192,6 +215,16 @@ class Avala:
                     )
 
         executor.shutdown(wait=True)
+
+        if self.after_all_hook:
+            self.after_all_hook()
+
+    def _run_hook(self, func):
+        if func:
+            try:
+                func()
+            except Exception as e:
+                logger.error(f"Error in {func.__name__}: {e}")
 
     def _enqueue_pending_flags(self):
         with get_db() as db:
