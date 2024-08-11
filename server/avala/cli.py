@@ -1,5 +1,6 @@
 import click
 from .main import main as server_main
+from .main import initialize_workspace
 from .workers.persister import main as persister_main
 from .workers.submitter import main as submitter_main
 
@@ -22,6 +23,11 @@ def persister():
 @cli.command()
 def submitter():
     submitter_main()
+
+
+@cli.command()
+def init():
+    initialize_workspace()
 
 
 if __name__ == "__main__":

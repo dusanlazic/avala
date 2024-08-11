@@ -1,0 +1,86 @@
+services:
+  avala-server:
+    image: gitea.local/dusanlazic/avala:latest
+    container_name: avala-server
+    command: avl server
+    ports:
+      - 2024:2024
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    restart: always
+    tty: true
+    volumes:
+      - ./:/home/avala/workspace
+
+  avala-submitter:
+    image: gitea.local/dusanlazic/avala:latest
+    command: avl submitter
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: always
+    volumes:
+      - ./:/home/avala/workspace
+  
+  avala-persister:
+    image: gitea.local/dusanlazic/avala:latest
+    container_name: avala-persister
+    command: avl persister
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    restart: always
+    volumes:
+      - ./:/home/avala/workspace
+
+  rabbitmq:
+    image: rabbitmq:management  # Management plugin is required for real-time statistics displayed on the dashboard.
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    restart: always
+    tty: true
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  postgres:
+    image: postgres:alpine
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: avala
+    tty: true
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    
+  # Optional: Logsea for monitoring real-time logs on the machine via web UI.
+  # services:
+  #   logsea:
+  #     image: dusanlazic/logsea
+  #     ports:
+  #       - 8000:8000
+  #     volumes:
+  #       - /var/run/docker.sock:/var/run/docker.sock
+  #     environment:
+  #       BASIC_AUTH_USERNAME: user
+  #       BASIC_AUTH_PASSWORD: pass
+
+volumes:
+  rabbitmq-data:
+  postgres-data:
+

@@ -1,4 +1,4 @@
-import os
+import shutil
 import uvicorn
 from pathlib import Path
 from fastapi import FastAPI
@@ -88,8 +88,8 @@ def configure_static(app: FastAPI):
     if not config.server.frontend:
         return
 
-    base_dir = Path(__file__).resolve().parent
-    static_folder_path = base_dir / "static" / "dist"
+    source_code_dir = Path(__file__).resolve().parent
+    static_folder_path = source_code_dir / "static" / "dist"
     app.mount("", StaticFiles(directory=static_folder_path, html=True), name="static")
 
     logger.info("Serving frontend.")
@@ -101,6 +101,32 @@ def create_dot_dir():
         logger.info("Created .avala directory.")
     else:
         logger.info("Found .avala directory.")
+
+
+def initialize_workspace():
+    logger.info("Initializing workspace...")
+    source_code_dir = Path(__file__).resolve().parent
+    initialization_dir = source_code_dir / "initialization"
+    workspace_dir = Path.cwd()
+
+    for item in initialization_dir.iterdir():
+        destination = workspace_dir / item.name
+        if destination.exists():
+            logger.info(f"Skipping {item.name} as it already exists.")
+            continue
+        shutil.copy2(item, destination)
+        logger.info(f"Created {item.name}.")
+
+    logger.success(
+        """Workspace initialized. Next steps:
+
+ <b>1.</> 🔧 Configure the server by editing <b>server.yaml</b>.
+ <b>2.</> 🧩 Implement the flag submission logic in <b>submitter.py</b>.
+ <b>3.</> 🧩 Implement the flag ID fetching logic in <b>flag_ids.py</b>.
+ <b>4.</> 🐳 Edit <b>compose.yaml</> to fit your infrastructure.
+ <b>5.</> 🚀 Run <b>docker compose up -d</> to run everything.
+        """
+    )
 
 
 def show_banner():
