@@ -1,0 +1,124 @@
+# Configuration file for the Avala server
+
+# Game settings - adjust these according to the competition's rulebook.
+game:
+  # Duration of each game tick in seconds.
+  tick_duration: 60
+
+  # Regular expression pattern for matching flags.
+  flag_format: FLAG{[a-zA-Z0-9]+}
+
+  # IP addresses or hostnames of your team's vulnerable machines (vulnboxes).
+  # These machines will be excluded from attack attempts.
+  team_ip: 
+    - 10.10.43.1 # Example Linux machine 1
+    - 10.10.43.2 # Example Linux machine 2
+    - 10.10.43.3 # Example Windows machine
+
+  # IP address or hostname of the NOP (Non-Playing) team.
+  # This team will be skipped during the attacks.
+  nop_team_ip: 10.10.1.1
+
+  # Time-to-live (TTL) for each flag in seconds. Sometimes it's given in ticks.
+  flag_ttl: 300
+
+  # The start time of the game in "YYYY-MM-DD HH:MM:SS" format.
+  game_starts_at: 2024-08-11 10:00:00
+
+  # Time after which the networks open, specified in hours, minutes, and/or seconds.
+  networks_open_after:
+    hours: 1
+    # minutes: 30
+    # seconds: 0
+
+  # Duration of the game specified in hours, minutes, and/or seconds.
+  game_ends_after:
+    hours: 8
+    # minutes: 0
+    # seconds: 0
+
+# Flag submission configuration
+submitter:
+  # Name of the Python module responsible for submitting flags.
+  # This should correspond to the file name of your submission script, without the .py extension.
+  module: submitter
+
+  # Choose a submission method based on your preferences and game requirements:
+
+  # 1) Interval-based submission:
+  # Flags are submitted every specified number of seconds. If the queue exceeds
+  # max_batch_size, flags are sent in multiple batches to limit request size.
+  interval: 5
+  max_batch_size: 50
+  
+  # 2) Per-tick submission:
+  # Flags are submitted multiple times per tick. If the queue exceeds
+  # max_batch_size, flags are sent in batches.
+  # per_tick: 5
+  # max_batch_size: 50
+
+  # 3) Batched submission:
+  # Flags are submitted when the queue reaches the specified size. The queue is
+  # periodically flushed to ensure that the flags are submitted even if the size
+  # is not reached.
+  # batch_size: 50
+
+  # 4) Stream submission:
+  # For continuous submission via TCP connection, set this option to true.
+  # streams: true
+
+# Flag IDs fetching
+attack_data:
+  # Name of the Python module responsible for fetching flag IDs.
+  # This should correspond to the file name of your submission script, without the .py extension.
+  module: flag_ids
+
+  # Maximum number of attempts to fetch the flag IDs.
+  # This is added to mitigate game-server latency issues. In case of failure,
+  # the last fetched flag IDs will be reused.
+  max_attempts: 5
+
+  # Interval (in seconds) between retrying to fetch flag IDs.
+  retry_interval: 1
+
+# Server configuration
+server:
+  # Hostname or IP address for the server to bind to (0.0.0.0 for all interfaces).
+  host: 0.0.0.0
+
+  # Port number for the server to listen on.
+  # Make sure this port is open and not blocked by any firewall rules.
+  port: 2024
+
+  # Password used for authenticating clients connecting to the server and restrict
+  # access to the dashboard. It's recommended to use a strong password.
+  # https://www.random.org/strings/?num=1&len=32&digits=on&upperalpha=on&loweralpha=on&format=plain
+  password: strong_password
+
+  # List of allowed domains for Cross-Origin Resource Sharing (CORS).
+  # Enable this if you're serving the frontend from a different domain.
+  # If you have frontend: true set below, you likely don't need this.
+  # cors:
+  #   - http://hakuj.me
+  #   - https://hakuj.me
+
+  # Enable serving the dashboard (frontend app) at the root URL.
+  # Leave this to true to simplify the setup process.
+  frontend: true
+
+# Database connection settings
+# Note that it uses the hostname of the Postgres service defined in Docker Compose.
+database:
+  name: avala
+  user: admin
+  password: admin
+  host: postgres
+  port: 5432
+
+# RabbitMQ connection settings
+# Note that it uses the hostname of the RabbitMQ service defined in Docker Compose.
+rabbitmq:
+  user: guest
+  password: guest
+  host: rabbitmq
+  port: 5672
