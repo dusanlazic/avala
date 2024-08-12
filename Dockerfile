@@ -1,20 +1,22 @@
-FROM python:3.11-slim
+FROM node:22-slim as build-frontend
+WORKDIR /app
+ADD web /app/
+RUN rm -rf /app/node_modules || true
+RUN npm install
+RUN npm run build
 
-RUN adduser avala
-
-RUN mkdir /app && chown avala /app
-
-USER avala
-
-RUN pip install requests loguru pyyaml sqlalchemy psycopg2-binary pyparsing jsonschema fastapi uvicorn APScheduler==3.10.1 addict pika aio_pika click broadcaster
-
+FROM python:3.11-alpine as build-package
+WORKDIR /app
 COPY server /app/server
-COPY client /app/client
-COPY shared /app/shared
-COPY setup.py /app/
+RUN rm /app/server/avala/shared
+COPY shared /app/server/avala/shared
+COPY --from=build-frontend /app/dist /app/server/avala/static/dist
+RUN cd /app/server && python setup.py sdist
 
+FROM python:3.11-slim
+RUN adduser avala
+USER avala
 WORKDIR /home/avala/workspace
-
-RUN pip install -e /app/
-
+COPY --from=build-package /app/server/dist/*.tar.gz avala.tar.gz
+RUN pip install avala.tar.gz pwn
 ENV PATH="/home/avala/.local/bin:${PATH}"

@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
     create_tables()
     await rabbit.connect()
     await rabbit.create_queue("submission_queue", durable=True)
+    await rabbit.create_queue("persisting_queue", durable=True)
     await broadcast.connect()
     scheduler = initialize_scheduler()
     scheduler.start()
@@ -110,6 +111,9 @@ def initialize_workspace():
     workspace_dir = Path.cwd()
 
     for item in initialization_dir.iterdir():
+        if item.name == "__pycache__":
+            continue
+
         destination = workspace_dir / item.name
         if destination.exists():
             logger.info(f"Skipping {item.name} as it already exists.")
