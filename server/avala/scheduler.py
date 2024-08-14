@@ -104,7 +104,7 @@ def game_has_started(now=None) -> bool:
 
 def tick_announcer():
     logger.info(
-        "Started tick <bold>%d</bold>. Next tick scheduled for <bold>%s</bold>."
+        "Started tick <b>%d</bold>. Next tick scheduled for <b>%s</bold>."
         % (get_tick_number(), get_next_tick_start().strftime("%H:%M:%S"))
     )
 
@@ -112,11 +112,11 @@ def tick_announcer():
 def print_current_tick(now=None):
     if not game_has_started(now):
         logger.info(
-            "Game has not started yet. First tick scheduled for <bold>%s</bold>."
+            "Game has not started yet. First tick scheduled for <b>%s</bold>."
             % get_first_tick_start().strftime("%H:%M:%S")
         )
     else:
         logger.info(
-            "Current tick is <bold>%d</bold>. Next tick scheduled for <bold>%s</bold>."
+            "Current tick is <b>%d</bold>. Next tick scheduled for <b>%s</bold>."
             % (get_tick_number(), get_next_tick_start().strftime("%H:%M:%S"))
         )

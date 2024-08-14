@@ -21,7 +21,6 @@ def exploit(
     env: dict[str, str] = {},
     delay: int = 0,
     batching: Batching | None = None,
-    timeout: int = 0,
     workers: int = 128,
 ):
     def decorator_exploit(func):
@@ -41,7 +40,6 @@ def exploit(
             env=env,
             delay=delay,
             batching=batching,
-            timeout=timeout,
             workers=workers,
             meta=ExploitFuncMeta(
                 name=func.__name__,
@@ -68,9 +66,45 @@ def draft(
     env: dict[str, str] = {},
     delay: int = 0,
     batching: Batching | None = None,
-    timeout: int = 0,
     workers: int = 128,
 ):
+    """
+    A decorator to mark an exploit function as a draft.
+
+    Use this decorator while developing an exploit. Draft exploits are executed by invoking the `workshop()` method of the `Avala` class.
+
+    :param service: Name of the service attacked by the exploit. To see all services, visit `http(s)://AVALA_HOST:PORT/attack_data/current`.
+    :type service: str
+    :param targets: IP addresses or hostnames of the targeted teams.
+    Use `TargetingStrategy.AUTO` to target all currently available teams if your exploit is accepting `flag_ids` parameter. Read more about targeting strategies in :class:`avala.models.TargetingStrategy`.
+    :type targets: list[str] | TargetingStrategy
+    :param alias: Alias used for exploit identification, analytics and as a key for tracking repeated flag IDs.
+    If not provided, it will be set to `<module_name>.<function_name>`.
+    :type alias: str | None, optional
+    :param tick_scope: Scope of the `flag_ids` dictionary, defaults to TickScope.SINGLE.
+    Read more about tick scopes in :class:`avala.models.TickScope`.
+    :type tick_scope: TickScope, optional
+    :param skip: IP addresses or hostnames to skip while attacking, defaults to the addresses belonging to the NOP team and own team.
+    :type skip: list[str] | None, optional
+    :param prepare: Optional shell command to run before starting the first attack, defaults to None. Useful for setting up the environment, files, etc.
+    :type prepare: str | None, optional
+    :param cleanup: Optional shell command to run after completing the last attack, defaults to None. Useful for cleaning up any changes or artifacts created during the attacks.
+    :type cleanup: str | None, optional
+    :param command: Command for running a non-Python exploit. Must be a string with placeholders for the target IP (`{target}`) address and path to the exported flag IDs dictionary (`{flag_ids_path}`).
+    Example: `./rust_exploit {target} {flag_ids_path}`. Defaults to None.
+    :type command: str | None, optional
+    :param env: Environment variables to be passed into the exploit's execution environment. Any passed environment variables will be merged with the current environment variables. Defaults to an empty dictionary.
+    :type env: dict[str, str], optional
+    :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. This is helpful when running multiple exploits to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage.
+    Note: Delay is **ignored in draft exploits** and is listed for easier switching between draft and non-draft exploits.
+    :type delay: int, optional
+    :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes.
+    Read more about batching in :class:`avala.models.Batching`. Note: Batching is **ignored in draft exploits** and is listed for easier switching between draft and non-draft exploits.
+    :type batching: Batching | None, optional
+    :param workers: Number of concurrent workers **per exploit** to be used for executing the attacks, defaults to 128.
+    :type workers: int, optional
+    """
+
     def decorator_exploit(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -87,7 +121,6 @@ def draft(
             command=command,
             env=env,
             delay=0,
-            timeout=timeout,
             workers=workers,
             is_draft=True,
             meta=ExploitFuncMeta(

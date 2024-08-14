@@ -76,4 +76,7 @@ def load_user_config():
     if type(config.game.team_ip) != list:
         config.game.team_ip = [config.game.team_ip]
 
+    if type(config.game.nop_team_ip) != list:
+        config.game.nop_team_ip = [config.game.nop_team_ip]
+
     logger.info("Loaded user configuration.")

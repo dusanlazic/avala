@@ -54,7 +54,6 @@ def main(args):
                     for flag_ids in (service_attack_data / target)
                     .remove_repeated(args.alias, target, is_draft=args.draft)
                     .serialize()
-                    if target not in [client.game.team_ip, client.game.nop_team_ip]
                 }
             elif args.tick_scope == TickScope.LAST_N.value:
                 futures = {
@@ -67,13 +66,11 @@ def main(args):
                         .serialize(),
                     ): (target, None)
                     for target in args.targets
-                    if target not in [client.game.team_ip, client.game.nop_team_ip]
                 }
         else:
             futures = {
                 executor.submit(execute_attack, args.command, target): target
                 for target in args.targets
-                if target not in [client.game.team_ip, client.game.nop_team_ip]
             }
 
         for future in concurrent.futures.as_completed(futures):
@@ -82,7 +79,7 @@ def main(args):
                 result = future.result()
             except Exception as e:
                 logger.error(
-                    f"An error has occured while attacking <bold>%s</> via <bold>%s</>: %s"
+                    f"An error has occured while attacking <b>%s</> via <b>%s</>: %s"
                     % (colorize(target), colorize(args.alias), e),
                 )
                 continue
@@ -90,7 +87,7 @@ def main(args):
             flags = match_flags(client.game.flag_format, result)
             if not flags:
                 logger.warning(
-                    "No flags retrieved from attacking <bold>%s</> via <bold>%s</>."
+                    "No flags retrieved from attacking <b>%s</> via <b>%s</>."
                     % (colorize(target), colorize(args.alias))
                 )
                 continue
@@ -99,7 +96,7 @@ def main(args):
                 client.enqueue(flags, args.alias, target)
             except Exception as e:
                 logger.error(
-                    "Failed to enqueue flags from <bold>%s</> via <bold>%s</>: %s"
+                    "Failed to enqueue flags from <b>%s</> via <b>%s</>: %s"
                     % (
                         target,
                         args.alias,
@@ -140,7 +137,7 @@ def main(args):
                 .on_conflict_do_nothing(index_elements=["value"])
             )
             logger.warning(
-                "<bold>%d</> more flags obtained via <bold>%s</> are stored into the local flag store."
+                "<b>%d</> more flags obtained via <b>%s</> are stored into the local flag store."
                 % (
                     len(pending_flags),
                     colorize(args.alias),
@@ -174,13 +171,13 @@ def execute_attack(command, target, flag_ids=None):
         pass
 
     logger.debug(
-        "🔎 <bold>%s</>-><bold>%s</> (stdout):\n%s"
+        "🔎 <b>%s</>-><b>%s</> (stdout):\n%s"
         % (colorize(args.alias), colorize(target), result.stdout)
     )
 
     if result.stderr:
         logger.debug(
-            "🔎 <bold>%s</>-><bold>%s</> (stderr):\n%s"
+            "🔎 <b>%s</>-><b>%s</> (stderr):\n%s"
             % (colorize(args.alias), colorize(target), result.stderr)
         )
 
@@ -197,13 +194,13 @@ def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
         with open(filepath) as file:
             return ServiceScopedAttackData(json.load(file))
     except FileNotFoundError:
-        logger.error("Flag IDs file <bold>%s</> not found." % filepath)
+        logger.error("Flag IDs file <b>%s</> not found." % filepath)
         return
     except PermissionError:
-        logger.error("Flag IDs file <bold>%s</> is not accessible." % filepath)
+        logger.error("Flag IDs file <b>%s</> is not accessible." % filepath)
         return
     except json.JSONDecodeError:
-        logger.error("Flag IDs file <bold>%s</> is not a valid JSON." % filepath)
+        logger.error("Flag IDs file <b>%s</> is not a valid JSON." % filepath)
         return
     except Exception as e:
         logger.error(
@@ -239,13 +236,6 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Command that runs the exploit (must contain '[ip]' placeholder).",
-    )
-    parser.add_argument(
-        "--timeout",
-        default=10,
-        type=int,
-        required=True,
-        help="Optional timeout for a single attack in seconds.",
     )
     parser.add_argument(
         "--attack-data-file",

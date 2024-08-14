@@ -1,6 +1,7 @@
 import pytz
 import tzlocal
 import hashlib
+import difflib
 from datetime import datetime, timedelta
 
 
@@ -22,6 +23,16 @@ def get_next_tick_start(
         return first_tick_start
 
     return now + tick_duration - ((now - first_tick_start) % tick_duration)
+
+
+def did_you_mean(s: str, candidates: list[str]) -> str:
+    match = difflib.get_close_matches(
+        s,
+        candidates,
+    )
+    if match:
+        return "Did you mean <b>%s</>?" % match[0]
+    return ""
 
 
 colors = [

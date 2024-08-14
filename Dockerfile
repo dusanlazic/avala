@@ -1,11 +1,11 @@
-FROM node:22-slim as build-frontend
+FROM node:22-slim AS build-frontend
 WORKDIR /app
 ADD web /app/
 RUN rm -rf /app/node_modules || true
 RUN npm install
 RUN npm run build
 
-FROM python:3.11-alpine as build-package
+FROM python:3.11-alpine AS build-package
 WORKDIR /app
 COPY server /app/server
 RUN rm /app/server/avala/shared

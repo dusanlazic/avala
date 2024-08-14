@@ -73,7 +73,7 @@ class APIClient:
         requests.get(f"{self.conn_str}/connect/health").raise_for_status()
 
     def export_settings(self):
-        """Export the API client settings to a JSON file so executors can reuse it."""
+        """Export the API client settings to a JSON file so executors and workshop mode can reuse it."""
         DOT_DIR_PATH.mkdir(exist_ok=True)
 
         with open(DOT_DIR_PATH / "api_client.json", "w") as file:
@@ -91,7 +91,6 @@ class APIClient:
         Used when running executors or running client in workshop mode.
         """
         if not (DOT_DIR_PATH / "api_client.json").exists():
-            logger.error("Settings file not found. Unable to start the client.")
             raise FileNotFoundError()
 
         with open(DOT_DIR_PATH / "api_client.json", "r") as file:
@@ -112,7 +111,7 @@ class APIClient:
 
         data = response.json()
         logger.info(
-            "✅ Enqueued <bold>%d/%d</> flags from <bold>%s</> via <bold>%s</>."
+            "✅ Enqueued <b>%d/%d</> flags from <b>%s</> via <b>%s</>."
             % (
                 data["enqueued"],
                 len(flags),
@@ -125,7 +124,9 @@ class APIClient:
         try:
             response = requests.get(f"{self.conn_str}/attack_data/subscribe")
             response.raise_for_status()
-            self._cache_attack_data(response.json())
+
+            if response.status_code == 200:
+                self._cache_attack_data(response.json())
 
             return UnscopedAttackData(response.json())
         except:
@@ -135,7 +136,9 @@ class APIClient:
         try:
             response = requests.get(f"{self.conn_str}/attack_data/current")
             response.raise_for_status()
-            self._cache_attack_data(response.json())
+
+            if response.status_code == 200:
+                self._cache_attack_data(response.json())
 
             return UnscopedAttackData(response.json())
         except:
@@ -147,5 +150,12 @@ class APIClient:
 
     def _get_cached_attack_data(self) -> UnscopedAttackData:
         logger.warning("Failed to fetch attack data. Using cached attack data instead.")
+
+        if not (DOT_DIR_PATH / "cached_attack_data.json").exists():
+            raise FileNotFoundError("Attack data was never fetched.")
+
         with open(DOT_DIR_PATH / "cached_attack_data.json") as file:
-            return UnscopedAttackData(json.load(file))
+            try:
+                return UnscopedAttackData(json.load(file))
+            except:
+                raise RuntimeError("Attack data is corrupted or was never fetched.")

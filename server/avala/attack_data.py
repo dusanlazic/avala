@@ -21,12 +21,12 @@ def reload_attack_data():
         fetch_json, process_json = import_user_functions()
     except ModuleNotFoundError:
         logger.error(
-            "Module <bold>%s.py</> not found. Please make sure the file exists and it's under <bold>%s.</>"
+            "Module <b>%s.py</> not found. Please make sure the file exists and it's under <b>%s.</>"
             % (config.attack_data.module, os.getcwd())
         )
     except AttributeError:
         logger.error(
-            "Required functions not found within <bold>%s.py</>. Please make sure the module contains <bold>fetch_json</> and <bold>process_json</> functions."
+            "Required functions not found within <b>%s.py</>. Please make sure the module contains <b>fetch_json</> and <b>process_json</> functions."
             % config.attack_data.module
         )
 
@@ -49,7 +49,7 @@ def reload_attack_data():
                 time.sleep(config.attack_data.retry_interval)
                 if not attempts_left:
                     logger.warning(
-                        "It seems that your <bold>%s.py</> module is not working properly. Please check it."
+                        "It seems that your <b>%s.py</> module is not working properly. Please check it."
                         % config.attack_data.module
                     )
                     break
@@ -92,7 +92,7 @@ def reload_attack_data():
             )
         else:
             logger.error(
-                "Failed to fetch attack data. Please fix your <bold>fetch</> function in your <bold>%s.py</> module."
+                "Failed to fetch attack data. Please fix your <b>fetch</> function in your <b>%s.py</> module."
                 % config.attack_data.module
             )
             return

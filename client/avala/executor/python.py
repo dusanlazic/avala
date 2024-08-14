@@ -6,6 +6,7 @@ import shlex
 import argparse
 import subprocess
 import concurrent.futures
+from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
 from typing import Callable
 from importlib import import_module
@@ -32,7 +33,7 @@ def main(args):
         execute_attack = import_func(args.func_name, args.module, args.directory)
     except Exception as e:
         logger.error(
-            "An error has occured while importing exploit function <bold>%s</> from <bold>%s.py</>: %s"
+            "An error has occured while importing exploit function <b>%s</> from <b>%s.py</>: %s"
             % (args.func_name, args.module, e)
         )
 
@@ -61,28 +62,21 @@ def main(args):
                         flag_ids,
                     ): (target, flag_ids)
                     for target in args.targets
-                    for flag_ids in (service_attack_data / target)
-                    .remove_repeated(args.alias, target, is_draft=args.draft)
-                    .serialize()
-                    if target not in [client.game.team_ip, client.game.nop_team_ip]
+                    for flag_ids in get_flag_ids(service_attack_data, target, db)
                 }
             elif args.tick_scope == TickScope.LAST_N.value:
                 futures = {
                     executor.submit(
                         execute_attack,
                         target,
-                        (service_attack_data / target)
-                        .remove_repeated(args.alias, target, is_draft=args.draft)
-                        .serialize(),
+                        get_flag_ids(service_attack_data, target, db),
                     ): (target, None)
                     for target in args.targets
-                    if target not in [client.game.team_ip, client.game.nop_team_ip]
                 }
         else:
             futures = {
                 executor.submit(execute_attack, target): target
                 for target in args.targets
-                if target not in [client.game.team_ip, client.game.nop_team_ip]
             }
 
         for future in concurrent.futures.as_completed(futures):
@@ -91,7 +85,7 @@ def main(args):
                 result = str(future.result())
             except Exception as e:
                 logger.error(
-                    f"An error has occured while attacking <bold>%s</> via <bold>%s</>: %s"
+                    f"An error has occured while attacking <b>%s</> via <b>%s</>: %s"
                     % (colorize(target), colorize(args.alias), e),
                 )
                 continue
@@ -99,7 +93,7 @@ def main(args):
             flags = match_flags(client.game.flag_format, result)
             if not flags:
                 logger.warning(
-                    "No flags retrieved from attacking <bold>%s</> via <bold>%s</>."
+                    "No flags retrieved from attacking <b>%s</> via <b>%s</>."
                     % (colorize(target), colorize(args.alias))
                 )
                 continue
@@ -108,7 +102,7 @@ def main(args):
                 client.enqueue(flags, args.alias, target)
             except Exception as e:
                 logger.error(
-                    "Failed to enqueue flags from <bold>%s</> via <bold>%s</>: %s"
+                    "Failed to enqueue flags from <b>%s</> via <b>%s</>: %s"
                     % (
                         target,
                         args.alias,
@@ -149,7 +143,7 @@ def main(args):
                 .on_conflict_do_nothing(index_elements=["value"])
             )
             logger.warning(
-                "<bold>%d</> more flags obtained via <bold>%s</> are stored into the local flag store."
+                "<b>%d</> more flags obtained via <b>%s</> are stored into the local flag store."
                 % (
                     len(pending_flags),
                     colorize(args.alias),
@@ -178,13 +172,13 @@ def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
         with open(filepath) as file:
             return ServiceScopedAttackData(json.load(file))
     except FileNotFoundError:
-        logger.error("Flag IDs file <bold>%s</> not found." % filepath)
+        logger.error("Flag IDs file <b>%s</> not found." % filepath)
         return
     except PermissionError:
-        logger.error("Flag IDs file <bold>%s</> is not accessible." % filepath)
+        logger.error("Flag IDs file <b>%s</> is not accessible." % filepath)
         return
     except json.JSONDecodeError:
-        logger.error("Flag IDs file <bold>%s</> is not a valid JSON." % filepath)
+        logger.error("Flag IDs file <b>%s</> is not a valid JSON." % filepath)
         return
     except Exception as e:
         logger.error(
@@ -193,7 +187,45 @@ def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
         return
 
 
+def get_flag_ids(
+    service_attack_data: ServiceScopedAttackData,
+    target: str,
+    db: Session,
+) -> list:
+    try:
+        flag_ids = service_attack_data / target
+    except KeyError:
+        logger.error(
+            "Target <b>%s</> not found for exploit <b>%s</>."
+            % (colorize(target), colorize(args.alias))
+        )
+        return []
+
+    if args.draft:
+        return flag_ids.serialize()
+
+    hashes = [
+        TickScopedAttackData.hash_flag_ids(args.alias, target, tick.flag_ids)
+        for tick in flag_ids.ticks
+    ]
+
+    existing_hashes = [
+        value
+        for (value,) in db.query(FlagIdsHash.value)
+        .filter(FlagIdsHash.value.in_(hashes))
+        .all()
+    ]
+
+    flag_ids.ticks = [
+        t for t, h in zip(flag_ids.ticks, hashes) if h not in existing_hashes
+    ]
+
+    return flag_ids.serialize()
+
+
 if __name__ == "__main__":
+    global args
+
     parser = argparse.ArgumentParser(
         description="Run attacks concurrently against provided teams using provided exploit."
     )
@@ -226,12 +258,6 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Directory of the Python module of the exploit.",
-    )
-    parser.add_argument(
-        "--timeout",
-        default=10,
-        type=int,
-        help="Optional timeout for a single attack in seconds.",
     )
     parser.add_argument(
         "--attack-data-file",

@@ -2,8 +2,6 @@ from .main import Avala
 from .decorator import exploit, draft, TargetingStrategy, TickScope, Batching
 
 AUTO = TargetingStrategy.AUTO
-NOP_TEAM = TargetingStrategy.NOP_TEAM
-OWN_TEAM = TargetingStrategy.OWN_TEAM
 
 SINGLE = TickScope.SINGLE
 LAST_N = TickScope.LAST_N
@@ -14,8 +12,6 @@ __all__ = [
     "draft",
     "TargetingStrategy",
     "AUTO",
-    "NOP_TEAM",
-    "OWN_TEAM",
     "Batching",
     "TickScope",
     "SINGLE",

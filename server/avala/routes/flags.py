@@ -65,7 +65,7 @@ async def enqueue(
     )
 
     logger.info(
-        "📥 <bold>%d</> flags from <bold>%s</> via <bold>%s</> by <bold>%s</> (<green>%d</> new, <yellow>%d</> duplicates)."
+        "📥 <b>%d</> flags from <b>%s</> via <b>%s</> by <b>%s</> (<green>%d</> new, <yellow>%d</> duplicates)."
         % (
             len(flags.values),
             colorize(flags.target),

@@ -11,10 +11,38 @@ class Batching:
         self,
         size: int | None = None,
         count: int | None = None,
-        gap: float = 0,
+        gap: float = 1.0,
     ):
+        """
+        Specifies the batching configuration for splitting a large number of attacks into smaller chunks, distributed over time.
+
+        Batching provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes.
+        Setting up batching allows you to divide the list of targets into smaller, equally-sized and more manageable batches.
+
+        Examples:
+        ..
+                # In case of 28 targets...
+                # ...sizes of batches will be: [6, 6, 6, 6, 4]
+                Batching(count=5, gap=2)
+
+                # ...sizes of batches will be: [5, 5, 5, 5, 5, 3]
+                Batching(size=5, gap=2)
+
+        :param size: Specifies the size of each batch.
+        :type size: int | None, optional
+        :param count: Specifies the total number of equal-sized batches.
+        :type count: int | None, optional
+        :param gap: Specifies the time gap in seconds between processing two consecutive batches.
+        :type gap: float, optional
+        :raises ValueError: If both 'size' and 'count' are provided or if neither is provided.
+        :raises ValueError: If 'size' is provided but is not a positive integer.
+        :raises ValueError: If 'count' is provided but is not a positive integer.
+        :raises ValueError: If 'gap' is not a positive number.
+        """
         if size is None and count is None:
             raise ValueError("Either 'size' or 'count' must be set.")
+        if size and count:
+            raise ValueError("Only one of 'size' or 'count' can be set.")
         if size is not None and size <= 0:
             raise ValueError("'size' must be a positive integer.")
         if count is not None and count <= 0:
@@ -28,6 +56,20 @@ class Batching:
 
 
 class ExploitFuncMeta(NamedTuple):
+    """
+    NamedTuple representing metadata for an exploit function.
+
+    Attributes:
+        name (str):
+            Name of the exploit function.
+        module (str):
+            Name of the module containing the exploit function.
+        directory (str):
+            Directory containing the exploit module.
+        arg_count (int):
+            Number of arguments expected by the exploit function.
+    """
+
     name: str
     module: str
     directory: str
@@ -35,23 +77,49 @@ class ExploitFuncMeta(NamedTuple):
 
 
 class TargetingStrategy(Enum):
+    """
+    Targeting strategy that can be used as an alternative to specifying a list of targets in the exploit configuration.
+
+    When using TargetingStrategy.AUTO, the exploit function MUST take the `flag_ids` argument, and the targeted service
+    MUST be defined in the `attacks.json` or `teams.json` provided by the game server. This is essential because
+    automatic targeting relies on fetching the list of targets from these files.
+    """
+
     AUTO = "auto"
-    NOP_TEAM = "nop_team"
-    OWN_TEAM = "own_team"
 
 
 class TickScope(Enum):
+    """
+    Enumeration representing the scope of ticks for which flag IDs are provided to the exploit function.
+
+    Attributes:
+        SINGLE (str):
+            Specifies that the `flag_ids` object will contain only the flag IDs relevant to a single service, target, and tick.
+            When using SINGLE, each flag ID that successfully returns a flag will be tracked and skipped in subsequent attempts,
+            reducing the total number of attacks. This is the recommended approach.
+        LAST_N (str):
+            Specifies that the `flag_ids` object will contain a list of all flag IDs provided by the game server for the last N ticks.
+    """
+
     SINGLE = "single"
     LAST_N = "last_n"
 
 
 class FlagIdsHash(Base):
+    """
+    SQLAlchemy model representing a hash generated from the exploit alias, target, and the flag ID value for a specific tick.
+    """
+
     __tablename__ = "hashes"
 
     value = Column(String, primary_key=True)
 
 
 class StoredObject(Base):
+    """
+    SQLAlchemy model representing a stored blob in the database.
+    """
+
     __tablename__ = "objects"
 
     key = Column(String, primary_key=True)
@@ -59,6 +127,10 @@ class StoredObject(Base):
 
 
 class PendingFlag(Base):
+    """
+    SQLAlchemy model representing a pending flag in the database.
+    """
+
     __tablename__ = "pending_flags"
 
     value = Column(String, primary_key=True)
@@ -68,6 +140,10 @@ class PendingFlag(Base):
 
 
 class TickScopedAttackData:
+    """
+    Attack data specific to a single service and target, and a single tick.
+    """
+
     def __init__(
         self,
         flag_ids: any,
@@ -76,6 +152,12 @@ class TickScopedAttackData:
 
     @classmethod
     def hash_flag_ids(cls, alias: str, target: str, flag_ids: any) -> str:
+        """
+        Hashes the specific flag ID in order to track it to ensure that the same attack is not executed multiple times.
+
+        :return: Hash computed from the alias, target, and flag IDs.
+        :rtype: str
+        """
         return hashlib.md5((alias + target + str(flag_ids)).encode()).hexdigest()
 
     def serialize(self) -> any:
@@ -83,6 +165,10 @@ class TickScopedAttackData:
 
 
 class TargetScopedAttackData:
+    """
+    Attack data specific to a single service and target, covering the last N ticks as provided by the game server.
+    """
+
     def __init__(
         self,
         ticks: list[any],
@@ -97,6 +183,20 @@ class TargetScopedAttackData:
         target: str,
         is_draft: bool = False,
     ) -> "TargetScopedAttackData":
+        """
+        Looks up the hashes of the flag IDs in the database and removes those that have already been used to successfully retrieve flags.
+
+        If the `is_draft` flag is set to `True`, the method will do nothing and return the object without removing any flag IDs.
+
+        :param alias: Alias of the exploit.
+        :type alias: str
+        :param target: IP address or hostname of the targeted team.
+        :type target: str
+        :param is_draft: Specifies if the exploit is still in development (draft), defaults to False
+        :type is_draft: bool, optional
+        :return: Returns self after removing the repeated flag IDs.
+        :rtype: TargetScopedAttackData
+        """
         if is_draft:
             return self
 
@@ -130,6 +230,10 @@ class TargetScopedAttackData:
 
 
 class ServiceScopedAttackData:
+    """
+    Attack data specific to a single service, covering all `up` targets as provided by the game server.
+    """
+
     def __init__(
         self,
         targets: dict[str, list[any]],
@@ -139,6 +243,12 @@ class ServiceScopedAttackData:
         }
 
     def get_targets(self) -> list[str]:
+        """
+        Returns a list of all targets for which attack data is available.
+
+        :return: List of IP addresses or hostnames of the teams.
+        :rtype: list[str]
+        """
         return list(self.targets.keys())
 
     def serialize(self) -> dict[str, list[any]]:
@@ -152,11 +262,24 @@ class ServiceScopedAttackData:
 
 
 class UnscopedAttackData:
-    def __init__(self, data):
+    """
+    Attack data covering all services provided by the game server.
+    """
+
+    def __init__(self, data: dict[str, dict[str, list[any]]]):
         self.services: dict[str, ServiceScopedAttackData] = {
             service: ServiceScopedAttackData(targets)
             for service, targets in data.items()
         }
+
+    def get_services(self) -> list[str]:
+        """
+        Returns a list of all services for which attack data is available.
+
+        :return: List of service names.
+        :rtype: list[str]
+        """
+        return list(self.services.keys())
 
     def serialize(self) -> dict[
         str,
@@ -186,7 +309,6 @@ class ExploitConfig:
         env: dict[str, str] = {},
         delay: int = 0,
         batching: Batching | None = None,
-        timeout: int = 0,
         workers: int = 128,
         is_draft: bool = False,
     ):
@@ -202,6 +324,5 @@ class ExploitConfig:
         self.env: dict[str, str] | None = env
         self.delay: timedelta = timedelta(seconds=delay or 0)
         self.batching: Batching | None = batching
-        self.timeout: int = timeout
         self.workers: int = workers
         self.is_draft: bool = is_draft

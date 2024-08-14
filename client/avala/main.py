@@ -10,7 +10,7 @@ from .database import setup_db_conn, create_tables, get_db
 from .models import UnscopedAttackData, PendingFlag
 from .shared.logs import logger
 from .shared.util import convert_to_local_tz, get_next_tick_start
-from .config import ConnectionConfig
+from .config import ConnectionConfig, DOT_DIR_PATH
 from .exploit import Exploit
 from .api import APIClient
 
@@ -83,20 +83,31 @@ class Avala:
         self._check_directories()
 
         self.client = APIClient(self.config)
-        try:
-            self.client.import_settings()
-        except FileNotFoundError:
-            self.client.connect()
-            self.client.export_settings()
 
-        attack_data = self.client.get_attack_data()
+        if not (DOT_DIR_PATH / "api_client.json").exists():
+            try:
+                self.client.connect()
+            except:
+                logger.error(
+                    "Failed to connect to the server and configure the client."
+                )
+                exit(1)
+            else:
+                self.client.export_settings()
+        else:
+            self.client.import_settings()
+
+        try:
+            attack_data = self.client.get_attack_data()
+        except (RuntimeError, FileNotFoundError) as e:
+            logger.error(e)
+            exit(1)
 
         self._run_hook(self.before_all_hook)
 
         exploits = self._reload_exploits(attack_data)
         for exploit in exploits:
-            exploit.setup()
-            exploit.run()
+            exploit.setup() and exploit.run()
 
         self._run_hook(self.after_all_hook)
 
@@ -170,7 +181,7 @@ class Avala:
                             and hasattr(func, "exploit_config")
                             and func.exploit_config.is_draft == should_be_draft
                         ):
-                            e = Exploit(func.exploit_config, attack_data)
+                            e = Exploit(func.exploit_config, self.client, attack_data)
                             exploits.append(e)
                 except Exception as e:
                     logger.error(f"Failed to load exploit from {python_file}: {e}")
@@ -196,7 +207,8 @@ class Avala:
         # as opposed to automatic target exploits which need to wait for flag IDs.
 
         for exploit in manual_target_exploits + automatic_target_exploits:
-            exploit.setup()
+            if not exploit.setup():
+                continue
             if not exploit.batches:
                 self.scheduler.add_job(
                     exploit.run,
@@ -232,7 +244,7 @@ class Avala:
                 self.client.heartbeat()
             except:
                 logger.warning(
-                    "⚠️ Cannot establish connection with the server. <bold>%d</> flags are waiting to be submitted."
+                    "⚠️ Cannot establish connection with the server. <b>%d</> flags are waiting to be submitted."
                     % db.query(func.count(PendingFlag.value))
                     .filter(PendingFlag.submitted == False)
                     .scalar()

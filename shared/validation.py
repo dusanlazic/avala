@@ -14,5 +14,5 @@ def validate_data(data, schema, custom=None):
         return True
     except ValidationError as e:
         path = ".".join((str(x) for x in e.path))
-        logger.error("Error found in field <bold>%s</bold>: %s" % (path, e.message))
+        logger.error("Error found in field <b>%s</bold>: %s" % (path, e.message))
         return False

@@ -2,11 +2,20 @@ from .shared.util import colorize
 from .shared.logs import logger
 
 
-def debug(message, alias=None, target=None):
+def debug(message: str, alias: str = None, target: str = None):
+    """
+    Prints a debug message to the console.
+
+    :param message: Message to print
+    :type message: str
+    :param alias: Alias of the exploit for better log message visibility, defaults to None
+    :type alias: str, optional
+    :param target: Target for better log message visibility, defaults to None
+    :type target: str, optional
+    """
     if not alias or not target:
         logger.debug(message)
     else:
         logger.debug(
-            "🔎 <bold>%s</>-><bold>%s</>: %s"
-            % (colorize(alias), colorize(target), message)
+            "🔎 <b>%s</>-><b>%s</>: %s" % (colorize(alias), colorize(target), message)
         )

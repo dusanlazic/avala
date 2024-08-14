@@ -1,4 +1,5 @@
 import pickle
+from typing import Generator
 from contextlib import contextmanager
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
@@ -7,7 +8,17 @@ from .database import get_db
 
 
 @contextmanager
-def _use_or_get_db(db: Session | None = None):
+def _use_or_get_db(db: Session | None = None) -> Generator[Session, None, None]:
+    """
+    A context manager that provides a new database session if one is not provided,
+    or reuses the provided session. This context allows using existing sessions
+    and minimizes the number of sessions created.
+
+    :param db: Optional existing database session.
+    :type db: Session | None, optional
+    :yield: Provided or newly created database session.
+    :rtype: Generator[Session, None, None]
+    """
     if not db:
         with get_db() as new_db:
             yield new_db
@@ -16,6 +27,11 @@ def _use_or_get_db(db: Session | None = None):
 
 
 class BlobStorage:
+    """
+    A simple key-value store for storing arbitrary objects in local SQLite database.
+    Objects are pickled before storing and unpickled when retrieved.
+    """
+
     def __init__(self) -> None:
         pass
 
@@ -37,18 +53,34 @@ class BlobStorage:
         value: any,
         overwrite: bool = True,
     ) -> any:
+        """
+        Stores a key-value pair in the database. The value is pickled before storage.
+
+        If the `overwrite` flag is set to `False`, the method will not overwrite the existing object associated with the given key.
+
+        :param key: Key under which the value will be stored.
+        :type key: str
+        :param value: Value to store. Must be serializable.
+        :type value: any
+        :param overwrite: If True, overwrites the existing value. If False and the key exists,
+                          the function does nothing and returns None. Defaults to True.
+        :type overwrite: bool, optional
+        :raises ValueError: If the provided value is None.
+        :return: Stored value, or None if the key already exists and `overwrite` is False.
+        :rtype: any
+        """
         if value is None:
             raise ValueError("Cannot store None value.")
 
-        obj_blob = pickle.dumps(value)
-
-        try:
-            if not overwrite and self.get(key):
-                return None
-        except pickle.UnpicklingError:
-            pass
-
         with get_db() as db:
+            obj_blob = pickle.dumps(value)
+
+            try:
+                if not overwrite and self.get(key, db):
+                    return None
+            except pickle.UnpicklingError:
+                pass
+
             db.execute(
                 insert(StoredObject)
                 .values(key=key, value=obj_blob)
@@ -65,6 +97,16 @@ class BlobStorage:
         key: str,
         db: Session | None = None,
     ) -> any:
+        """
+        Retrieves and unpickles the value associated with the given key from the database.
+
+        :param key: Key whose associated value is to be retrieved.
+        :type key: str
+        :param db: Optional database session. If not provided, a new session will be created.
+        :type db: Session | None, optional
+        :return: The deserialized value associated with the key, or None if the key does not exist.
+        :rtype: any
+        """
         with _use_or_get_db(db) as db:
             stored_obj = db.query(StoredObject).filter(StoredObject.key == key).first()
 
@@ -78,6 +120,16 @@ class BlobStorage:
         key: str,
         db: Session | None = None,
     ) -> bool:
+        """
+        Deletes the value associated with the given key from the database.
+
+        :param key: Key whose associated entry is to be deleted.
+        :type key: str
+        :param db: Optional database session. If not provided, a new session will be created.
+        :type db: Session | None, optional
+        :return: True if the entry was successfully deleted, False if the key was not found.
+        :rtype: bool
+        """
         with _use_or_get_db(db) as db:
             return db.query(StoredObject).filter(StoredObject.key == key).delete() > 0
 

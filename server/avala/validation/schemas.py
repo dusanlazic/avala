@@ -9,7 +9,12 @@ game_schema = {
                 {"type": "array", "items": {"type": "string", "format": "hostname"}},
             ]
         },
-        "nop_team_ip": {"type": "string", "format": "hostname"},
+        "nop_team_ip": {
+            "oneOf": [
+                {"type": "string", "format": "hostname"},
+                {"type": "array", "items": {"type": "string", "format": "hostname"}},
+            ]
+        },
         "flag_ttl": {"type": "integer", "minimum": 1},
         "game_starts_at": {
             "type": "string",
@@ -48,7 +53,7 @@ submitter_schema = {
         "per_tick": {"type": "integer", "minimum": 1},
         "batch_size": {"type": "integer", "minimum": 1},
         "max_batch_size": {"type": "integer", "minimum": 0},
-        "streams": {"type": "integer", "minimum": 1},
+        "streams": {"type": "boolean"},
     },
     "oneOf": [
         {"required": ["interval", "max_batch_size"]},
