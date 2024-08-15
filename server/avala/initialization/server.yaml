@@ -1,28 +1,46 @@
-# Configuration file for the Avala server
-
+#
+#       db 
+#      ;MM:
+#     ,V^MM. 7MM""Yq.  ,6"Yb.  `7M""MMF',6"Yb.  
+#    ,M  `MM `MM   j8 8)   MM    M  MM 8)   MM  
+#    AbmmmqMA MM""Yq.  ,pm9MM   ,P  MM  ,pm9MM  
+#   A'     VML`M   j8 8M   MM . d'  MM 8M   MM  
+# .AMA.   .AMMA.mmm9' `Moo9^Yo8M' .JMML`Moo9^Yo.
+#
+# Configuration file for the Avala server - Follow the instructions in the comments to
+# configure the server according to your strategy, preferences and game requirements.
+#
 # Game settings - adjust these according to the competition's rulebook.
 game:
   # Duration of each game tick in seconds.
   tick_duration: 60
 
   # Regular expression pattern for matching flags.
+  # Note: If given in rulebook, remove ^ and $ from the pattern to match flags 
+  # anywhere in your output.
   flag_format: FLAG{[a-zA-Z0-9]+}
 
   # IP addresses or hostnames of your team's vulnerable machines (vulnboxes).
+  # There is usually just one machine per team, but some competitions may have more.
   # These machines will be excluded from attack attempts.
   team_ip: 
     - 10.10.43.1 # Example Linux machine 1
     - 10.10.43.2 # Example Linux machine 2
     - 10.10.43.3 # Example Windows machine
 
-  # IP address or hostname of the NOP (Non-Playing) team.
+  # IP addresses or hostnames of the NOP (Non-Playing) team.
+  # There is usually just one machine per team, but some competitions may have more.
   # This team will be skipped during the attacks.
-  nop_team_ip: 10.10.1.1
+  nop_team_ip: 
+    - 10.10.1.1 # Example Linux machine 1
+    - 10.10.1.2 # Example Linux machine 2
+    - 10.10.1.3 # Example Windows machine
 
-  # Time-to-live (TTL) for each flag in seconds. Sometimes it's given in ticks.
+  # Time-to-live (TTL) of a flag in seconds. Sometimes it's given in ticks.
   flag_ttl: 300
 
-  # The start time of the game in "YYYY-MM-DD HH:MM:SS" format.
+  # The start time of the game in "YYYY-MM-DD HH:MM:SS" format. Timezone is configured
+  # in the Docker Compose file.
   game_starts_at: 2024-08-11 10:00:00
 
   # Time after which the networks open, specified in hours, minutes, and/or seconds.

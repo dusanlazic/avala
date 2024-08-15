@@ -75,8 +75,8 @@ def draft(
 
     :param service: Name of the service attacked by the exploit. To see all services, visit `http(s)://AVALA_HOST:PORT/attack_data/current`.
     :type service: str
-    :param targets: IP addresses or hostnames of the targeted teams.
-    Use `TargetingStrategy.AUTO` to target all currently available teams if your exploit is accepting `flag_ids` parameter. Read more about targeting strategies in :class:`avala.models.TargetingStrategy`.
+    :param targets: IP addresses or hostnames of the targeted teams, or a targeting strategy (`AUTO`, `OWN_TEAM`, `NOP_TEAM`).
+    Manually specify targets or use one of targeting strategies: `TargetingStrategy.AUTO` to target all currently available teams if your exploit is accepting `flag_ids` parameter; `TargetingStrategy.OWN_TEAM` to target your own team; `TargetingStrategy.NOP_TEAM` to target the NOP team.
     :type targets: list[str] | TargetingStrategy
     :param alias: Alias used for exploit identification, analytics and as a key for tracking repeated flag IDs.
     If not provided, it will be set to `<module_name>.<function_name>`.
@@ -84,7 +84,7 @@ def draft(
     :param tick_scope: Scope of the `flag_ids` dictionary, defaults to TickScope.SINGLE.
     Read more about tick scopes in :class:`avala.models.TickScope`.
     :type tick_scope: TickScope, optional
-    :param skip: IP addresses or hostnames to skip while attacking, defaults to the addresses belonging to the NOP team and own team.
+    :param skip: IP addresses or hostnames to skip while attacking. Defaults to the addresses belonging to the NOP team and own team, **unless the targeting strategy is set to `NOP_TEAM` or `OWN_TEAM`**.
     :type skip: list[str] | None, optional
     :param prepare: Optional shell command to run before starting the first attack, defaults to None. Useful for setting up the environment, files, etc.
     :type prepare: str | None, optional

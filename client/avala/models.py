@@ -86,6 +86,8 @@ class TargetingStrategy(Enum):
     """
 
     AUTO = "auto"
+    NOP_TEAM = "nop_team"
+    OWN_TEAM = "own_team"
 
 
 class TickScope(Enum):

@@ -6,6 +6,7 @@ import argparse
 import tempfile
 import subprocess
 import concurrent.futures
+from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
 from avala.shared.logs import logger
 from avala.shared.util import colorize
@@ -51,9 +52,7 @@ def main(args):
                         flag_ids,
                     ): (target, flag_ids)
                     for target in args.targets
-                    for flag_ids in (service_attack_data / target)
-                    .remove_repeated(args.alias, target, is_draft=args.draft)
-                    .serialize()
+                    for flag_ids in get_flag_ids(service_attack_data, target, db)
                 }
             elif args.tick_scope == TickScope.LAST_N.value:
                 futures = {
@@ -61,9 +60,7 @@ def main(args):
                         execute_attack,
                         args.command,
                         target,
-                        (service_attack_data / target)
-                        .remove_repeated(args.alias, target, is_draft=args.draft)
-                        .serialize(),
+                        get_flag_ids(service_attack_data, target, db),
                     ): (target, None)
                     for target in args.targets
                 }
@@ -170,16 +167,17 @@ def execute_attack(command, target, flag_ids=None):
     except FileNotFoundError:
         pass
 
-    logger.debug(
-        "🔎 <b>%s</>-><b>%s</> (stdout):\n%s"
-        % (colorize(args.alias), colorize(target), result.stdout)
-    )
-
-    if result.stderr:
+    if args.draft:
         logger.debug(
-            "🔎 <b>%s</>-><b>%s</> (stderr):\n%s"
-            % (colorize(args.alias), colorize(target), result.stderr)
+            "🔎 <b>%s</>-><b>%s</> (stdout):\n%s"
+            % (colorize(args.alias), colorize(target), result.stdout)
         )
+
+        if result.stderr:
+            logger.debug(
+                "🔎 <b>%s</>-><b>%s</> (stderr):\n%s"
+                % (colorize(args.alias), colorize(target), result.stderr)
+            )
 
     return result.stdout
 
@@ -213,6 +211,42 @@ def export_flag_ids(flag_ids):
     with tempfile.NamedTemporaryFile(mode="w", delete=False) as file:
         json.dump(flag_ids, file)
         return file.name
+
+
+def get_flag_ids(
+    service_attack_data: ServiceScopedAttackData,
+    target: str,
+    db: Session,
+) -> list:
+    try:
+        flag_ids = service_attack_data / target
+    except KeyError:
+        logger.error(
+            "Target <b>%s</> not found for exploit <b>%s</>."
+            % (colorize(target), colorize(args.alias))
+        )
+        return []
+
+    if args.draft:
+        return flag_ids.serialize()
+
+    hashes = [
+        TickScopedAttackData.hash_flag_ids(args.alias, target, tick.flag_ids)
+        for tick in flag_ids.ticks
+    ]
+
+    existing_hashes = [
+        value
+        for (value,) in db.query(FlagIdsHash.value)
+        .filter(FlagIdsHash.value.in_(hashes))
+        .all()
+    ]
+
+    flag_ids.ticks = [
+        t for t, h in zip(flag_ids.ticks, hashes) if h not in existing_hashes
+    ]
+
+    return flag_ids.serialize()
 
 
 if __name__ == "__main__":

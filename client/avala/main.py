@@ -24,6 +24,20 @@ class Avala:
         username: str = "anon",
         password: str | None = None,
     ):
+        """
+        Initialize the Avala client. The client is used for scheduling and running attacks, extracting flags, and forwarding flags to the Avala server.
+
+        :param protocol: Can be "http" or "https", defaults to "http".
+        :type protocol: str, optional
+        :param host: Host of the Avala server, defaults to "localhost"
+        :type host: str, optional
+        :param port: Port of the Avala server, defaults to 2024
+        :type port: int, optional
+        :param username: Player name, defaults to "anon"
+        :type username: str, optional
+        :param password: Password for the Avala server, defaults to None
+        :type password: str | None, optional
+        """
         self.config: ConnectionConfig = ConnectionConfig(
             protocol=protocol,
             host=host,
@@ -39,6 +53,10 @@ class Avala:
         self.after_all_hook = None
 
     def run(self):
+        """
+        Runs the Avala client in "production" mode. The client will start scheduling and running exploit functions decorated with `@exploit` in registered directories.
+        Call this method after initializing the client and registering exploit directories.
+        """
         self._show_banner()
         self._setup_db()
         self._check_directories()
@@ -56,6 +74,7 @@ class Avala:
             timedelta(seconds=self.client.schedule.tick_duration),
         )
 
+        # Schedule job that schedules exploits every tick.
         self.scheduler.add_job(
             func=self._schedule_exploits,
             trigger="interval",
@@ -64,6 +83,7 @@ class Avala:
             next_run_time=next_tick_start,
         )
 
+        # Schedule job that enqueues pending (non forwarded) flags every 15 seconds.
         self.scheduler.add_job(
             func=self._enqueue_pending_flags,
             trigger="interval",
@@ -79,6 +99,10 @@ class Avala:
             logger.info("Thanks for using Avala!")
 
     def workshop(self):
+        """
+        Runs draft exploits ("development" mode). This method runs exploit functions decorated with `@draft` in the registered directories, helping with the exploit development.
+        This function can be called in a separate process while the client is already running in production mode. Call this method after initializing the client and registering exploit directories.
+        """
         self._setup_db()
         self._check_directories()
 
@@ -112,11 +136,23 @@ class Avala:
         self._run_hook(self.after_all_hook)
 
     def register_directory(self, dir_path: str):
+        """
+        Register a directory containing exploits. The directory path could be either absolute, or relative to your **current working directory when running the client**.
+
+        :param dir_path: Path to the directory containing exploits.
+        :type dir_path: str
+        """
         path = Path(dir_path).resolve()
         if path not in self.exploit_directories:
             self.exploit_directories.append(path)
 
     def before_all(self):
+        """
+        Decorator for a function that will be executed before reloading and scheduling attacks, or at the beginning of each tick.
+
+        This hook can be used to perform any setup or initialization before running attacks, such as pulling exploits from a git repository.
+        """
+
         def decorator(func):
             self.before_all_hook = func
             return func
@@ -124,6 +160,12 @@ class Avala:
         return decorator
 
     def after_all(self):
+        """
+        Decorator for a function that will be executed after all attacks are completed.
+
+        This hook can be used to perform any cleanup or finalization after running attacks, such as cleaning up temporary files, sending a notification, etc.
+        """
+
         def decorator(func):
             self.after_all_hook = func
             return func
@@ -131,6 +173,10 @@ class Avala:
         return decorator
 
     def _initialize_client(self):
+        """
+        Initializes the API client. It imports settings from a JSON file as a fallback if the client fails to connect to the server.
+        If the fallback fails too (FileNotFoundError), the client will exit.
+        """
         self.client = APIClient(self.config)
         try:
             self.client.connect()
@@ -147,6 +193,9 @@ class Avala:
         create_tables()
 
     def _check_directories(self):
+        """
+        Validates and filters out invalid registered exploit directories.
+        """
         valid_directories = []
         for path in self.exploit_directories:
             if not path.exists() or not path.is_dir():
@@ -163,6 +212,15 @@ class Avala:
         self,
         attack_data: UnscopedAttackData | Future[UnscopedAttackData],
     ) -> list[Exploit]:
+        """
+        Reloads exploits, collects their configuration and constructs a list of runnable `Exploit` objects.
+
+        :param attack_data: Either an instance of `UnscopedAttackData` for development mode, or a future object that will return `UnscopedAttackData` for production mode.
+        :type attack_data: UnscopedAttackData | Future[UnscopedAttackData]
+        :return: List of `Exploit` objects that can be setup and scheduled.
+        :rtype: list[Exploit]
+        """
+        # Ready and available attack data indicates development mode.
         should_be_draft = isinstance(attack_data, UnscopedAttackData)
 
         exploits: list[Exploit] = []
@@ -178,7 +236,7 @@ class Avala:
                     for _, func in module.__dict__.items():
                         if (
                             callable(func)
-                            and hasattr(func, "exploit_config")
+                            and hasattr(func, "exploit_config")  # Has decorator
                             and func.exploit_config.is_draft == should_be_draft
                         ):
                             e = Exploit(func.exploit_config, self.client, attack_data)
@@ -190,6 +248,10 @@ class Avala:
         return exploits
 
     def _schedule_exploits(self):
+        """
+        Scheduled job that runs every tick to reload and schedule exploits. This job is also responsible for
+        fetching attack_data and running before_all and after_all hooks.
+        """
         executor = concurrent.futures.ThreadPoolExecutor()
         attack_data_future = executor.submit(self.client.wait_for_attack_data)
 
@@ -198,15 +260,18 @@ class Avala:
 
         exploits = self._reload_exploits(attack_data_future)
 
-        automatic_target_exploits = [e for e in exploits if e.requires_flag_ids]
-        manual_target_exploits = [e for e in exploits if not e.requires_flag_ids]
+        exploits_not_requiring_flag_ids, exploits_requiring_flag_ids = (
+            [e for e in exploits if not e.requires_flag_ids],
+            [e for e in exploits if e.requires_flag_ids],
+        )
 
         now = datetime.now()
 
-        # Manual target exploits are scheduled first because they can be ran immediately,
-        # as opposed to automatic target exploits which need to wait for flag IDs.
+        # Exploits that do not require attack data are scheduled first because
+        # they can be ran immediately, as opposed to the other exploits which
+        # need to wait for the latest attack data.
 
-        for exploit in manual_target_exploits + automatic_target_exploits:
+        for exploit in exploits_not_requiring_flag_ids + exploits_requiring_flag_ids:
             if not exploit.setup():
                 continue
             if not exploit.batches:
@@ -231,7 +296,13 @@ class Avala:
         if self.after_all_hook:
             self.after_all_hook()
 
-    def _run_hook(self, func):
+    def _run_hook(self, func: callable):
+        """
+        Runs a hook function, catches and logs any exceptions that occur.
+
+        :param func: Hook function to run.
+        :type func: callable
+        """
         if func:
             try:
                 func()
@@ -239,6 +310,10 @@ class Avala:
                 logger.error(f"Error in {func.__name__}: {e}")
 
     def _enqueue_pending_flags(self):
+        """
+        Job that periodically checks the connection with the server and tries to push the pending flags
+        collected during the server downtime.
+        """
         with get_db() as db:
             try:
                 self.client.heartbeat()
