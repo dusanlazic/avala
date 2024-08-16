@@ -15,6 +15,7 @@ from .routes.statistics import router as statistics_router
 from .database import setup_db_conn, create_tables
 from .config import config, load_user_config, DOT_DIR_PATH
 from .scheduler import initialize_scheduler
+from .setup_tests import run_tests
 from .broadcast import broadcast
 
 
@@ -131,6 +132,12 @@ def initialize_workspace():
  <b>5.</> 🚀 Run <b>docker compose up -d</> to run everything.
         """
     )
+
+
+def test_setup():
+    load_user_config()
+    logger.info("Running tests...")
+    run_tests()
 
 
 def show_banner():

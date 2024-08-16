@@ -20,9 +20,6 @@ from ..scheduler import (
 def main():
     load_user_config()
 
-    if config.submitter.max_batch_size and config.submitter.max_batch_size < 1:
-        config.submitter.max_batch_size = float("inf")
-
     worker = Submitter()
     worker.start()
 
@@ -77,10 +74,9 @@ class Submitter:
         """
         try:
             self.submit = self._import_user_function("submit")
-        except ModuleNotFoundError:
+        except Exception as e:
             logger.error(
-                "Module <b>%s.py</> not found. Please make sure the file exists and it's under <b>%s.</>"
-                % (config.submitter.module, os.getcwd())
+                "Unable to load module <b>%s</>: %s" % (config.submitter.module, e)
             )
             return
 
@@ -143,7 +139,7 @@ class Submitter:
         self.delivery_tag_map[flag] = method.delivery_tag
 
         logger.debug(
-            "Received flag <b>%s</bold> (%d flags in buffer)"
+            "Received flag <b>%s</> (%d flags in buffer)"
             % (flag, len(self.submission_buffer))
         )
 
@@ -223,7 +219,7 @@ class Submitter:
             logger.info("No flags in buffer. Submission skipped.")
             return
 
-        logger.info("Submitting <b>%d</bold> flags..." % len(submission_buffer))
+        logger.info("Submitting <b>%d</> flags..." % len(submission_buffer))
 
         flag_responses = [
             FlagResponse(*response) for response in self.submit(submission_buffer)
@@ -255,14 +251,13 @@ class Submitter:
                     self.prepare()
 
         logger.error(
-            "Failed to submit flag <b>%s</bold>. Check your connection and rerun."
-            % flag
+            "Failed to submit flag <b>%s</>. Check your connection and rerun." % flag
         )
         exit(1)
 
     def _submit_flags_in_stream_consumer(self, ch, method, properties, body):
         flag = body.decode().strip()
-        logger.debug("Received flag <b>%s</bold>" % flag)
+        logger.debug("Received flag <b>%s</>" % flag)
 
         response = FlagResponse(*self._submit_flag_or_exit(flag))
 

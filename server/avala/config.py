@@ -79,4 +79,7 @@ def load_user_config():
     if type(config.game.nop_team_ip) != list:
         config.game.nop_team_ip = [config.game.nop_team_ip]
 
+    if config.submitter.max_batch_size and config.submitter.max_batch_size < 1:
+        config.submitter.max_batch_size = float("inf")
+
     logger.info("Loaded user configuration.")

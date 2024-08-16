@@ -19,9 +19,7 @@ async def authenticate(
         return "Anon"
 
     if credentials.password != config.server.password:
-        logger.error(
-            "Invalid password attempt from <b>%s</bold>." % request.client.host
-        )
+        logger.error("Invalid password attempt from <b>%s</>." % request.client.host)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"
         )

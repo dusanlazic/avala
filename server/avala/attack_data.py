@@ -17,18 +17,10 @@ attack_data_updated_event: asyncio.Event = asyncio.Event()
 def reload_attack_data():
     attack_data_updated_event.clear()
 
-    try:
-        fetch_json, process_json = import_user_functions()
-    except ModuleNotFoundError:
-        logger.error(
-            "Module <b>%s.py</> not found. Please make sure the file exists and it's under <b>%s.</>"
-            % (config.attack_data.module, os.getcwd())
-        )
-    except AttributeError:
-        logger.error(
-            "Required functions not found within <b>%s.py</>. Please make sure the module contains <b>fetch_json</> and <b>process_json</> functions."
-            % config.attack_data.module
-        )
+    fetch_json, process_json = import_user_functions()
+
+    if not fetch_json or not process_json:
+        return
 
     with get_db() as db, StateManager(db) as state:
         old_json_hash = state.attack_data_hash
@@ -117,15 +109,28 @@ def compare_dicts(dict1, dict2):
 
 def import_user_functions():
     """Imports and reloads the fetch and process functions that fetch and process attack data json file."""
-    module_name = "flag_ids"
+    module_name = config.attack_data.module
 
     cwd = os.getcwd()
     if cwd not in sys.path:
         sys.path.append(cwd)
 
-    imported_module = reload(import_module(module_name))
+    try:
+        imported_module = reload(import_module(module_name))
+    except Exception as e:
+        logger.error("Unable to load module <b>%s</>: %s" % (module_name, e))
+        return None, None
 
-    fetch_json = getattr(imported_module, "fetch_json")
-    process_json = getattr(imported_module, "process_json")
+    fetch_json = getattr(imported_module, "fetch_json", None)
+    if not fetch_json:
+        logger.error(
+            "Function <b>fetch_json</> not found in module <b>%s</>." % module_name
+        )
+
+    process_json = getattr(imported_module, "process_json", None)
+    if not process_json:
+        logger.error(
+            "Function <b>process_json</> not found in module <b>%s</>." % module_name
+        )
 
     return fetch_json, process_json
