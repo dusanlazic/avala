@@ -8,34 +8,49 @@ from .config import config
 from .attack_data import import_user_functions as import_attack_data_functions
 
 
-def test(name):
+tests = []
+passed = []
+failed = []
+
+
+def test(name, dependencies=None):
+    if dependencies is None:
+        dependencies = []
+
     def decorator(func):
         def wrapper(*args, **kwargs):
-            try:
-                result = func(*args, **kwargs)
-                assert result is not False, "Test returned False."
-                logger.info("<green><b>Passed:</>\t%s</>" % name)
-            except AssertionError as e:
-                logger.info("<red><b>Failed:</>\t%s -- %s</>" % (name, e))
-            except Exception as e:
-                logger.info("<red><b>Failed:</>\t%s -- %s</>" % (name, e))
+            global passed, failed
+            if all(dep.__name__ in passed for dep in dependencies):
+                try:
+                    result = func(*args, **kwargs)
+                    logger.info("✅ <green>%s</>" % name)
+                    passed.append(func.__name__)
+                except (AssertionError, Exception) as e:
+                    logger.info("❗ <red>%s -- %s</>" % (name, e))
+                    failed.append(func.__name__)
+            else:
+                logger.info("⏩ <yellow>%s -- Skipped</>" % name)
+                failed.append(func.__name__)
 
+        wrapper.__name__ = func.__name__
+        tests.append(wrapper)
         return wrapper
 
     return decorator
 
 
 def run_tests():
-    tests = [
-        test_attack_data_functions_import,
-        test_attack_data_fetch_json,
-        test_attack_data_process_json,
-        test_submitter_import,
-        test_flag_submission,
-    ]
-
     for test in tests:
         test()
+
+    logger.info(
+        "%s <green><b>%d</></> passed, <red><b>%d</></> failed."
+        % (
+            "🎉" if not failed else "🚨",
+            len(passed),
+            len(failed),
+        )
+    )
 
 
 @test("Import attack data functions.")
@@ -44,13 +59,13 @@ def test_attack_data_functions_import():
     assert fetch_json and process_json
 
 
-@test("Fetch attack data.")
+@test("Fetch attack data.", dependencies=[test_attack_data_functions_import])
 def test_attack_data_fetch_json():
     fetch_json, _ = import_attack_data_functions()
     assert isinstance(fetch_json(), dict), "Fetch function must return a dictionary."
 
 
-@test("Process attack data.")
+@test("Process attack data.", dependencies=[test_attack_data_fetch_json])
 def test_attack_data_process_json():
     fetch_json, process_json = import_attack_data_functions()
     obj = process_json(fetch_json())
@@ -86,7 +101,7 @@ def test_submitter_import():
     )
 
 
-@test("Test flag submission.")
+@test("Submit 50 fake flags.", dependencies=[test_submitter_import])
 def test_flag_submission():
     submit = import_submitter_function("submit")
     prepare = import_submitter_function("prepare")
