@@ -146,7 +146,11 @@ def main(args):
         subprocess.run(shlex.split(args.cleanup), text=True)
 
 
-def execute_attack(command, target, flag_ids=None):
+def execute_attack(command, target, flag_ids=None) -> str:
+    """
+    Executes the attack by running the provided command within a subprocess.
+    Returns the command's output to the standard output.
+    """
     command_args = [
         target if arg == TARGET_PLACEHOLDER else arg for arg in shlex.split(command)
     ]
@@ -187,9 +191,8 @@ def execute_attack(command, target, flag_ids=None):
     return result.stdout
 
 
-def match_flags(pattern: str, text: str) -> bool:
-    matches = re.findall(pattern, text)
-    return matches if matches else None
+def match_flags(pattern: str, output: str) -> list[str]:
+    return re.findall(pattern, output)
 
 
 def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
@@ -262,13 +265,13 @@ if __name__ == "__main__":
         "targets",
         type=str,
         nargs="+",
-        help="IP addresses or hostnames of targeted teams.",
+        help="IP addresses or hostnames of the targeted teams.",
     )
     parser.add_argument(
         "--alias",
         type=str,
         required=True,
-        help="Alias of the exploit for its identification.",
+        help="Alias used for exploit identification, analytics and as a key for tracking repeated flag IDs.",
     )
     parser.add_argument(
         "--command",
@@ -286,35 +289,35 @@ if __name__ == "__main__":
         type=str,
         default="single",
         choices=["single", "last_n"],
-        help="Tick scope of the flag_ids object to be used for the exploit.",
+        help="Scope of the `flag_ids` dictionary.",
     )
     parser.add_argument(
         "--prepare",
         type=str,
-        help="Shell command to run before running the attack.",
+        help="Optional shell command to run before starting the first attack.",
     )
     parser.add_argument(
         "--cleanup",
         type=str,
-        help="Shell command to run after running the attack.",
+        help="Optional shell command to run after completing the last attack.",
     )
     parser.add_argument(
         "--draft",
         action="store_true",
         default=False,
-        help="Do not skip attacks that use already used flag ids.",
+        help="Toggle draft mode (Do not skip attacks that use already used flag ids).",
     )
     parser.add_argument(
         "--workers",
         type=int,
         default=128,
-        help="Maximum number of workers to be used for parallel attacks.",
+        help="Maximum number of parallel workers for running the attacks.",
     )
     parser.add_argument(
         "--timeout",
         type=int,
         default=15,
-        help="TODO",
+        help="Timeout in seconds after which the exploit will be terminated if it's stuck or takes too long to complete.",
     )
 
     args = parser.parse_args()

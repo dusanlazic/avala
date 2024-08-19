@@ -82,7 +82,7 @@ def main(args):
         for future in concurrent.futures.as_completed(futures):
             target, flag_ids = futures[future]
             try:
-                result = str(future.result())
+                result = future.result()
             except Exception as e:
                 logger.error(
                     f"An error has occured while attacking <b>%s</> via <b>%s</>: %s"
@@ -162,9 +162,8 @@ def import_func(name, module, directory=os.getcwd()) -> Callable:
     return getattr(module, name, None)
 
 
-def match_flags(pattern: str, text: str) -> list[str]:
-    matches = re.findall(pattern, text)
-    return matches if matches else []
+def match_flags(pattern: str, output: any) -> list[str]:
+    return re.findall(pattern, str(output))
 
 
 def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
@@ -233,13 +232,13 @@ if __name__ == "__main__":
         "targets",
         type=str,
         nargs="+",
-        help="IP addresses or hostnames of targeted teams.",
+        help="IP addresses or hostnames of the targeted teams.",
     )
     parser.add_argument(
         "--alias",
         type=str,
         required=True,
-        help="Alias of the exploit for its identification.",
+        help="Alias used for exploit identification, analytics and as a key for tracking repeated flag IDs.",
     )
     parser.add_argument(
         "--func-name",
@@ -251,13 +250,13 @@ if __name__ == "__main__":
         "--module",
         type=str,
         required=True,
-        help="Name of the Python module of the exploit.",
+        help="Name of the Python module containing the exploit function.",
     )
     parser.add_argument(
         "--directory",
         type=str,
         required=True,
-        help="Directory of the Python module of the exploit.",
+        help="Directory containing the Python module containing the exploit function.",
     )
     parser.add_argument(
         "--attack-data-file",
@@ -269,31 +268,31 @@ if __name__ == "__main__":
         type=str,
         default="single",
         choices=["single", "last_n"],
-        help="Tick scope of the flag_ids object to be used for the exploit.",
+        help="Scope of the `flag_ids` dictionary.",
     )
     parser.add_argument(
         "--prepare",
         nargs="?",
         const=True,
-        help="Run provided shell command before running the first attack.",
+        help="Optional shell command to run before starting the first attack.",
     )
     parser.add_argument(
         "--cleanup",
         nargs="?",
         const=True,
-        help="Run provided shell command after running the last attacks.",
+        help="Optional shell command to run after completing the last attack.",
     )
     parser.add_argument(
         "--draft",
         action="store_true",
         default=False,
-        help="Do not skip attacks that use already used flag ids.",
+        help="Toggle draft mode (Do not skip attacks that use already used flag ids).",
     )
     parser.add_argument(
         "--workers",
         type=int,
         default=128,
-        help="Maximum number of workers to be used for concurrent attacks.",
+        help="Maximum number of concurrent workers for running the attacks.",
     )
 
     args = parser.parse_args()
