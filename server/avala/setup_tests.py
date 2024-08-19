@@ -2,11 +2,13 @@ import os
 import sys
 import random
 import string
+import traceback
 from importlib import import_module, reload
 from .shared.logs import logger
 from .config import config, load_user_config
 from .attack_data import import_user_functions as import_attack_data_functions
 
+is_verbose = False
 
 tests = []
 passed = []
@@ -31,6 +33,9 @@ def test(name, dependencies=None):
                 except (AssertionError, Exception) as e:
                     logger.info("❗ <red>%s -- %s</>" % (name, e))
                     failed.append(func.__name__)
+
+                    if is_verbose:
+                        traceback.print_exc()
             else:
                 logger.info("⏩ <yellow>%s -- Skipped</>" % name)
                 failed.append(func.__name__)
@@ -42,10 +47,13 @@ def test(name, dependencies=None):
     return decorator
 
 
-def main():
+def main(verbose=False):
     """
     Runs all tests and logs the results.
     """
+    global is_verbose
+    is_verbose = verbose
+
     load_user_config()
     logger.info("Running tests...")
 
@@ -60,6 +68,9 @@ def main():
             len(failed),
         )
     )
+
+    if not failed:
+        logger.info("🚀 All tests passed! You're good to go.")
 
 
 @test("Import attack data functions.")

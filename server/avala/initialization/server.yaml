@@ -140,3 +140,4 @@ rabbitmq:
   password: guest
   host: rabbitmq
   port: 5672
+  management_port: 15672

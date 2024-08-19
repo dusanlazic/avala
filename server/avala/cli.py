@@ -32,8 +32,9 @@ def init():
 
 
 @cli.command()
-def test():
-    tests_main()
+@click.option("-v", "--verbose", is_flag=True, help="Enable verbose output")
+def test(verbose):
+    tests_main(verbose=verbose)
 
 
 if __name__ == "__main__":
