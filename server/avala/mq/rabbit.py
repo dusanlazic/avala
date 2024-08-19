@@ -4,7 +4,9 @@ from ..shared.logs import logger
 
 
 class RabbitQueue:
-    """A simple wrapper around a RabbitMQ queue."""
+    """
+    Simple wrapper around a RabbitMQ queue.
+    """
 
     def __init__(self, channel, routing_key, durable=False) -> None:
         self.channel = channel

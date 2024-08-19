@@ -1,15 +1,16 @@
 import json
 from sqlalchemy import Column, Text, Integer, String, DateTime, func
 from sqlalchemy.schema import CheckConstraint
+from sqlalchemy.dialects.postgresql import UUID
 from collections import namedtuple
-from .shared.logs import logger
-from .database import Base, engine
+from .database import Base
+import uuid
 
 
 class Flag(Base):
     __tablename__ = "flags"
 
-    id = Column(Integer, primary_key=True)  # Add an explicit primary key column
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     value = Column(String, unique=True, index=True)
     exploit = Column(String)
     player = Column(String)

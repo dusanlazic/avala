@@ -15,6 +15,11 @@ attack_data_updated_event: asyncio.Event = asyncio.Event()
 
 
 def reload_attack_data():
+    """
+    Reloads and updates the attack data by fetching and processing new JSON data using user-defined functions,
+    comparing it against the current data (by comparing hashes), and updating if new data is found. When data
+    is updated, the event `attack_data_updated_event` is set, signaling clients that new data is available.
+    """
     attack_data_updated_event.clear()
 
     fetch_json, process_json = import_user_functions()
@@ -92,8 +97,12 @@ def reload_attack_data():
     attack_data_updated_event.set()
 
 
-def normalize_dict(data):
-    """Recursively sort and normalize dictionary data."""
+def normalize_dict(data: dict | list | any) -> dict | list | any:
+    """
+    Recursively sort keys and items in a dictionary. This is useful for not mistaking
+    a differently ordered dictionary as a different one, which sometimes happens with
+    attack.json / teams.json files.
+    """
     if isinstance(data, dict):
         return {key: normalize_dict(value) for key, value in sorted(data.items())}
     elif isinstance(data, list):
@@ -102,13 +111,10 @@ def normalize_dict(data):
         return data
 
 
-def compare_dicts(dict1, dict2):
-    """Compare two dictionaries."""
-    return normalize_dict(dict1) == normalize_dict(dict2)
-
-
 def import_user_functions():
-    """Imports and reloads the fetch and process functions that fetch and process attack data json file."""
+    """
+    Imports and reloads the fetch and process functions that fetch and process attack data.
+    """
     module_name = config.attack_data.module
 
     cwd = os.getcwd()

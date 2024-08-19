@@ -14,7 +14,7 @@ config = Dict(
         "server": {
             "host": "0.0.0.0",
             "port": 2024,
-            "cors": ["*"],
+            "cors": [],
             "frontend": True,
         },
         "submitter": {
@@ -37,6 +37,7 @@ config = Dict(
             "port": 5672,
             "user": "guest",
             "password": "guest",
+            "management_port": 15672,
         },
     }
 )

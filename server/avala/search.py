@@ -4,10 +4,15 @@ from .models import Flag
 
 
 # Parsing formats
-def parse_timedelta(tokens):
-    tokens = tokens[0]
-    value = int(tokens[0])
-    unit = tokens[1].lower()
+def parse_negative_timedelta(tokens: list[list[str]]):
+    """
+    Used to parse negative time deltas, e.g. "2 hours ago", "15 minutes ago", etc.
+    """
+    tokens = tokens[0]  # Unwrap the list
+
+    value: int = int(tokens[0])
+    unit: str = tokens[1].lower()
+
     if unit in seconds:
         return datetime.now() - timedelta(seconds=value)
     if unit in minutes:
@@ -16,14 +21,20 @@ def parse_timedelta(tokens):
         return datetime.now() - timedelta(hours=value)
 
 
-def parse_time(tokens):
-    tokens = tokens[0]
-    hour = int(tokens[0])
-    minute = int(tokens[1])
-    second = int(tokens[2]) if len(tokens) > 2 else 0
+def parse_time(tokens: list[list[str]]):
+    """
+    Used to parse time values, e.g. "12:30", "15:45:30", etc.
+    """
+    tokens = tokens[0]  # Unwrap the list
+    hour: int = int(tokens[0])
+    minute: int = int(tokens[1])
+    second: int = int(tokens[2]) if len(tokens) > 2 else 0
 
     return datetime.now().replace(
-        hour=hour, minute=minute, second=second, microsecond=0
+        hour=hour,
+        minute=minute,
+        second=second,
+        microsecond=0,
     )
 
 
@@ -69,7 +80,7 @@ value_list = Group(
 )
 value_timedelta = Group(
     Word(nums) + one_of(time_units, caseless=True) + Suppress(CaselessKeyword("ago"))
-).set_parse_action(parse_timedelta)
+).set_parse_action(parse_negative_timedelta)
 value_time = Group(
     Regex("2[0-3]|[01]?\d")
     + Suppress(one_of(": - "))
@@ -107,7 +118,12 @@ AND = one_of(and_, caseless=True)
 OR = one_of(or_, caseless=True)
 
 
-def makeLRlike(numterms):
+def makeLRlike(numterms: int = None):
+    """
+    Take the flat lists of tokens and nest them as if parsed left-recursively.
+
+    https://stackoverflow.com/a/4589920
+    """
     if numterms is None:
         initlen = 2
         incr = 1
@@ -131,14 +147,17 @@ def makeLRlike(numterms):
 boolean_condition = infixNotation(
     condition,
     [
-        (NOT, 1, opAssoc.RIGHT, makeLRlike(None)),
+        (NOT, 1, opAssoc.RIGHT, makeLRlike()),
         (AND, 2, opAssoc.LEFT, makeLRlike(2)),
         (OR, 2, opAssoc.LEFT, makeLRlike(2)),
     ],
 )
 
 
-def build_query(tree):
+def build_query(tree: list):
+    """
+    Recursively builds a SQLAlchemy query from a parsed query tree.
+    """
     if len(tree) == 2 and tree[0] in not_:
         return ~build_query(tree[1])
 
@@ -183,5 +202,8 @@ def build_query(tree):
         return build_query(left) | build_query(right)
 
 
-def parse_query(input):
-    return boolean_condition.parse_string(input)[0]
+def parse_query(query: str) -> list:
+    """
+    Parse user submitted query string into a list of conditions.
+    """
+    return boolean_condition.parse_string(query)[0]

@@ -20,7 +20,7 @@ router = APIRouter(prefix="/stats", tags=["Statistics"])
 async def collect_stats(db: Session):
     while True:
         response = requests.get(
-            f"http://{config.rabbitmq.host}:15672/api/queues/%2F/submission_queue",  # TODO: Make configurable
+            f"http://{config.rabbitmq.host}:{config.rabbitmq.management_port}/api/queues/%2F/submission_queue",
             auth=HTTPBasicAuth(config.rabbitmq.user, config.rabbitmq.password),
             params={
                 "lengths_age": 90,

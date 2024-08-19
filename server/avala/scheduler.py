@@ -6,6 +6,9 @@ from .config import config
 
 
 def initialize_scheduler():
+    """
+    Initializes the APScheduler instance and schedules the tick announcer and attack data reloader.
+    """
     scheduler: BackgroundScheduler = BackgroundScheduler()
 
     now = datetime.now()
@@ -21,7 +24,7 @@ def initialize_scheduler():
         func=reload_attack_data,
         trigger="interval",
         seconds=get_tick_duration().seconds,
-        id="teams_json_reloader",
+        id="attack_data_reloader",
         next_run_time=get_next_tick_start(),
     )
 
@@ -103,6 +106,9 @@ def game_has_started(now=None) -> bool:
 
 
 def tick_announcer():
+    """
+    Logs the current tick number and the next tick's scheduled start time at the beginning of each tick.
+    """
     logger.info(
         "Started tick <b>%d</>. Next tick scheduled for <b>%s</>."
         % (get_tick_number(), get_next_tick_start().strftime("%H:%M:%S"))
@@ -110,6 +116,10 @@ def tick_announcer():
 
 
 def print_current_tick(now=None):
+    """
+    Logs the current tick number and the next tick's scheduled start time. If the game has not started yet,
+    it logs the first tick's scheduled start time.
+    """
     if not game_has_started(now):
         logger.info(
             "Game has not started yet. First tick scheduled for <b>%s</>."

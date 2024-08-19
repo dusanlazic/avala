@@ -16,6 +16,9 @@ async def get_latest_attack_data(
     db: Annotated[Session, Depends(get_db_for_request)],
     response: Response,
 ):
+    """
+    Waits for and returns the latest attack data when it is updated.
+    """
     await attack_data_updated_event.wait()
 
     with StateManager(db) as state:
@@ -36,6 +39,9 @@ async def get_current_attack_data(
     db: Annotated[Session, Depends(get_db_for_request)],
     response: Response,
 ):
+    """
+    Returns the current available attack data.
+    """
     with StateManager(db) as state:
         attack_data = state.attack_data
 

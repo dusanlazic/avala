@@ -15,7 +15,7 @@ from .routes.statistics import router as statistics_router
 from .database import setup_db_conn, create_tables
 from .config import config, load_user_config, DOT_DIR_PATH
 from .scheduler import initialize_scheduler
-from .setup_tests import run_tests
+from .setup_tests import main
 from .broadcast import broadcast
 
 
@@ -33,7 +33,6 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    print()  # Add a newline after the ^C
     logger.info("Shutting down...")
     await rabbit.close()
     await broadcast.disconnect()
@@ -67,6 +66,9 @@ def main():
 
 
 def configure_logging():
+    """
+    Configures the main logger and disables the default Uvicorn logger.
+    """
     logger.configure(**log_config)
 
     uvicorn_log_config = uvicorn.config.LOGGING_CONFIG
@@ -77,16 +79,23 @@ def configure_logging():
 
 
 def configure_cors(app: FastAPI):
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=(config.server.cors),
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    """
+    Configures CORS middleware if the Avala backend and web UI are hosted on different domains.
+    """
+    if config.server.cors:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=(config.server.cors),
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
 
 def configure_static(app: FastAPI):
+    """
+    Configures the static files serving if the web UI is served by the backend.
+    """
     if not config.server.frontend:
         return
 
@@ -98,6 +107,9 @@ def configure_static(app: FastAPI):
 
 
 def create_dot_dir():
+    """
+    Creates the .avala directory if it doesn't exist for storing temporary files.
+    """
     if not DOT_DIR_PATH.exists():
         DOT_DIR_PATH.mkdir()
         logger.info("Created .avala directory.")
@@ -106,6 +118,10 @@ def create_dot_dir():
 
 
 def initialize_workspace():
+    """
+    Initializes the workspace in the current working directory by creating starter
+    configuration files and scripts.
+    """
     logger.info("Initializing workspace...")
     source_code_dir = Path(__file__).resolve().parent
     initialization_dir = source_code_dir / "initialization"
@@ -117,13 +133,13 @@ def initialize_workspace():
 
         destination = workspace_dir / item.name
         if destination.exists():
-            logger.info(f"Skipping {item.name} as it already exists.")
+            logger.info(f"⏩ Skipping {item.name} as it already exists.")
             continue
         shutil.copy2(item, destination)
-        logger.info(f"Created {item.name}.")
+        logger.info(f"✅ Created {item.name}.")
 
     logger.success(
-        """Workspace initialized. Next steps:
+        """🎉 Workspace initialized. Next steps:
 
  <b>1.</> 🔧 Configure the server by editing <b>server.yaml</b>.
  <b>2.</> 🧩 Implement the flag submission logic in <b>submitter.py</b>.
@@ -132,12 +148,6 @@ def initialize_workspace():
  <b>5.</> 🚀 Run <b>docker compose up -d</> to run everything.
         """
     )
-
-
-def test_setup():
-    load_user_config()
-    logger.info("Running tests...")
-    run_tests()
 
 
 def show_banner():

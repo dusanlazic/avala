@@ -4,7 +4,7 @@ import random
 import string
 from importlib import import_module, reload
 from .shared.logs import logger
-from .config import config
+from .config import config, load_user_config
 from .attack_data import import_user_functions as import_attack_data_functions
 
 
@@ -14,6 +14,9 @@ failed = []
 
 
 def test(name, dependencies=None):
+    """
+    Decorator for naming and defining tests and their dependencies.
+    """
     if dependencies is None:
         dependencies = []
 
@@ -22,7 +25,7 @@ def test(name, dependencies=None):
             global passed, failed
             if all(dep.__name__ in passed for dep in dependencies):
                 try:
-                    result = func(*args, **kwargs)
+                    func(*args, **kwargs)
                     logger.info("✅ <green>%s</>" % name)
                     passed.append(func.__name__)
                 except (AssertionError, Exception) as e:
@@ -39,7 +42,13 @@ def test(name, dependencies=None):
     return decorator
 
 
-def run_tests():
+def main():
+    """
+    Runs all tests and logs the results.
+    """
+    load_user_config()
+    logger.info("Running tests...")
+
     for test in tests:
         test()
 

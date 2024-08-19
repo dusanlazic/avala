@@ -103,6 +103,7 @@ rabbitmq_schema = {
     "properties": {
         "host": {"type": "string", "format": "hostname"},
         "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "management_port": {"type": "integer", "minimum": 1, "maximum": 65535},
         "user": {"type": "string"},
         "password": {"type": "string"},
     },
