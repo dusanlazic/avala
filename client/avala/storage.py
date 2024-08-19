@@ -1,5 +1,5 @@
 import pickle
-from typing import Generator
+from typing import Generator, Any
 from contextlib import contextmanager
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
@@ -35,10 +35,10 @@ class BlobStorage:
     def __init__(self) -> None:
         pass
 
-    def __getitem__(self, key: str) -> any:
+    def __getitem__(self, key: str) -> Any:
         return self.get(key)
 
-    def __setitem__(self, key: str, value: any) -> None:
+    def __setitem__(self, key: str, value: Any) -> None:
         self.put(key, value, overwrite=True)
 
     def __delitem__(self, key: str) -> None:
@@ -50,9 +50,9 @@ class BlobStorage:
     def put(
         self,
         key: str,
-        value: any,
+        value: Any,
         overwrite: bool = True,
-    ) -> any:
+    ) -> Any:
         """
         Stores a key-value pair in the database. The value is pickled before storage.
 
@@ -61,13 +61,13 @@ class BlobStorage:
         :param key: Key under which the value will be stored.
         :type key: str
         :param value: Value to store. Must be serializable.
-        :type value: any
+        :type value: Any
         :param overwrite: If True, overwrites the existing value. If False and the key exists,
                           the function does nothing and returns None. Defaults to True.
         :type overwrite: bool, optional
         :raises ValueError: If the provided value is None.
         :return: Stored value, or None if the key already exists and `overwrite` is False.
-        :rtype: any
+        :rtype: Any
         """
         if value is None:
             raise ValueError("Cannot store None value.")
@@ -96,7 +96,7 @@ class BlobStorage:
         self,
         key: str,
         db: Session | None = None,
-    ) -> any:
+    ) -> Any:
         """
         Retrieves and unpickles the value associated with the given key from the database.
 
@@ -105,7 +105,7 @@ class BlobStorage:
         :param db: Optional database session. If not provided, a new session will be created.
         :type db: Session | None, optional
         :return: The deserialized value associated with the key, or None if the key does not exist.
-        :rtype: any
+        :rtype: Any
         """
         with _use_or_get_db(db) as db:
             stored_obj = db.query(StoredObject).filter(StoredObject.key == key).first()

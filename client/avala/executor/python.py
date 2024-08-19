@@ -8,7 +8,7 @@ import subprocess
 import concurrent.futures
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert
-from typing import Callable
+from typing import Callable, Any
 from importlib import import_module
 from avala.shared.logs import logger
 from avala.shared.util import colorize
@@ -162,7 +162,7 @@ def import_func(name, module, directory=os.getcwd()) -> Callable:
     return getattr(module, name, None)
 
 
-def match_flags(pattern: str, output: any) -> list[str]:
+def match_flags(pattern: str, output: Any) -> list[str]:
     return re.findall(pattern, str(output))
 
 

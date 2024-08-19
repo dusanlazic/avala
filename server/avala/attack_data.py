@@ -4,6 +4,7 @@ import json
 import time
 import hashlib
 import asyncio
+from typing import Any
 from importlib import import_module, reload
 from .shared.logs import logger
 from .state import StateManager
@@ -97,7 +98,7 @@ def reload_attack_data():
     attack_data_updated_event.set()
 
 
-def normalize_dict(data: dict | list | any) -> dict | list | any:
+def normalize_dict(data: dict | list | Any) -> dict | list | Any:
     """
     Recursively sort keys and items in a dictionary. This is useful for not mistaking
     a differently ordered dictionary as a different one, which sometimes happens with

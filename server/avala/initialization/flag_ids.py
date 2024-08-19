@@ -1,4 +1,5 @@
 import requests
+from typing import Any
 
 
 def fetch_json() -> dict:
@@ -14,7 +15,7 @@ def fetch_json() -> dict:
     return response.json()
 
 
-def process_json(raw: dict) -> dict[str, dict[str, list[any]]]:
+def process_json(raw: dict) -> dict[str, dict[str, list[Any]]]:
     """
     Processes the raw flag IDs into a standardized, structured format.
     Flag IDs must be organized by service name and team IP address, and be stored
@@ -35,8 +36,8 @@ def process_json(raw: dict) -> dict[str, dict[str, list[any]]]:
     :param raw: Raw flag IDs as fetched from the game server.
     :type raw: dict
     :return: Processed flag IDs in a standardized structure.
-    :rtype: dict[str, dict[str, list[any]]]
+    :rtype: dict[str, dict[str, list[Any]]]
     """
-    processed: dict[str, dict[str, list[any]]] = {}
+    processed: dict[str, dict[str, list[Any]]] = {}
 
     return processed

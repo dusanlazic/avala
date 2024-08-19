@@ -1,6 +1,6 @@
 import hashlib
 from enum import Enum
-from typing import NamedTuple
+from typing import NamedTuple, Any
 from datetime import timedelta
 from sqlalchemy import Column, String, Boolean, LargeBinary
 from .database import Base, get_db
@@ -158,12 +158,12 @@ class TickScopedAttackData:
 
     def __init__(
         self,
-        flag_ids: any,
+        flag_ids: Any,
     ):
-        self.flag_ids: any = flag_ids
+        self.flag_ids: Any = flag_ids
 
     @classmethod
-    def hash_flag_ids(cls, alias: str, target: str, flag_ids: any) -> str:
+    def hash_flag_ids(cls, alias: str, target: str, flag_ids: Any) -> str:
         """
         Hashes the specific flag ID in order to track it to ensure that the same attack is not executed multiple times.
 
@@ -172,7 +172,7 @@ class TickScopedAttackData:
         """
         return hashlib.md5((alias + target + str(flag_ids)).encode()).hexdigest()
 
-    def serialize(self) -> any:
+    def serialize(self) -> Any:
         return self.flag_ids
 
 
@@ -183,7 +183,7 @@ class TargetScopedAttackData:
 
     def __init__(
         self,
-        ticks: list[any],
+        ticks: list[Any],
     ):
         self.ticks: list[TickScopedAttackData] = [
             TickScopedAttackData(flag_ids) for flag_ids in ticks
@@ -231,10 +231,10 @@ class TargetScopedAttackData:
 
         return self
 
-    def serialize(self) -> list[any]:
+    def serialize(self) -> list[Any]:
         return [tick.serialize() for tick in self.ticks]
 
-    def __truediv__(self, index: int) -> any:
+    def __truediv__(self, index: int) -> Any:
         if 0 <= index < len(self.ticks):
             return self.ticks[index].flag_ids
         else:
@@ -248,7 +248,7 @@ class ServiceScopedAttackData:
 
     def __init__(
         self,
-        targets: dict[str, list[any]],
+        targets: dict[str, list[Any]],
     ):
         self.targets: dict[str, TargetScopedAttackData] = {
             target: TargetScopedAttackData(ticks) for target, ticks in targets.items()
@@ -263,7 +263,7 @@ class ServiceScopedAttackData:
         """
         return list(self.targets.keys())
 
-    def serialize(self) -> dict[str, list[any]]:
+    def serialize(self) -> dict[str, list[Any]]:
         return {target: ticks.serialize() for target, ticks in self.targets.items()}
 
     def __truediv__(self, target: str) -> TargetScopedAttackData:
@@ -278,7 +278,7 @@ class UnscopedAttackData:
     Attack data covering all services provided by the game server.
     """
 
-    def __init__(self, data: dict[str, dict[str, list[any]]]):
+    def __init__(self, data: dict[str, dict[str, list[Any]]]):
         self.services: dict[str, ServiceScopedAttackData] = {
             service: ServiceScopedAttackData(targets)
             for service, targets in data.items()
@@ -295,7 +295,7 @@ class UnscopedAttackData:
 
     def serialize(self) -> dict[
         str,
-        dict[str, list[any]],
+        dict[str, list[Any]],
     ]:
         return {service: data.serialize() for service, data in self.services.items()}
 
