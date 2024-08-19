@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import json
 import shlex
 import argparse
@@ -158,14 +159,18 @@ def execute_attack(command, target, flag_ids=None):
                 for arg in command_args
             ]
 
-    result = subprocess.run(command_args, text=True, capture_output=True)
-    result.check_returncode()
-
     try:
-        if flag_ids:
-            os.unlink(flag_ids_path)
-    except FileNotFoundError:
-        pass
+        result = subprocess.run(
+            command_args, text=True, capture_output=True, timeout=args.timeout
+        )
+    except subprocess.TimeoutExpired:
+        sys.exit(2)
+    finally:
+        try:
+            if flag_ids:
+                os.unlink(flag_ids_path)
+        except FileNotFoundError:
+            pass
 
     if args.draft:
         logger.debug(
@@ -304,6 +309,12 @@ if __name__ == "__main__":
         type=int,
         default=128,
         help="Maximum number of workers to be used for parallel attacks.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=15,
+        help="TODO",
     )
 
     args = parser.parse_args()

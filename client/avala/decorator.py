@@ -21,6 +21,7 @@ def exploit(
     env: dict[str, str] = {},
     delay: int = 0,
     batching: Batching | None = None,
+    timeout: int = 15,
     workers: int = 128,
 ):
     def decorator_exploit(func):
@@ -40,6 +41,7 @@ def exploit(
             env=env,
             delay=delay,
             batching=batching,
+            timeout=timeout,
             workers=workers,
             meta=ExploitFuncMeta(
                 name=func.__name__,
@@ -66,6 +68,7 @@ def draft(
     env: dict[str, str] = {},
     delay: int = 0,
     batching: Batching | None = None,
+    timeout: int = 15,
     workers: int = 128,
 ):
     """
@@ -98,6 +101,8 @@ def draft(
     :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. This is helpful when running multiple exploits to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage.
     Note: Delay is **ignored in draft exploits** and is listed for easier switching between draft and non-draft exploits.
     :type delay: int, optional
+    :param timeout: Timeout in seconds after which the exploit will be terminated if it's stuck or takes too long to complete, defaults to 15.
+    :type timeout: int, optional
     :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes.
     Read more about batching in :class:`avala.models.Batching`. Note: Batching is **ignored in draft exploits** and is listed for easier switching between draft and non-draft exploits.
     :type batching: Batching | None, optional
@@ -122,6 +127,7 @@ def draft(
             env=env,
             delay=0,
             workers=workers,
+            timeout=timeout,
             is_draft=True,
             meta=ExploitFuncMeta(
                 name=func.__name__,
