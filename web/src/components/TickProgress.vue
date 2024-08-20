@@ -55,6 +55,9 @@ onMounted(() => {
   width: 100%;
   height: 6px;
   background-color: #313131;
+  position: fixed;
+  top: 0;
+  z-index: 5;
 }
 
 .tick-progress {

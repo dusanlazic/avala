@@ -207,12 +207,16 @@ onUnmounted(() => {
       />
     </div>
 
-    <div class="columns-2" style="margin-top: 40px">
+    <div class="columns-2" style="margin-top: 40px; margin-bottom: 40px">
       <div class="column">
         <h2>
           Exploits
           <Icon icon="ri:sword-line" />
         </h2>
+        <div v-if="!exploitsStats.length" class="empty-exploits">
+          <Icon icon="mdi:dinosaur-pixel" />
+          <p>No exploits yet</p>
+        </div>
         <div class="grid-container column-200">
           <ExploitCard
             v-for="exploit in exploitsStats"
@@ -276,6 +280,19 @@ h2 .iconify {
 .column {
   flex: 1 1 calc(50% - 10px);
   box-sizing: border-box;
+}
+
+.empty-exploits {
+  text-align: center;
+  color: #6b6b6b;
+}
+
+.empty-exploits .iconify {
+  font-size: 72px;
+}
+
+.empty-exploits p {
+  margin: 0;
 }
 
 @media (max-width: 500px) {

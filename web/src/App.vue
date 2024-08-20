@@ -50,6 +50,7 @@ const showView = (view) => {
         <div class="divider"></div>
       </nav>
     </header>
+    <div class="spacing"></div>
     <div v-show="currentView === 'dashboard'">
       <DashboardView />
     </div>
@@ -69,10 +70,17 @@ const showView = (view) => {
   margin: 0 auto;
 }
 
+header {
+  position: fixed;
+  z-index: 4;
+  background-image: linear-gradient(to bottom, #131313 0%, transparent 100%);
+  width: 100%;
+}
+
 nav {
   display: flex;
   gap: 2.5rem;
-  margin: 30px 0;
+  padding: 36px 0;
 }
 
 nav a {
@@ -100,5 +108,9 @@ nav a .iconify {
 
 nav .divider {
   margin-left: auto;
+}
+
+.spacing {
+  height: 100px;
 }
 </style>
