@@ -33,8 +33,10 @@ def main(args):
         execute_attack = import_func(args.func_name, args.module, args.directory)
     except Exception as e:
         logger.error(
-            "An error has occured while importing exploit function <b>%s</> from <b>%s.py</>: %s"
-            % (args.func_name, args.module, e)
+            "An error has occured while importing exploit function <b>{func_name}</> from <b>{module}.py</>: {error}",
+            func_name=args.func_name,
+            module=args.module,
+            error=e,
         )
 
     if not execute_attack:
@@ -85,16 +87,19 @@ def main(args):
                 result = future.result()
             except Exception as e:
                 logger.error(
-                    f"An error has occured while attacking <b>%s</> via <b>%s</>: %s"
-                    % (colorize(target), colorize(args.alias), e),
+                    "An error has occured while attacking <b>{target}</> via <b>{alias}</>: {error}",
+                    target=colorize(target),
+                    alias=colorize(args.alias),
+                    error=e,
                 )
                 continue
 
             flags = match_flags(client.game.flag_format, result)
             if not flags:
                 logger.warning(
-                    "No flags retrieved from attacking <b>%s</> via <b>%s</>."
-                    % (colorize(target), colorize(args.alias))
+                    "No flags retrieved from attacking <b>{target}</> via <b>{alias}</>.",
+                    target=colorize(target),
+                    alias=colorize(args.alias),
                 )
                 continue
 
@@ -102,13 +107,12 @@ def main(args):
                 client.enqueue(flags, args.alias, target)
             except Exception as e:
                 logger.error(
-                    "Failed to enqueue flags from <b>%s</> via <b>%s</>: %s"
-                    % (
-                        target,
-                        args.alias,
-                        e,
-                    )
+                    "Failed to enqueue flags from <b>{target}</> via <b>{alias}</>: {error}",
+                    target=target,
+                    alias=args.alias,
+                    error=e,
                 )
+
                 pending_flags.extend(
                     [
                         {
@@ -143,11 +147,9 @@ def main(args):
                 .on_conflict_do_nothing(index_elements=["value"])
             )
             logger.warning(
-                "<b>%d</> more flags obtained via <b>%s</> are stored into the local flag store."
-                % (
-                    len(pending_flags),
-                    colorize(args.alias),
-                )
+                "<b>{count}</> more flags obtained via <b>{alias}</> are stored into the local flag store.",
+                count=len(pending_flags),
+                alias=colorize(args.alias),
             )
 
     if args.cleanup:
@@ -171,17 +173,18 @@ def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
         with open(filepath) as file:
             return ServiceScopedAttackData(json.load(file))
     except FileNotFoundError:
-        logger.error("Flag IDs file <b>%s</> not found." % filepath)
+        logger.error("Flag IDs file <b>{file}</> not found.", file=filepath)
         return
     except PermissionError:
-        logger.error("Flag IDs file <b>%s</> is not accessible." % filepath)
+        logger.error("Flag IDs file <b>{file}</> is not accessible.", file=filepath)
         return
     except json.JSONDecodeError:
-        logger.error("Flag IDs file <b>%s</> is not a valid JSON." % filepath)
+        logger.error("Flag IDs file <b>{file}</> is not a valid JSON.", file=filepath)
         return
     except Exception as e:
         logger.error(
-            "An error has occured while reading flag IDs file: %s" % e,
+            "An error has occurred while reading flag IDs file: {error}",
+            error=e,
         )
         return
 
@@ -195,9 +198,11 @@ def get_flag_ids(
         flag_ids = service_attack_data / target
     except KeyError:
         logger.error(
-            "Target <b>%s</> not found for exploit <b>%s</>."
-            % (colorize(target), colorize(args.alias))
+            "Target <b>{target}</> not found for exploit <b>{alias}</>.",
+            target=colorize(target),
+            alias=colorize(args.alias),
         )
+
         return []
 
     if args.draft:

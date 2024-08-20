@@ -23,13 +23,11 @@ async def authenticate(
 
     if credentials.password != config.server.password:
         logger.error(
-            "Invalid password attempt from <b>%s</>. Username: %s. User Agent: %s. Request path: %s."
-            % (
-                request.client.host,
-                credentials.username,
-                request.headers.get("User-Agent"),
-                request.url.path,
-            )
+            "Invalid password attempt from <b>{host}</>. Username: {username}. User Agent: {user_agent}. Request path: {path}.",
+            host=request.client.host,
+            username=credentials.username,
+            user_agent=request.headers.get("User-Agent"),
+            path=request.url.path,
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"

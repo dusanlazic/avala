@@ -56,7 +56,9 @@ def load_user_config():
             with open(f"server.{ext}", "r") as file:
                 user_config = Dict(yaml.safe_load(file))
                 if not user_config:
-                    logger.error(f"No configuration found in server.{ext}. Exiting...")
+                    logger.error(
+                        "No configuration found in server.{ext}. Exiting...", ext=ext
+                    )
                     exit(1)
                 break
     else:

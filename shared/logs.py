@@ -17,7 +17,7 @@ _error = logger.error
 
 
 def error(msg: str, *args, **kwargs):
-    _error(f"<red>{msg}</>", *args, **kwargs)
+    _error("<red>{msg}</>", msg=msg, *args, **kwargs)
 
 
 logger.error = error

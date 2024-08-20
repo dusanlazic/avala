@@ -110,8 +110,9 @@ def tick_announcer():
     Logs the current tick number and the next tick's scheduled start time at the beginning of each tick.
     """
     logger.info(
-        "Started tick <b>%d</>. Next tick scheduled for <b>%s</>."
-        % (get_tick_number(), get_next_tick_start().strftime("%H:%M:%S"))
+        "Started tick <b>{tick_number}</>. Next tick scheduled for <b>{next_tick}</>.",
+        tick_number=get_tick_number(),
+        next_tick=get_next_tick_start().strftime("%H:%M:%S"),
     )
 
 
@@ -122,11 +123,12 @@ def print_current_tick(now=None):
     """
     if not game_has_started(now):
         logger.info(
-            "Game has not started yet. First tick scheduled for <b>%s</>."
-            % get_first_tick_start().strftime("%H:%M:%S")
+            "Game has not started yet. First tick scheduled for <b>{first_tick}</>.",
+            first_tick=get_first_tick_start().strftime("%H:%M:%S"),
         )
     else:
         logger.info(
-            "Current tick is <b>%d</>. Next tick scheduled for <b>%s</>."
-            % (get_tick_number(), get_next_tick_start().strftime("%H:%M:%S"))
+            "Current tick is <b>{tick_number}</>. Next tick scheduled for <b>{next_tick}</>.",
+            tick_number=get_tick_number(),
+            next_tick=get_next_tick_start().strftime("%H:%M:%S"),
         )

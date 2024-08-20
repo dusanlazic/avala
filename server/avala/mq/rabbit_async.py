@@ -17,7 +17,7 @@ class RabbitQueue:
 
     async def declare(self):
         await self.channel.declare_queue(self.routing_key, durable=self.durable)
-        logger.info(f"Declared queue {self.routing_key}.")
+        logger.info("Declared queue {routing_key}.", routing_key=self.routing_key)
 
     async def put(self, message, ttl=None):
         await self.channel.default_exchange.publish(
@@ -55,7 +55,7 @@ class RabbitConnection:
             self.channel = await self.connection.channel()
             logger.info("Connected to RabbitMQ.")
         except Exception as e:
-            logger.error(f"Error connecting to RabbitMQ: {e}")
+            logger.error("Error connecting to RabbitMQ: {error}", error=e)
 
     async def close(self):
         if not self.channel.is_closed:

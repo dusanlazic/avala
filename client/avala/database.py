@@ -27,7 +27,8 @@ def setup_db_conn():
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     except Exception as e:
         logger.error(
-            "An error occurred when connecting to the database:\n<red>%s</red>" % e
+            "An error occurred when connecting to the database:\n<red>{error}</red>",
+            error=e,
         )
         sys.exit(1)
 
@@ -57,6 +58,7 @@ def test_connection():
         logger.info("Database connection established.")
     except Exception as e:
         logger.error(
-            "An error occurred when connecting to the database:\n<red>%s</red>" % e
+            "An error occurred when connecting to the database:\n<red>{error}</red>",
+            error=e,
         )
         sys.exit(1)

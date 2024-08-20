@@ -28,16 +28,16 @@ def test(name, dependencies=None):
             if all(dep.__name__ in passed for dep in dependencies):
                 try:
                     func(*args, **kwargs)
-                    logger.info("✅ <green>%s</>" % name)
+                    logger.info("✅ <green>{name}</>", name=name)
                     passed.append(func.__name__)
                 except (AssertionError, Exception) as e:
-                    logger.info("❗ <red>%s -- %s</>" % (name, e))
+                    logger.info("❗ <red>{name} -- {error}</>", name=name, error=e)
                     failed.append(func.__name__)
 
                     if is_verbose:
                         traceback.print_exc()
             else:
-                logger.info("⏩ <yellow>%s -- Skipped</>" % name)
+                logger.info("⏩ <yellow>{name} -- Skipped</>", name=name)
                 failed.append(func.__name__)
 
         wrapper.__name__ = func.__name__
@@ -61,12 +61,10 @@ def main(verbose=False):
         test()
 
     logger.info(
-        "%s <green><b>%d</></> passed, <red><b>%d</></> failed."
-        % (
-            "🎉" if not failed else "🚨",
-            len(passed),
-            len(failed),
-        )
+        "{icon} <green><b>{passed_count}</></> passed, <red><b>{failed_count}</></> failed.",
+        icon="🎉" if not failed else "🚨",
+        passed_count=len(passed),
+        failed_count=len(failed),
     )
 
     if not failed:

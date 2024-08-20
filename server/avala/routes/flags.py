@@ -65,16 +65,14 @@ async def enqueue(
     )
 
     logger.info(
-        "%s <b>%d</> flags from <b>%s</> via <b>%s</> by <b>%s</> (<green>%d</> new, <yellow>%d</> duplicates)."
-        % (
-            "✅" if len(new_flag_values) else "❗",
-            len(flags.values),
-            colorize(flags.target),
-            colorize(flags.exploit),
-            username,
-            len(new_flag_values),
-            len(dup_flag_values),
-        )
+        "{status} <b>{total_flags}</> flags from <b>{target}</> via <b>{exploit}</> by <b>{user}</> (<green>{new_flags}</> new, <yellow>{dup_flags}</> duplicates).",
+        status="✅" if len(new_flag_values) else "❗",
+        total_flags=len(flags.values),
+        target=colorize(flags.target),
+        exploit=colorize(flags.exploit),
+        user=username,
+        new_flags=len(new_flag_values),
+        dup_flags=len(dup_flag_values),
     )
 
     return {
@@ -147,7 +145,7 @@ async def search(
             status_code=400, detail=f"Unknown field {e.args[0].split()[-1]}."
         )
     except Exception as e:
-        logger.debug(e.with_traceback())
+        logger.debug(e, exc_info=True)
         raise HTTPException(
             status_code=500,
             detail="Something broke while your query was being processed: %s" % e,

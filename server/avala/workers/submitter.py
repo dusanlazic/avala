@@ -76,14 +76,16 @@ class Submitter:
             self.submit = self._import_user_function("submit")
         except Exception as e:
             logger.error(
-                "Unable to load module <b>%s</>: %s" % (config.submitter.module, e)
+                "Unable to load module <b>{module}</>: {error}",
+                module=config.submitter.module,
+                error=e,
             )
             return
 
         if self.submit is None:
             logger.error(
-                "Required function not found within <b>%s.py</>. Please make sure the module contains <b>submit</> function."
-                % config.submitter.module
+                "Required function not found within <b>{module}.py</>. Please make sure the module contains <b>submit</> function.",
+                module=config.submitter.module,
             )
             return
 
@@ -139,8 +141,9 @@ class Submitter:
         self.delivery_tag_map[flag] = method.delivery_tag
 
         logger.debug(
-            "Received flag <b>%s</> (%d flags in buffer)"
-            % (flag, len(self.submission_buffer))
+            "Received flag <b>{flag}</> ({count} flags in buffer)",
+            flag=flag,
+            count=len(self.submission_buffer),
         )
 
         if len(self.submission_buffer) < config.submitter.batch_size:
@@ -175,8 +178,8 @@ class Submitter:
                 if method is None:
                     if submission_buffer:
                         logger.info(
-                            "Pulled all remaining %d flags from the submission queue."
-                            % len(submission_buffer)
+                            "Pulled all remaining {count} flags from the submission queue.",
+                            count=len(submission_buffer),
                         )
                     else:
                         logger.info(
@@ -190,8 +193,8 @@ class Submitter:
 
                 if len(submission_buffer) == config.submitter.max_batch_size:
                     logger.info(
-                        "Batch size reached. Pulled %d flags from the submission queue."
-                        % len(submission_buffer)
+                        "Batch size reached. Pulled {count} flags from the submission queue.",
+                        count=len(submission_buffer),
                     )
                     break
 
@@ -219,7 +222,7 @@ class Submitter:
             logger.info("No flags in buffer. Submission skipped.")
             return
 
-        logger.info("Submitting <b>%d</> flags..." % len(submission_buffer))
+        logger.info("Submitting <b>{count}</> flags...", count=len(submission_buffer))
 
         flag_responses = [
             FlagResponse(*response) for response in self.submit(submission_buffer)
@@ -231,11 +234,9 @@ class Submitter:
 
         stats = Counter(fr.status for fr in flag_responses)
         logger.info(
-            "<green>%d accepted</green> - <red>%d rejected</red>"
-            % (
-                stats["accepted"],
-                stats["rejected"],
-            )
+            "<green>{accepted} accepted</green> - <red>{rejected} rejected</red>",
+            accepted=stats["accepted"],
+            rejected=stats["rejected"],
         )
 
     def _submit_flag_or_exit(self, flag: str):
@@ -251,13 +252,14 @@ class Submitter:
                     self.prepare()
 
         logger.error(
-            "Failed to submit flag <b>%s</>. Check your connection and rerun." % flag
+            "Failed to submit flag <b>{flag}</>. Check your connection and rerun.",
+            flag=flag,
         )
         exit(1)
 
     def _submit_flags_in_stream_consumer(self, ch, method, properties, body):
         flag = body.decode().strip()
-        logger.debug("Received flag <b>%s</>" % flag)
+        logger.debug("Received flag <b>{flag}</>", flag=flag)
 
         response = FlagResponse(*self._submit_flag_or_exit(flag))
 
@@ -265,9 +267,12 @@ class Submitter:
         self.persisting_queue.put(response.to_json())
 
         logger.debug(
-            "<green>Accepted</green> %s" % response.response
-            if response.status == "accepted"
-            else "<red>Rejected</red> %s" % response.response
+            (
+                "<green>Accepted</green> {response}"
+                if response.status == "accepted"
+                else "<red>Rejected</red> {response}"
+            ),
+            response=response.response,
         )
 
     def _import_user_function(self, function_name: str):

@@ -38,14 +38,14 @@ class APIClient:
             )
 
         logger.info(
-            "Connecting to <blue>%s</blue>"
-            % self.conn_str.replace(":" + self.config.password + "@", ":*****@")
+            "Connecting to <blue>{conn}</blue>",
+            conn=self.conn_str.replace(":" + self.config.password + "@", ":*****@"),
         )
 
         try:
             requests.get(f"{self.conn_str}/connect/health").raise_for_status()
         except requests.exceptions.RequestException as e:
-            logger.error("Failed to connect to the server: %s" % e)
+            logger.error("Failed to connect to the server: {error}", error=e)
             if e.response and e.response.status_code == 401:
                 logger.error(
                     "Note: Invalid credentials. Check the password with your teammates."
@@ -58,7 +58,7 @@ class APIClient:
         try:
             self.game = Dict(requests.get(f"{self.conn_str}/connect/game").json())
         except Exception as e:
-            logger.error("Failed to fetch game information: %s" % e)
+            logger.error("Failed to fetch game information: {error}", error=e)
             raise
 
         # Fetch information needed for synchronizing client with the server.
@@ -67,7 +67,7 @@ class APIClient:
                 requests.get(f"{self.conn_str}/connect/schedule").json()
             )
         except Exception as e:
-            logger.error("Failed to fetch scheduling information: %s" % e)
+            logger.error("Failed to fetch scheduling information: {error}", error=e)
             raise
 
         logger.info("Connected successfully.")
@@ -133,14 +133,12 @@ class APIClient:
 
         data = response.json()
         logger.info(
-            "%s Enqueued <b>%d/%d</> flags from <b>%s</> via <b>%s</>."
-            % (
-                "✅" if data["enqueued"] else "❗",
-                data["enqueued"],
-                len(flags),
-                colorize(target),
-                colorize(exploit_alias),
-            )
+            "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{target}</> via <b>{exploit}</>.",
+            icon="✅" if data["enqueued"] else "❗",
+            enqueued=data["enqueued"],
+            total=len(flags),
+            target=colorize(target),
+            exploit=colorize(exploit_alias),
         )
 
     def wait_for_attack_data(self) -> UnscopedAttackData:

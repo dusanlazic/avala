@@ -13,7 +13,7 @@ class RabbitQueue:
         self.routing_key = routing_key
 
         self.channel.queue_declare(queue=self.routing_key, durable=durable)
-        logger.info(f"Declared queue {self.routing_key}.")
+        logger.info("Declared queue {routing_key}.", routing_key=self.routing_key)
 
     def put(self, message):
         self.channel.basic_publish(
@@ -51,7 +51,7 @@ class RabbitConnection:
             self.channel = self.connection.channel()
             logger.info("Connected to RabbitMQ.")
         except Exception as e:
-            logger.error(f"Error connecting to RabbitMQ: {e}")
+            logger.error("Error connecting to RabbitMQ: {error}", error=e)
 
     def close(self):
         if not self.channel.is_closed:

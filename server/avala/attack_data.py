@@ -39,16 +39,19 @@ def reload_attack_data():
                 new_json = fetch_json()
             except Exception as e:
                 attempts_left -= 1
-                logger.error("An error occurred while fetching attack data: %s" % e)
+                logger.error(
+                    "An error occurred while fetching attack data: {error}", error=e
+                )
                 logger.info(
-                    "Retrying in %ds, %d attempts left."
-                    % (config.attack_data.retry_interval, attempts_left)
+                    "Retrying in {interval}s, {attempts} attempts left.",
+                    interval=config.attack_data.retry_interval,
+                    attempts=attempts_left,
                 )
                 time.sleep(config.attack_data.retry_interval)
                 if not attempts_left:
                     logger.warning(
-                        "It seems that your <b>%s.py</> module is not working properly. Please check it."
-                        % config.attack_data.module
+                        "It seems that your <b>{module}.py</> module is not working properly. Please check it.",
+                        module=config.attack_data.module,
                     )
                     break
                 continue
@@ -62,12 +65,10 @@ def reload_attack_data():
             if not json_updated and attempts_left:
                 attempts_left -= 1
                 logger.info(
-                    "Fetched old attack data (<yellow>%s</>). Retrying in %ds, %d attempts left."
-                    % (
-                        old_json_hash[:8],
-                        config.attack_data.retry_interval,
-                        attempts_left,
-                    )
+                    "Fetched old attack data (<yellow>{hash}</>). Retrying in {interval}s, {attempts} attempts left.",
+                    hash=old_json_hash[:8],
+                    interval=config.attack_data.retry_interval,
+                    attempts=attempts_left,
                 )
                 time.sleep(config.attack_data.retry_interval)
             else:
@@ -75,8 +76,9 @@ def reload_attack_data():
 
         if json_updated:
             logger.info(
-                "Fetched new attack data (<yellow>%s</> -> <green>%s</>)."
-                % (str(old_json_hash)[:8], new_json_hash[:8])
+                "Fetched new attack data (<yellow>{old_hash}</> -> <green>{new_hash}</>).",
+                old_hash=str(old_json_hash)[:8],
+                new_hash=new_json_hash[:8],
             )
 
             processed_attack_data = process_json(new_json)
@@ -85,13 +87,13 @@ def reload_attack_data():
             state.attack_data = json.dumps(processed_attack_data)
         elif old_json_hash:
             logger.info(
-                "Reusing old attack data (<yellow>%s</>) to avoid wasting tick time."
-                % old_json_hash[:8]
+                "Reusing old attack data (<yellow>{hash}</>) to avoid wasting tick time.",
+                hash=old_json_hash[:8],
             )
         else:
             logger.error(
-                "Failed to fetch attack data. Please fix your <b>fetch</> function in your <b>%s.py</> module."
-                % config.attack_data.module
+                "Failed to fetch attack data. Please fix your <b>fetch</> function in your <b>{module}.py</> module.",
+                module=config.attack_data.module,
             )
             return
 
@@ -125,19 +127,25 @@ def import_user_functions():
     try:
         imported_module = reload(import_module(module_name))
     except Exception as e:
-        logger.error("Unable to load module <b>%s</>: %s" % (module_name, e))
+        logger.error(
+            "Unable to load module <b>{module}</>: {error}",
+            module=module_name,
+            error=e,
+        )
         return None, None
 
     fetch_json = getattr(imported_module, "fetch_json", None)
     if not fetch_json:
         logger.error(
-            "Function <b>fetch_json</> not found in module <b>%s</>." % module_name
+            "Function <b>fetch_json</> not found in module <b>{module}</>.",
+            module=module_name,
         )
 
     process_json = getattr(imported_module, "process_json", None)
     if not process_json:
         logger.error(
-            "Function <b>process_json</> not found in module <b>%s</>." % module_name
+            "Function <b>process_json</> not found in module <b>{module}</>.",
+            module=module_name,
         )
 
     return fetch_json, process_json

@@ -60,8 +60,8 @@ class Persister:
                 if method is None:
                     if persisting_buffer:
                         logger.info(
-                            "Pulled all remaining %d responses from the persisting queue."
-                            % len(persisting_buffer)
+                            "Pulled all remaining {count} responses from the persisting queue.",
+                            count=len(persisting_buffer),
                         )
                     else:
                         logger.info(
@@ -75,8 +75,8 @@ class Persister:
 
                 if len(persisting_buffer) == BATCH_SIZE:
                     logger.info(
-                        "Batch size reached. Pulled %d responses from the persisting queue."
-                        % len(persisting_buffer)
+                        "Batch size reached. Pulled {count} responses from the persisting queue.",
+                        count=len(persisting_buffer),
                     )
                     break
 
@@ -102,7 +102,9 @@ class Persister:
             logger.info("No flag responses in buffer. Persistence skipped.")
             return
 
-        logger.info("Persisting %d flag responses..." % len(persisting_buffer))
+        logger.info(
+            "Persisting {count} flag responses...", count=len(persisting_buffer)
+        )
 
         flag_responses_map = {fr.value: fr for fr in persisting_buffer}
 
@@ -126,7 +128,7 @@ class Persister:
             self.db.bulk_update_mappings(Flag, updates)
             updated_count = len(updates)
 
-            logger.info("Updated %d records." % updated_count)
+            logger.info("Updated {count} records.", count=updated_count)
 
         channel.basic_ack(max(delivery_tag_map.values()), multiple=True)
 

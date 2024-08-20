@@ -124,7 +124,7 @@ class Avala:
         try:
             attack_data = self.client.get_attack_data()
         except (RuntimeError, FileNotFoundError) as e:
-            logger.error(e)
+            logger.error("{error}", error=e)
             exit(1)
 
         self._run_hook(self.before_all_hook)
@@ -199,13 +199,15 @@ class Avala:
         valid_directories = []
         for path in self.exploit_directories:
             if not path.exists() or not path.is_dir():
-                logger.error(f"Directory not found: {path}")
+                logger.error("Directory not found: {path}", path=path)
             else:
                 valid_directories.append(path)
 
         logger.info(
-            f"Registered exploit directories: <green>{', '.join([d.name for d in valid_directories])}</>"
+            "Registered exploit directories: <green>{directories}</>",
+            directories=", ".join([d.name for d in valid_directories]),
         )
+
         self.exploit_directories = valid_directories
 
     def _reload_exploits(
@@ -242,9 +244,13 @@ class Avala:
                             e = Exploit(func.exploit_config, self.client, attack_data)
                             exploits.append(e)
                 except Exception as e:
-                    logger.error(f"Failed to load exploit from {python_file}: {e}")
+                    logger.error(
+                        "Failed to load exploit from {file}: {error}",
+                        file=python_file,
+                        error=e,
+                    )
 
-        logger.debug(f"Loaded {len(exploits)} exploits.")
+        logger.debug("Loaded {count} exploits.", count=len(exploits))
         return exploits
 
     def _schedule_exploits(self):
@@ -307,7 +313,9 @@ class Avala:
             try:
                 func()
             except Exception as e:
-                logger.error(f"Error in {func.__name__}: {e}")
+                logger.error(
+                    "Error in {function}: {error}", function=func.__name__, error=e
+                )
 
     def _enqueue_pending_flags(self):
         """
@@ -319,10 +327,10 @@ class Avala:
                 self.client.heartbeat()
             except:
                 logger.warning(
-                    "⚠️ Cannot establish connection with the server. <b>%d</> flags are waiting to be submitted."
-                    % db.query(func.count(PendingFlag.value))
+                    "⚠️ Cannot establish connection with the server. <b>{pending_flags}</> flags are waiting to be submitted.",
+                    pending_flags=db.query(func.count(PendingFlag.value))
                     .filter(PendingFlag.submitted == False)
-                    .scalar()
+                    .scalar(),
                 )
             else:
                 results = (

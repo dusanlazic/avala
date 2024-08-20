@@ -133,10 +133,13 @@ def initialize_workspace():
 
         destination = workspace_dir / item.name
         if destination.exists():
-            logger.info(f"⏩ Skipping creating {item.name} as it already exists.")
+            logger.info(
+                "⏩ Skipping creating {item_name} as it already exists.",
+                item_name=item.name,
+            )
             continue
         shutil.copy2(item, destination)
-        logger.info(f"✅ Created {item.name}.")
+        logger.info("✅ Created {item_name}.", item_name=item.name)
 
     logger.success(
         """🎉 Workspace initialized. Next steps:
