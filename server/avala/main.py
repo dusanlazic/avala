@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from .mq.rabbit_async import rabbit
+from .mq.rabbit_async import rabbit, RabbitQueue
 from .shared.logs import logger
 from .shared.logs import config as log_config
 from .routes.flags import router as flags_router
@@ -16,7 +16,6 @@ from .database import setup_db_conn, create_tables
 from .config import config, load_user_config, DOT_DIR_PATH
 from .scheduler import initialize_scheduler
 from .setup_tests import main
-from .broadcast import broadcast
 
 
 @asynccontextmanager
@@ -25,9 +24,22 @@ async def lifespan(app: FastAPI):
     setup_db_conn()
     create_tables()
     await rabbit.connect()
-    await rabbit.create_queue("submission_queue", durable=True)
-    await rabbit.create_queue("persisting_queue", durable=True)
-    await broadcast.connect()
+
+    submission_queue = await RabbitQueue(
+        channel=rabbit.channel,
+        routing_key="submission_queue",
+        durable=True,
+    ).declare()
+    persisting_queue = await RabbitQueue(
+        channel=rabbit.channel,
+        routing_key="persisting_queue",
+        durable=True,
+    ).declare()
+
+    rabbit.add_queue(submission_queue)
+    rabbit.add_queue(persisting_queue)
+
+    # await broadcast.connect()
     scheduler = initialize_scheduler()
     scheduler.start()
 
@@ -35,7 +47,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("Shutting down...")
     await rabbit.close()
-    await broadcast.disconnect()
+    # await broadcast.disconnect()
     scheduler.shutdown()
 
 

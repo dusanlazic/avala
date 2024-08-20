@@ -1,6 +1,6 @@
 import aio_pika
-from addict import Dict
-from aio_pika.abc import AbstractChannel
+from aio_pika import Channel, Message, IncomingMessage, RobustConnection
+from typing import Callable
 from ..config import config
 from ..shared.logs import logger
 
@@ -10,39 +10,118 @@ class RabbitQueue:
     Simple async wrapper around a RabbitMQ queue.
     """
 
-    def __init__(self, channel, routing_key, durable=False) -> None:
-        self.channel: AbstractChannel = channel
-        self.routing_key = routing_key
-        self.durable = durable
+    def __init__(
+        self,
+        channel: Channel,
+        routing_key: str,
+        exchange: str = "",
+        exchange_type: str = "direct",
+        durable: bool = False,
+        exclusive: bool = False,
+        auto_delete: bool = False,
+        arguments: dict = None,
+    ) -> None:
+        self.channel: Channel = channel
+        self.routing_key: str = routing_key
+        self.exchange: str = exchange
 
-    async def declare(self):
-        await self.channel.declare_queue(self.routing_key, durable=self.durable)
+        # Queue cannot be declared in the constructor because it's an
+        # async operation. Instead, it's declared upon connecting.
+        self.exchange_type: str = exchange_type
+        self.durable: bool = durable
+        self.exclusive: bool = exclusive
+        self.auto_delete: bool = auto_delete
+        self.arguments: dict = arguments
+
+    async def declare(self) -> "RabbitQueue":
+        queue = await self.channel.declare_queue(
+            self.routing_key,
+            durable=self.durable,
+            exclusive=self.exclusive,
+            auto_delete=self.auto_delete,
+            arguments=self.arguments,
+        )
         logger.info("Declared queue {routing_key}.", routing_key=self.routing_key)
 
-    async def put(self, message, ttl=None):
-        await self.channel.default_exchange.publish(
-            aio_pika.Message(body=message.encode(), expiration=ttl),
-            routing_key=self.routing_key,
+        if self.exchange:
+            await self.channel.declare_exchange(
+                name=self.exchange,
+                type=self.exchange_type,
+                durable=True,
+            )
+            await queue.bind(
+                exchange=self.exchange,
+                routing_key=self.routing_key,
+            )
+            logger.info(
+                "Declared exchange {exchange} of type {type}.",
+                exchange=self.exchange,
+                type=self.exchange_type,
+            )
+
+        return self
+
+    async def put(self, message: str, ttl: str = None):
+        """
+        Publishes a message to the queue.
+
+        :param message: Content of the message.
+        :type message: str
+        :param ttl: Message expiration policy expressed in milliseconds as string, defaults to None.
+        :type ttl: int, optional
+        """
+        exchange = (
+            await self.channel.get_exchange(self.exchange)
+            if self.exchange
+            else self.channel.default_exchange
         )
 
-    async def ack(self, delivery_tag, multiple=False):
-        await self.channel.basic_ack(delivery_tag=delivery_tag, multiple=multiple)
+        await exchange.publish(
+            routing_key=self.routing_key,
+            message=Message(
+                body=message.encode(),
+                expiration=int(ttl) // 1000 if ttl else None,
+            ),
+        )
 
-    async def add_consumer(self, callback):
-        await self.channel.set_qos(prefetch_count=0)
-        await self.channel.consume(callback, queue=self.routing_key)
+    async def get(self):
+        """
+        Performs a basic get operation on the queue.
+        """
+        queue = await self.channel.get_queue(
+            name=self.routing_key,
+            ensure=True,
+        )
+        return await queue.get()
 
     async def size(self):
-        queue = await self.channel.declare_queue(self.routing_key, passive=True)
+        """
+        Returns the number of messages in the queue.
+
+        :return: Number of messages in the queue.
+        :rtype: int
+        """
+        queue = await self.channel.get_queue(
+            name=self.routing_key,
+            ensure=True,
+        )
         return queue.declaration_result.message_count
+
+    async def add_consumer(self, callback: Callable):
+        queue = await self.channel.get_queue(
+            name=self.routing_key,
+            ensure=True,
+        )
+        await queue.consume(callback)
 
 
 class RabbitConnection:
-    def __init__(self) -> None:
-        self.connection = None
-        self.channel = None
+    def __init__(self, silent: bool = False) -> None:
+        self.connection: RobustConnection
+        self.channel: Channel
+        self.queues: dict[str, RabbitQueue] = {}
 
-        self.queues = Dict()
+        self.silent = silent
 
     async def connect(self):
         try:
@@ -53,7 +132,9 @@ class RabbitConnection:
                 password=config.rabbitmq.password,
             )
             self.channel = await self.connection.channel()
-            logger.info("Connected to RabbitMQ.")
+
+            if not self.quiet:
+                logger.info("Connected to RabbitMQ.")
         except Exception as e:
             logger.error("Error connecting to RabbitMQ: {error}", error=e)
 
@@ -63,18 +144,32 @@ class RabbitConnection:
         if not self.connection.is_closed:
             await self.connection.close()
 
-        self.channel = None
-        self.connection = None
-        logger.info("Closed RabbitMQ connection.")
+        if not self.silent:
+            logger.info("Closed RabbitMQ connection.")
 
-    async def create_queue(self, routing_key, durable=False):
-        queue = RabbitQueue(self.channel, routing_key, durable=durable)
-        await queue.declare()
-        self.queues[routing_key] = queue
-        return queue
+    async def ack(self, message: IncomingMessage, multiple: bool = False):
+        """
+        Acknowledges a single or multiple messages.
+
+        :param message: Message to acknowledge.
+        :type message: IncomingMessage
+        :param multiple: Acknowledge messages up to and including the provided message, defaults to False.
+        :type multiple: bool, optional
+        """
+        await message.ack(multiple=multiple)
 
     def add_queue(self, queue: RabbitQueue):
         self.queues[queue.routing_key] = queue
+
+    def get_queue(self, routing_key: str):
+        return self.queues.get(routing_key, None)
+
+    async def __aenter__(self):
+        await self.connect()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
 
 
 rabbit = RabbitConnection()

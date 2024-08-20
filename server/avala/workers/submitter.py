@@ -26,51 +26,21 @@ def main():
 
 class Submitter:
     def __init__(self) -> None:
-        self.scheduler: BlockingScheduler | None = None
-        self.connection: RabbitConnection | None = None
+        self.scheduler: BlockingScheduler
+        self.connection: RabbitConnection
 
-        self.submission_buffer: list[str] | None = None
-        self.delivery_tag_map: dict[str, int] | None = None
+        self.submission_buffer: list[str]
+        self.delivery_tag_map: dict[str, int]
 
-        self.submission_queue: RabbitQueue | None = None
-        self.persisting_queue: RabbitQueue | None = None
+        self.submission_queue: RabbitQueue
+        self.persisting_queue: RabbitQueue
 
         self.ready = False
         self._initialize()
 
-    def start(self):
-        if not self.ready:
-            return
-        if config.submitter.per_tick or config.submitter.interval:
-            self.scheduler.start()
-        elif config.submitter.batch_size:
-            self.connection.channel.start_consuming()
-        elif config.submitter.streams:
-            if self.prepare:
-                self.prepare()
-            self.connection.channel.start_consuming()
-            if self.cleanup:
-                self.cleanup()
-
     def _initialize(self):
-        """Initializes threads, consumers and scheduled jobs for flag submission based on the configuration.
-
-        Configuration options:
-
-            submitter.per_tick:
-                Number of submissions per tick. If set, submissions are spread across the tick duration.
-
-            submitter.interval:
-                Interval in seconds between submissions. Used when flags are submitted at fixed intervals.
-
-            submitter.batch_size:
-                Size of each batch for flag submission. Submissions trigger when queue reaches batch size.
-
-            submitter.streams:
-                Number of continuous streams (threads) for flag submission.
-
-        The function sets up different submission strategies based on the provided configuration. It automatically
-        calculates the next run time for each submission job to synchronize with game ticks.
+        """
+        TODO
         """
         try:
             self.submit = self._import_user_function("submit")
@@ -133,6 +103,20 @@ class Submitter:
 
         self.ready = True
 
+    def start(self):
+        if not self.ready:
+            return
+        if config.submitter.per_tick or config.submitter.interval:
+            self.scheduler.start()
+        elif config.submitter.batch_size:
+            self.connection.start_consuming()
+        elif config.submitter.streams:
+            if self.prepare:
+                self.prepare()
+            self.connection.start_consuming()
+            if self.cleanup:
+                self.cleanup()
+
     def _submit_flags_in_batches_consumer(self, ch, method, properties, body):
         """TODO docstring"""
         flag = body.decode().strip()
@@ -153,7 +137,7 @@ class Submitter:
             self.submission_buffer,
             self.delivery_tag_map,
             self.persisting_queue,
-            self.connection.channel,
+            self.connection,
         )
 
         self.submission_buffer.clear()
@@ -161,63 +145,69 @@ class Submitter:
 
     def _submit_flags_scheduled_job(self):
         """TODO docstring"""
-        connection = RabbitConnection()
-        connection.connect()
-
-        persisting_queue = RabbitQueue(
-            connection.channel, "persisting_queue", durable=True
-        )
-
-        while True:
-            submission_buffer = []
-            delivery_tag_map = {}
-            while len(submission_buffer) < config.submitter.max_batch_size:
-                method, properties, body = connection.channel.basic_get(
-                    "submission_queue"
-                )
-                if method is None:
-                    if submission_buffer:
-                        logger.info(
-                            "Pulled all remaining {count} flags from the submission queue.",
-                            count=len(submission_buffer),
-                        )
-                    else:
-                        logger.info(
-                            "No flags remaining in the submission queue. Submission skipped."
-                        )
-                    break
-
-                flag = body.decode().strip()
-                submission_buffer.append(flag)
-                delivery_tag_map[flag] = method.delivery_tag
-
-                if len(submission_buffer) == config.submitter.max_batch_size:
-                    logger.info(
-                        "Batch size reached. Pulled {count} flags from the submission queue.",
-                        count=len(submission_buffer),
-                    )
-                    break
-
-            if not submission_buffer:
-                break
-
-            self._submit_flags_from_buffer(
-                submission_buffer,
-                delivery_tag_map,
-                persisting_queue,
+        with RabbitConnection(silent=True) as connection:
+            submission_queue = RabbitQueue(
                 connection.channel,
+                "submission_queue",
+                durable=True,
+                silent=True,
             )
 
-        connection.close()
+            persisting_queue = RabbitQueue(
+                connection.channel,
+                "persisting_queue",
+                durable=True,
+                silent=True,
+            )
+
+            while True:
+                submission_buffer = []
+                delivery_tag_map = {}
+                while len(submission_buffer) < config.submitter.max_batch_size:
+                    method, properties, body = submission_queue.get()
+                    if method is None:
+                        if submission_buffer:
+                            logger.info(
+                                "Pulled all remaining {count} flags from the submission queue.",
+                                count=len(submission_buffer),
+                            )
+                        else:
+                            logger.info(
+                                "No flags remaining in the submission queue. Submission skipped."
+                            )
+                        break
+
+                    flag = body.decode().strip()
+                    submission_buffer.append(flag)
+                    delivery_tag_map[flag] = method.delivery_tag
+
+                    if len(submission_buffer) == config.submitter.max_batch_size:
+                        logger.info(
+                            "Batch size reached. Pulled {count} flags from the submission queue.",
+                            count=len(submission_buffer),
+                        )
+                        break
+
+                if not submission_buffer:
+                    break
+
+                self._submit_flags_from_buffer(
+                    submission_buffer,
+                    delivery_tag_map,
+                    persisting_queue,
+                    connection,
+                )
 
     def _submit_flags_from_buffer(
         self,
         submission_buffer: list[str],
         delivery_tag_map: dict[str, int],
         persisting_queue: RabbitQueue,
-        channel,
+        connection: RabbitConnection,
     ):
-        """Submits flags from the submission buffer."""
+        """
+        Submits flags from the submission buffer.
+        """
         if not submission_buffer:
             logger.info("No flags in buffer. Submission skipped.")
             return
@@ -229,7 +219,7 @@ class Submitter:
         ]
 
         for fr in flag_responses:
-            channel.basic_ack(delivery_tag_map[fr.value])
+            connection.ack(delivery_tag_map[fr.value])
             persisting_queue.put(fr.to_json())
 
         stats = Counter(fr.status for fr in flag_responses)

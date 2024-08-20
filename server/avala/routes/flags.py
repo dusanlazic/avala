@@ -11,7 +11,6 @@ from ..database import get_db_for_request
 from ..mq.rabbit_async import rabbit
 from ..scheduler import get_tick_number
 from ..config import config
-from ..broadcast import broadcast
 from ..search import parse_query, build_query
 from ..shared.logs import logger
 from ..shared.util import colorize
@@ -51,18 +50,22 @@ async def enqueue(
     db.bulk_save_objects(new_flags)
 
     for flag in new_flag_values:
-        bg.add_task(rabbit.queues.submission_queue.put, flag, ttl=config.game.flag_ttl)
+        bg.add_task(
+            rabbit.get_queue("submission_queue").put,
+            flag,
+            ttl=str(config.game.flag_ttl * 1000),
+        )
 
-    await broadcast.publish(
-        channel="incoming_flags",
-        message={
-            "target": flags.target,
-            "exploit": flags.exploit,
-            "player": username,
-            "duplicates": len(dup_flag_values),
-            "enqueued": len(new_flag_values),
-        },
-    )
+    # await broadcast.publish(
+    #     channel="incoming_flags",
+    #     message={
+    #         "target": flags.target,
+    #         "exploit": flags.exploit,
+    #         "player": username,
+    #         "duplicates": len(dup_flag_values),
+    #         "enqueued": len(new_flag_values),
+    #     },
+    # )
 
     logger.info(
         "{status} <b>{total_flags}</> flags from <b>{target}</> via <b>{exploit}</> by <b>{user}</> (<green>{new_flags}</> new, <yellow>{dup_flags}</> duplicates).",

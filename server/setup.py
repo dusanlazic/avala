@@ -22,7 +22,6 @@ setup(
         "pika",
         "aio_pika",
         "click",
-        "broadcaster",
     ],
     packages=find_packages(),
     include_package_data=True,

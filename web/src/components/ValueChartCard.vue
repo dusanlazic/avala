@@ -1,5 +1,4 @@
 <script setup>
-import { defineProps } from 'vue'
 import { Icon } from '@iconify/vue'
 import LineChart from './LineChart.vue'
 import AnimatedNumber from './AnimatedNumber.vue'

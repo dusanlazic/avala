@@ -5,7 +5,7 @@ from ..shared.logs import logger
 from ..models import Flag, FlagResponse
 from ..config import load_user_config
 from ..database import get_db
-from ..mq.rabbit import RabbitConnection
+from ..mq.rabbit import RabbitConnection, RabbitQueue
 
 BATCH_SIZE = 1000
 INTERVAL = 5
@@ -37,7 +37,9 @@ class Persister:
         self.scheduler.start()
 
     def _initialize(self):
-        """Initializes and configures threads, consumers and scheduled jobs for flag response persistence based on the configuration."""
+        """
+        Initializes and configures threads, consumers and scheduled jobs for flag response persistence based on the configuration.
+        """
         self.scheduler = BlockingScheduler()
         self.scheduler.add_job(
             func=self._persist_responses_in_batches_job,
@@ -47,57 +49,60 @@ class Persister:
         )
 
     def _persist_responses_in_batches_job(self):
-        connection = RabbitConnection()
-        connection.connect()
-
-        while True:
-            persisting_buffer = []
-            delivery_tag_map = {}
-            while len(persisting_buffer) < BATCH_SIZE:
-                method, properties, body = connection.channel.basic_get(
-                    "persisting_queue"
-                )
-                if method is None:
-                    if persisting_buffer:
-                        logger.info(
-                            "Pulled all remaining {count} responses from the persisting queue.",
-                            count=len(persisting_buffer),
-                        )
-                    else:
-                        logger.info(
-                            "No flags remaining in the persisting queue. Persistence skipped."
-                        )
-                    break
-
-                fr = FlagResponse.from_json(body.decode())
-                persisting_buffer.append(fr)
-                delivery_tag_map[fr.value] = method.delivery_tag
-
-                if len(persisting_buffer) == BATCH_SIZE:
-                    logger.info(
-                        "Batch size reached. Pulled {count} responses from the persisting queue.",
-                        count=len(persisting_buffer),
-                    )
-                    break
-
-            if not persisting_buffer:
-                break
-
-            self._persist_responses(
-                persisting_buffer,
-                delivery_tag_map,
+        with RabbitConnection(silent=True) as connection:
+            persisting_queue = RabbitQueue(
                 connection.channel,
+                "persisting_queue",
+                durable=True,
+                silent=True,
             )
 
-        connection.close()
+            while True:
+                persisting_buffer = []
+                delivery_tag_map = {}
+                while len(persisting_buffer) < BATCH_SIZE:
+                    method, properties, body = persisting_queue.get()
+                    if method is None:
+                        if persisting_buffer:
+                            logger.info(
+                                "Pulled all remaining {count} responses from the persisting queue.",
+                                count=len(persisting_buffer),
+                            )
+                        else:
+                            logger.info(
+                                "No flags remaining in the persisting queue. Persistence skipped."
+                            )
+                        break
+
+                    fr = FlagResponse.from_json(body.decode())
+                    persisting_buffer.append(fr)
+                    delivery_tag_map[fr.value] = method.delivery_tag
+
+                    if len(persisting_buffer) == BATCH_SIZE:
+                        logger.info(
+                            "Batch size reached. Pulled {count} responses from the persisting queue.",
+                            count=len(persisting_buffer),
+                        )
+                        break
+
+                if not persisting_buffer:
+                    break
+
+                self._persist_responses(
+                    persisting_buffer,
+                    delivery_tag_map,
+                    connection,
+                )
 
     def _persist_responses(
         self,
         persisting_buffer: list[FlagResponse],
         delivery_tag_map: dict[str, int],
-        channel,
+        connection: RabbitConnection,
     ):
-        """Persists responses from the persistence buffer into the database."""
+        """
+        Persists responses from the persistence buffer into the database.
+        """
         if not persisting_buffer:
             logger.info("No flag responses in buffer. Persistence skipped.")
             return
@@ -130,7 +135,7 @@ class Persister:
 
             logger.info("Updated {count} records.", count=updated_count)
 
-        channel.basic_ack(max(delivery_tag_map.values()), multiple=True)
+        connection.ack(max(delivery_tag_map.values()), multiple=True)
 
 
 if __name__ == "__main__":

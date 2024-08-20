@@ -18,5 +18,5 @@ RUN adduser avala
 USER avala
 WORKDIR /home/avala/workspace
 COPY --from=build-package /app/server/dist/*.tar.gz avala.tar.gz
-RUN pip install avala.tar.gz pwn
+RUN pip install avala.tar.gz
 ENV PATH="/home/avala/.local/bin:${PATH}"

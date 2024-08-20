@@ -12,7 +12,6 @@ from ..config import config
 from ..database import get_db_for_request
 from ..models import Flag
 from ..scheduler import get_tick_number
-from ..broadcast import broadcast
 
 router = APIRouter(prefix="/stats", tags=["Statistics"])
 
@@ -122,14 +121,14 @@ async def exploits(db: Annotated[Session, Depends(get_db_for_request)]):
     return response
 
 
-async def broadcast_incoming_flags():
-    async with broadcast.subscribe(channel="incoming_flags") as subscription:
-        async for event in subscription:
-            yield json.dumps(event.message) + "\n"
+# async def broadcast_incoming_flags():
+#     async with broadcast.subscribe(channel="incoming_flags") as subscription:
+#         async for event in subscription:
+#             yield json.dumps(event.message) + "\n"
 
 
-@router.get("/flags/subscribe")
-async def incoming_flags():
-    return StreamingResponse(
-        broadcast_incoming_flags(), media_type="application/x-ndjson"
-    )
+# @router.get("/flags/subscribe")
+# async def incoming_flags():
+#     return StreamingResponse(
+#         broadcast_incoming_flags(), media_type="application/x-ndjson"
+#     )

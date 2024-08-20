@@ -6,6 +6,7 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 from apscheduler.schedulers.blocking import BlockingScheduler
 from concurrent.futures import Future
+from typing import Callable
 from .database import setup_db_conn, create_tables, get_db
 from .models import UnscopedAttackData, PendingFlag
 from .shared.logs import logger
@@ -124,7 +125,7 @@ class Avala:
         try:
             attack_data = self.client.get_attack_data()
         except (RuntimeError, FileNotFoundError) as e:
-            logger.error("{error}", error=e)
+            logger.error("{error} aa", error=e)
             exit(1)
 
         self._run_hook(self.before_all_hook)
@@ -302,12 +303,12 @@ class Avala:
         if self.after_all_hook:
             self.after_all_hook()
 
-    def _run_hook(self, func: callable):
+    def _run_hook(self, func: Callable):
         """
         Runs a hook function, catches and logs any exceptions that occur.
 
         :param func: Hook function to run.
-        :type func: callable
+        :type func: Callable
         """
         if func:
             try:
