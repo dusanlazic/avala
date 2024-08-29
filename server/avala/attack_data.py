@@ -27,6 +27,7 @@ def reload_attack_data():
     fetch_json, process_json = import_user_functions()
 
     if not fetch_json or not process_json:
+        attack_data_updated_event.set()
         return
 
     with get_db_context() as db, StateManager(db) as state:
@@ -96,7 +97,6 @@ def reload_attack_data():
                 "Failed to fetch attack data. Please fix your <b>fetch</> function in your <b>{module}.py</> module.",
                 module=config.attack_data.module,
             )
-            return
 
     attack_data_updated_event.set()
 

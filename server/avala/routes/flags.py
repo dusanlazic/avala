@@ -3,8 +3,7 @@ from fastapi import APIRouter, Depends, BackgroundTasks, Query, HTTPException
 from pyparsing import ParseException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Annotated, List, Optional
+from typing import Annotated
 from ..auth import CurrentUser
 from ..models import Flag
 from ..schemas import (
@@ -15,7 +14,6 @@ from ..schemas import (
     SearchMetadata,
     SearchPagingMetadata,
     SearchStatsMetadata,
-    SearchQueryParams,
 )
 from ..database import get_db
 from ..mq.rabbit_async import rabbit
@@ -92,15 +90,12 @@ def enqueue(
 @router.get("/search", response_model=SearchResults)
 def search(
     username: CurrentUser,
-    query: str | None = Query(None),
+    query: str = Query("tick >= -1"),
     page: int = Query(1, ge=1),
     show: int = Query(25, le=100),
-    sort: List[str] | None = Query(None),
+    sort: list[str] | None = Query(None),
     db: Session = Depends(get_db),
 ) -> SearchResults:
-    if not query:
-        raise HTTPException(status_code=400, detail="Missing query.")
-
     # Build search query
     try:
         parsed_query = parse_query(query)

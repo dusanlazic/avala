@@ -1,4 +1,4 @@
-from typing import Any
+from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
@@ -28,37 +28,30 @@ class FlagEnqueueResponse(BaseModel):
     discarded: int
 
 
-class SearchQueryParams(BaseModel):
-    query: str | None = None
-    page: int = Field(1, ge=1)
-    show: int = Field(25, le=100)
-    sort: list[str] | None = None
-
-
 class SearchResult(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     tick: int
-    timestamp: str
+    timestamp: datetime
     player: str
     exploit: str
     target: str
     status: str
     value: str
-    response: str
+    response: str | None
 
 
 class SearchPagingMetadata(BaseModel):
     current: int
     last: int
-    has_next: bool = Field(alias="hasNext")
-    has_prev: bool = Field(alias="hasPrev")
+    has_next: bool = Field(serialization_alias="hasNext")
+    has_prev: bool = Field(serialization_alias="hasPrev")
 
 
 class SearchStatsMetadata(BaseModel):
     total: int
     fetched: int
-    execution_time: float = Field(alias="executionTime")
+    execution_time: float = Field(serialization_alias="executionTime")
 
 
 class SearchMetadata(BaseModel):

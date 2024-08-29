@@ -1,6 +1,5 @@
 import tzlocal
-from fastapi import APIRouter, Depends
-from typing import Annotated
+from fastapi import APIRouter
 from ..auth import CurrentUser
 from ..config import AvalaConfig
 from ..scheduler import (

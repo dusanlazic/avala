@@ -180,10 +180,8 @@ def load_user_config():
         exit(1)
 
 
-def get_config(load: bool = True) -> Config:
-    if config is None and not load:
-        raise RuntimeError("Configuration not loaded. Call load_user_config() first.")
-    elif config is None and load:
+def get_config() -> Config:
+    if config is None:
         load_user_config()
     return config
 
