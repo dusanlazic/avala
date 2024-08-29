@@ -189,48 +189,6 @@ class TargetScopedAttackData:
             TickScopedAttackData(flag_ids) for flag_ids in ticks
         ]
 
-    def remove_repeated(
-        self,
-        alias: str,
-        target: str,
-        is_draft: bool = False,
-    ) -> "TargetScopedAttackData":
-        """
-        Looks up the hashes of the flag IDs in the database and removes those that have already been used to successfully retrieve flags.
-
-        If the `is_draft` flag is set to `True`, the method will do nothing and return the object without removing any flag IDs.
-
-        :param alias: Alias of the exploit.
-        :type alias: str
-        :param target: IP address or hostname of the targeted team.
-        :type target: str
-        :param is_draft: Specifies if the exploit is still in development (draft), defaults to False
-        :type is_draft: bool, optional
-        :return: Returns self after removing the repeated flag IDs.
-        :rtype: TargetScopedAttackData
-        """
-        if is_draft:
-            return self
-
-        with get_db() as db:
-            hashes = [
-                TickScopedAttackData.hash_flag_ids(alias, target, tick.flag_ids)
-                for tick in self.ticks
-            ]
-
-            existing_hashes = [
-                value
-                for (value,) in db.query(FlagIdsHash.value)
-                .filter(FlagIdsHash.value.in_(hashes))
-                .all()
-            ]
-
-            self.ticks = [
-                t for t, h in zip(self.ticks, hashes) if h not in existing_hashes
-            ]
-
-        return self
-
     def serialize(self) -> list[Any]:
         return [tick.serialize() for tick in self.ticks]
 

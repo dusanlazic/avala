@@ -4,15 +4,16 @@ import json
 import time
 import hashlib
 import asyncio
-from typing import Any
+from typing import Any, Callable
 from importlib import import_module, reload
 from .shared.logs import logger
 from .state import StateManager
-from .config import config
-from .database import get_db
+from .config import get_config
+from .database import get_db_context
 
 
 attack_data_updated_event: asyncio.Event = asyncio.Event()
+config = get_config()
 
 
 def reload_attack_data():
@@ -28,7 +29,7 @@ def reload_attack_data():
     if not fetch_json or not process_json:
         return
 
-    with get_db() as db, StateManager(db) as state:
+    with get_db_context() as db, StateManager(db) as state:
         old_json_hash = state.attack_data_hash
 
         json_updated = False
@@ -114,7 +115,9 @@ def normalize_dict(data: dict | list | Any) -> dict | list | Any:
         return data
 
 
-def import_user_functions():
+def import_user_functions() -> (
+    tuple[Callable[[], dict], Callable[[dict], dict[str, dict[str, list[Any]]]]]
+):
     """
     Imports and reloads the fetch and process functions that fetch and process attack data.
     """

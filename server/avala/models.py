@@ -28,12 +28,3 @@ class State(Base):
 
     key = Column(String, primary_key=True)
     value = Column(Text, nullable=True)
-
-
-class FlagResponse(namedtuple("FlagResponse", "value status response")):
-    def to_json(self):
-        return json.dumps(self._asdict())
-
-    @staticmethod
-    def from_json(response):
-        return FlagResponse(**json.loads(response))

@@ -1,49 +1,150 @@
 import yaml
-from addict import Dict
+from typing import Annotated
+from fastapi import Depends
 from pathlib import Path
+from pydantic import (
+    BaseModel,
+    Field,
+    PositiveInt,
+    PositiveFloat,
+    field_validator,
+    model_validator,
+    ConfigDict,
+    ValidationError,
+)
+from datetime import datetime, timedelta
 from .shared.logs import logger
-from .shared.validation import validate_data
-from .validation.custom import validate_delay, validate_interval
-from .validation.schemas import server_yaml_schema
+
 
 DOT_DIR_PATH = Path(".avala")
 
-config = Dict(
-    {
-        "game": {"flag_ttl": None},
-        "server": {
-            "host": "0.0.0.0",
-            "port": 2024,
-            "cors": [],
-            "frontend": True,
-        },
-        "submitter": {
-            "module": "submitter",
-        },
-        "attack_data": {
-            "module": "flag_ids",
-            "max_attempts": 5,
-            "retry_interval": 2,
-        },
-        "database": {
-            "name": "avala",
-            "user": "admin",
-            "password": "admin",
-            "host": "localhost",
-            "port": 5432,
-        },
-        "rabbitmq": {
-            "host": "localhost",
-            "port": 5672,
-            "user": "guest",
-            "password": "guest",
-            "management_port": 15672,
-        },
-    }
-)
+
+class TimeDeltaConfig(BaseModel):
+    hours: PositiveInt | None = None
+    minutes: PositiveInt | None = None
+    seconds: PositiveInt | None = None
+
+    @model_validator(mode="before")
+    def ensure_at_least_one(cls, v):
+        if not any(v):
+            raise ValueError("At least one of hours, minutes or seconds must be set.")
+        return v
+
+    @model_validator(mode="after")
+    def to_timedelta(cls, values):
+        return timedelta(
+            hours=values.hours or 0,
+            minutes=values.minutes or 0,
+            seconds=values.seconds or 0,
+        )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class GameConfig(BaseModel):
+    tick_duration: timedelta
+    flag_format: str
+    team_ip: list[str]
+    nop_team_ip: list[str]
+    flag_ttl: PositiveInt | None = None
+    game_starts_at: datetime
+    networks_open_after: TimeDeltaConfig
+    game_ends_after: TimeDeltaConfig
+
+    @field_validator("team_ip", "nop_team_ip", mode="before")
+    def ensure_list(cls, v):
+        return v if isinstance(v, list) else [v]
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SubmitterConfig(BaseModel):
+    module: str = "subimtter"
+    interval: PositiveInt | None = None
+    per_tick: PositiveInt | None = None
+    batch_size: PositiveInt | None = None
+    max_batch_size: int | None = None
+    streams: bool | None = False
+
+    @model_validator(mode="before")
+    def check_required_fields(cls, values):
+        one_of = [
+            {"interval", "max_batch_size"},
+            {"per_tick", "max_batch_size"},
+            {"batch_size"},
+            {"streams"},
+        ]
+
+        for fields in one_of:
+            if all(values.get(field) is not None for field in fields):
+                return values
+
+        raise ValueError(
+            f"One of the following groups of fields must be present and non-null: {one_of}"
+        )
+
+    @model_validator(mode="after")
+    def set_max_batch_size(cls, values):
+        if values.max_batch_size is not None and values.max_batch_size < 1:
+            values.max_batch_size = float("inf")
+        return values
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class AttackDataConfig(BaseModel):
+    module: str = "flag_ids"
+    max_attempts: PositiveInt = 5
+    retry_interval: PositiveFloat = 2
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ServerConfig(BaseModel):
+    host: str = "0.0.0.0"
+    port: int = Field(2024, ge=1, le=65535)
+    password: str | None = None
+    cors: list[str] = []
+    frontend: bool = True
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class DatabaseConfig(BaseModel):
+    name: str
+    user: str
+    password: str
+    host: str
+    port: int = Field(5432, ge=1, le=65535)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class RabbitMQConfig(BaseModel):
+    user: str
+    password: str
+    host: str
+    port: int = Field(5672, ge=1, le=65535)
+    management_port: int = Field(15672, ge=1, le=65535)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class Config(BaseModel):
+    game: GameConfig
+    server: ServerConfig
+    submitter: SubmitterConfig
+    attack_data: AttackDataConfig
+    database: DatabaseConfig
+    rabbitmq: RabbitMQConfig
+
+
+config: Config = None
 
 
 def load_user_config():
+    global config
+
     # Remove datetime resolver
     # https://stackoverflow.com/a/52312810
     yaml.SafeLoader.yaml_implicit_resolvers = {
@@ -54,11 +155,22 @@ def load_user_config():
     for ext in ["yml", "yaml"]:
         if Path(f"server.{ext}").is_file():
             with open(f"server.{ext}", "r") as file:
-                user_config = Dict(yaml.safe_load(file))
-                if not user_config:
-                    logger.error(
-                        "No configuration found in server.{ext}. Exiting...", ext=ext
-                    )
+                try:
+                    config_data = yaml.safe_load(file)
+                    if not config_data:
+                        logger.error(
+                            "No configuration found in server.{ext}. Exiting...",
+                            ext=ext,
+                        )
+                        exit(1)
+
+                    config = Config(**config_data)
+                    logger.info("Loaded user configuration.")
+                except ValidationError as e:
+                    logger.error("Errors found in server.{ext}: {e}", ext=ext, e=e)
+                    exit(1)
+                except Exception as e:
+                    logger.error("Error loading server.{ext}: {e}", ext=ext, e=e)
                     exit(1)
                 break
     else:
@@ -67,22 +179,13 @@ def load_user_config():
         )
         exit(1)
 
-    if not validate_data(
-        user_config, server_yaml_schema, custom=[validate_delay, validate_interval]
-    ):
-        logger.error("Fix errors in server.yaml and rerun.")
-        exit(1)
 
-    config.update(user_config)
+def get_config(load: bool = True) -> Config:
+    if config is None and not load:
+        raise RuntimeError("Configuration not loaded. Call load_user_config() first.")
+    elif config is None and load:
+        load_user_config()
+    return config
 
-    # Wrap single team ip in a list
-    if type(config.game.team_ip) != list:
-        config.game.team_ip = [config.game.team_ip]
 
-    if type(config.game.nop_team_ip) != list:
-        config.game.nop_team_ip = [config.game.nop_team_ip]
-
-    if config.submitter.max_batch_size and config.submitter.max_batch_size < 1:
-        config.submitter.max_batch_size = float("inf")
-
-    logger.info("Loaded user configuration.")
+AvalaConfig = Annotated[Config, Depends(get_config)]

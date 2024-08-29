@@ -2,8 +2,11 @@ import pika
 from pika import BlockingConnection
 from pika.adapters.blocking_connection import BlockingChannel
 from typing import Callable
-from ..config import config
+from ..config import get_config
 from ..shared.logs import logger
+
+
+config = get_config()
 
 
 class RabbitQueue:
@@ -103,23 +106,20 @@ class RabbitConnection:
         self.silent = silent
 
     def connect(self):
-        try:
-            self.connection = pika.BlockingConnection(
-                pika.ConnectionParameters(
-                    host=config.rabbitmq.host,
-                    port=config.rabbitmq.port,
-                    credentials=pika.PlainCredentials(
-                        config.rabbitmq.user,
-                        config.rabbitmq.password,
-                    ),
-                )
+        self.connection = pika.BlockingConnection(
+            pika.ConnectionParameters(
+                host=config.rabbitmq.host,
+                port=config.rabbitmq.port,
+                credentials=pika.PlainCredentials(
+                    config.rabbitmq.user,
+                    config.rabbitmq.password,
+                ),
             )
-            self.channel = self.connection.channel()
+        )
+        self.channel = self.connection.channel()
 
-            if not self.silent:
-                logger.info("Connected to RabbitMQ.")
-        except Exception as e:
-            logger.error("Error connecting to RabbitMQ: {error}", error=e)
+        if not self.silent:
+            logger.info("Connected to RabbitMQ.")
 
     def close(self):
         if not self.channel.is_closed:
@@ -140,6 +140,17 @@ class RabbitConnection:
         :type multiple: bool, optional
         """
         self.channel.basic_ack(delivery_tag=delivery_tag, multiple=multiple)
+
+    def reject(self, delivery_tag: int, requeue: bool = False):
+        """
+        Rejects a message and optionally requeues it.
+
+        :param delivery_tag: Delivery tag of the message to reject.
+        :type delivery_tag: int
+        :param requeue: Requeue the message, defaults to False.
+        :type requeue: bool, optional
+        """
+        self.channel.basic_reject(delivery_tag=delivery_tag, requeue=requeue)
 
     def add_queue(self, queue: RabbitQueue):
         self.queues[queue.routing_key] = queue

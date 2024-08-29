@@ -2,10 +2,12 @@ from .shared.logs import logger
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from .attack_data import reload_attack_data
-from .config import config
+from .config import get_config
+
+config = get_config()
 
 
-def initialize_scheduler():
+def initialize_scheduler() -> BackgroundScheduler:
     """
     Initializes the APScheduler instance and schedules the tick announcer and attack data reloader.
     """
@@ -15,7 +17,7 @@ def initialize_scheduler():
     scheduler.add_job(
         func=tick_announcer,
         trigger="interval",
-        seconds=get_tick_duration().seconds,
+        seconds=config.game.tick_duration.seconds,
         id="tick_announcer",
         next_run_time=get_next_tick_start(),
     )
@@ -23,7 +25,7 @@ def initialize_scheduler():
     scheduler.add_job(
         func=reload_attack_data,
         trigger="interval",
-        seconds=get_tick_duration().seconds,
+        seconds=config.game.tick_duration.seconds,
         id="attack_data_reloader",
         next_run_time=get_next_tick_start(),
     )
@@ -32,48 +34,24 @@ def initialize_scheduler():
     return scheduler
 
 
-def get_tick_duration() -> timedelta:
-    return timedelta(seconds=config.game.tick_duration)
-
-
-def get_first_tick_start() -> datetime:
-    start_time_str = config.game.game_starts_at
-    return datetime.strptime(
-        start_time_str,
-        "%Y-%m-%d %H:%M:%S" if len(start_time_str) == 19 else "%Y-%m-%d %H:%M",
-    )
-
-
-def get_networks_open_after() -> timedelta:
-    return timedelta(
-        hours=config.game.networks_open_after.hours or 0,
-        minutes=config.game.networks_open_after.minutes or 0,
-        seconds=config.game.networks_open_after.seconds or 0,
-    )
-
-
-def get_game_ends_after() -> timedelta:
-    return timedelta(
-        hours=config.game.game_ends_after.hours or 0,
-        minutes=config.game.game_ends_after.minutes or 0,
-        seconds=config.game.game_ends_after.seconds or 0,
-    )
-
-
 def get_networks_open_at() -> datetime:
-    return get_first_tick_start() + get_networks_open_after()
+    return config.game.game_starts_at + config.game.networks_open_after
 
 
 def get_game_ends_at() -> datetime:
-    return get_first_tick_start() + get_game_ends_after()
+    return config.game.game_starts_at + config.game.game_ends_after
 
 
 def get_network_open_at_tick() -> int:
-    return (get_networks_open_at() - get_first_tick_start()) // get_tick_duration()
+    return (
+        get_networks_open_at() - config.game.game_starts_at
+    ) // config.game.tick_duration
 
 
 def get_game_ends_at_tick() -> int:
-    return (get_game_ends_at() - get_first_tick_start()) // get_tick_duration()
+    return (
+        get_game_ends_at() - config.game.game_starts_at
+    ) // config.game.tick_duration
 
 
 def get_tick_elapsed(now=None) -> timedelta:
@@ -81,7 +59,7 @@ def get_tick_elapsed(now=None) -> timedelta:
     if not game_has_started():
         return 0
 
-    return (now - get_first_tick_start()) % get_tick_duration()
+    return (now - config.game.game_starts_at) % config.game.tick_duration
 
 
 def get_tick_number(now=None) -> int:
@@ -89,20 +67,20 @@ def get_tick_number(now=None) -> int:
     if not game_has_started():
         return 0
 
-    return (now - get_first_tick_start()) // get_tick_duration() + 1
+    return (now - config.game.game_starts_at) // config.game.tick_duration + 1
 
 
 def get_next_tick_start(now=None) -> datetime:
     now = now or datetime.now()
     if not game_has_started():
-        return get_first_tick_start()
+        return config.game.game_starts_at
 
-    return now + get_tick_duration() - get_tick_elapsed(now)
+    return now + config.game.tick_duration - get_tick_elapsed(now)
 
 
 def game_has_started(now=None) -> bool:
     now = now or datetime.now()
-    return now >= get_first_tick_start()
+    return now >= config.game.game_starts_at
 
 
 def tick_announcer():
@@ -124,7 +102,7 @@ def print_current_tick(now=None):
     if not game_has_started(now):
         logger.info(
             "Game has not started yet. First tick scheduled for <b>{first_tick}</>.",
-            first_tick=get_first_tick_start().strftime("%H:%M:%S"),
+            first_tick=config.game.game_starts_at.strftime("%H:%M:%S"),
         )
     else:
         logger.info(

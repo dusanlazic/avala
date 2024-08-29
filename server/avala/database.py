@@ -4,8 +4,9 @@ from .shared.logs import logger
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from .config import config
+from .config import get_config
 
+config = get_config()
 engine = None
 SessionLocal = None
 Base = declarative_base()
@@ -38,7 +39,7 @@ def setup_db_conn():
 
 
 @contextmanager
-def get_db():
+def get_db_context():
     setup_db_conn()
     db = SessionLocal()
     try:
@@ -51,8 +52,8 @@ def get_db():
         db.close()
 
 
-def get_db_for_request():
-    with get_db() as db:
+def get_db():
+    with get_db_context() as db:
         yield db
 
 

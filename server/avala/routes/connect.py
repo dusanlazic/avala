@@ -1,11 +1,9 @@
 import tzlocal
-from typing import Annotated
 from fastapi import APIRouter, Depends
-from ..auth import basic_auth
-from ..config import config
+from typing import Annotated
+from ..auth import CurrentUser
+from ..config import AvalaConfig
 from ..scheduler import (
-    get_tick_duration,
-    get_first_tick_start,
     get_network_open_at_tick,
     get_game_ends_at_tick,
 )
@@ -19,19 +17,25 @@ async def health():
 
 
 @router.get("/game")
-async def enqueue(_: Annotated[str, Depends(basic_auth)]):
+async def enqueue(
+    username: CurrentUser,
+    config: AvalaConfig,
+):
     return {
         "flag_format": config.game.flag_format,
         "team_ip": config.game.team_ip,
-        "nop_team_ip": config.game.nop_team_ip or None,
+        "nop_team_ip": config.game.nop_team_ip,
     }
 
 
 @router.get("/schedule")
-async def schedule(_: Annotated[str, Depends(basic_auth)]):
+async def schedule(
+    username: CurrentUser,
+    config: AvalaConfig,
+):
     return {
-        "first_tick_start": get_first_tick_start(),
-        "tick_duration": get_tick_duration().total_seconds(),
+        "first_tick_start": config.game.game_starts_at,
+        "tick_duration": config.game.tick_duration.total_seconds(),
         "network_open_tick": get_network_open_at_tick(),
         "total_ticks": get_game_ends_at_tick(),
         "tz": tzlocal.get_localzone_name(),

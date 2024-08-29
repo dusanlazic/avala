@@ -5,12 +5,22 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Annotated, List, Optional
-from ..auth import basic_auth
+from ..auth import CurrentUser
 from ..models import Flag
-from ..database import get_db_for_request
+from ..schemas import (
+    FlagEnqueueRequest,
+    FlagEnqueueResponse,
+    SearchResults,
+    SearchResult,
+    SearchMetadata,
+    SearchPagingMetadata,
+    SearchStatsMetadata,
+    SearchQueryParams,
+)
+from ..database import get_db
 from ..mq.rabbit_async import rabbit
 from ..scheduler import get_tick_number
-from ..config import config
+from ..config import AvalaConfig
 from ..search import parse_query, build_query
 from ..shared.logs import logger
 from ..shared.util import colorize
@@ -18,19 +28,14 @@ from ..shared.util import colorize
 router = APIRouter(prefix="/flags", tags=["Flags"])
 
 
-class EnqueueBody(BaseModel):
-    values: list[str]
-    exploit: str
-    target: str
-
-
-@router.post("/queue")
-async def enqueue(
-    flags: EnqueueBody,
+@router.post("/queue", response_model=FlagEnqueueResponse)
+def enqueue(
+    flags: FlagEnqueueRequest,
     bg: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db_for_request)],
-    username: Annotated[str, Depends(basic_auth)],
-):
+    db: Annotated[Session, Depends(get_db)],
+    username: CurrentUser,
+    config: AvalaConfig,
+) -> FlagEnqueueResponse:
     current_tick = get_tick_number()
     existing_flags = db.query(Flag.value).filter(Flag.value.in_(flags.values)).all()
     dup_flag_values = {flag.value for flag in existing_flags}
@@ -78,62 +83,21 @@ async def enqueue(
         dup_flags=len(dup_flag_values),
     )
 
-    return {
-        "discarded": len(dup_flag_values),
-        "enqueued": len(new_flag_values),
-    }
-
-
-@router.get("/db-stats")
-async def db_stats(db: Annotated[Session, Depends(get_db_for_request)]):
-    current_tick = get_tick_number()
-
-    current_tick_flags = db.query(Flag).filter(Flag.tick == current_tick).count()
-    last_tick_flags = db.query(Flag).filter(Flag.tick == current_tick - 1).count()
-    manually_submitted = (
-        db.query(Flag)
-        .filter(Flag.target == "unknown", Flag.exploit == "manual")
-        .count()
-    )
-    total_flags = db.query(Flag).count()
-
-    return {
-        "current_tick": current_tick_flags,
-        "last_tick": last_tick_flags,
-        "manual": manually_submitted,
-        "total": total_flags,
-    }
-
-
-@router.get("/tick-stats")
-async def tick_stats(db: Annotated[Session, Depends(get_db_for_request)]):
-    current_tick = get_tick_number()
-
-    tick_stats = (
-        db.query(Flag.tick, func.count(Flag.id).label("count"))
-        .filter(Flag.status == "accepted")
-        .group_by(Flag.tick)
-        .order_by(Flag.tick)
-        .all()
+    return FlagEnqueueResponse(
+        enqueued=len(new_flag_values),
+        discarded=len(dup_flag_values),
     )
 
-    tick_stats_dict = {tick: count for tick, count in tick_stats}
 
-    return [
-        {"tick": tick, "accepted": tick_stats_dict.get(tick, 0)}
-        for tick in range(1, current_tick + 1)
-    ]
-
-
-@router.get("/search")
-async def search(
-    query: Optional[str] = Query(None),
-    page: int = Query(1),
+@router.get("/search", response_model=SearchResults)
+def search(
+    username: CurrentUser,
+    query: str | None = Query(None),
+    page: int = Query(1, ge=1),
     show: int = Query(25, le=100),
-    sort: Optional[List[str]] = Query(None),
-    db: Session = Depends(get_db_for_request),
-    username: Annotated[str, Depends(basic_auth)] = None,
-):
+    sort: List[str] | None = Query(None),
+    db: Session = Depends(get_db),
+) -> SearchResults:
     if not query:
         raise HTTPException(status_code=400, detail="Missing query.")
 
@@ -169,16 +133,7 @@ async def search(
     try:
         query = db.query(Flag).filter(sqlalchemy_query).order_by(*sort_expressions)
         results = [
-            {
-                "tick": flag.tick,
-                "timestamp": flag.timestamp,
-                "player": flag.player,
-                "exploit": flag.exploit,
-                "target": flag.target,
-                "status": flag.status,
-                "value": flag.value,
-                "response": flag.response,
-            }
+            SearchResult.model_validate(flag)
             for flag in query.offset((page - 1) * show).limit(show).all()
         ]
     except Exception as e:
@@ -188,14 +143,17 @@ async def search(
     total = db.query(func.count(Flag.id)).filter(sqlalchemy_query).scalar()
     total_pages = (total + show - 1) // show
 
-    metadata = {
-        "paging": {
-            "current": page,
-            "last": total_pages,
-            "hasNext": page + 1 <= total_pages,
-            "hasPrev": page > 1,
-        },
-        "results": {"total": total, "fetched": len(results), "executionTime": elapsed},
-    }
-
-    return {"results": results, "metadata": metadata}
+    return SearchResults(
+        results=results,
+        metadata=SearchMetadata(
+            results=SearchStatsMetadata(
+                total=total, fetched=len(results), execution_time=elapsed
+            ),
+            paging=SearchPagingMetadata(
+                current=page,
+                last=total_pages,
+                has_next=page + 1 <= total_pages,
+                has_prev=page > 1,
+            ),
+        ),
+    )

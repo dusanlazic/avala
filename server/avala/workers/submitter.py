@@ -5,21 +5,19 @@ from datetime import datetime, timedelta
 from collections import Counter
 from importlib import import_module, reload
 from ..shared.logs import logger
-from ..models import FlagResponse
-from ..config import load_user_config, config
+from ..schemas import FlagSubmissionResponse
+from ..config import get_config
 from ..mq.rabbit import RabbitQueue, RabbitConnection
 from ..scheduler import (
     get_tick_elapsed,
-    get_tick_duration,
     get_next_tick_start,
-    get_first_tick_start,
     game_has_started,
 )
 
+config = get_config()
+
 
 def main():
-    load_user_config()
-
     worker = Submitter()
     worker.start()
 
@@ -40,7 +38,7 @@ class Submitter:
 
     def _initialize(self):
         """
-        TODO
+        TODO: Docstrings
         """
         try:
             self.submit = self._import_user_function("submit")
@@ -78,7 +76,14 @@ class Submitter:
             self.delivery_tag_map = {}
 
             self.connection = RabbitConnection()
-            self.connection.connect()
+            try:
+                self.connection.connect()
+            except Exception as e:
+                logger.error(
+                    "Failed to connect to RabbitMQ: {error}",
+                    error=e,
+                )
+                return
 
             self.submission_queue = RabbitQueue(
                 self.connection.channel, "submission_queue", durable=True
@@ -90,7 +95,14 @@ class Submitter:
             self.submission_queue.add_consumer(self._submit_flags_in_batches_consumer)
         elif config.submitter.streams:
             self.connection = RabbitConnection()
-            self.connection.connect()
+            try:
+                self.connection.connect()
+            except Exception as e:
+                logger.error(
+                    "Failed to connect to RabbitMQ: {error}",
+                    error=e,
+                )
+                return
 
             self.submission_queue = RabbitQueue(
                 self.connection.channel, "submission_queue", durable=True
@@ -144,59 +156,65 @@ class Submitter:
         self.delivery_tag_map.clear()
 
     def _submit_flags_scheduled_job(self):
-        """TODO docstring"""
-        with RabbitConnection(silent=True) as connection:
-            submission_queue = RabbitQueue(
-                connection.channel,
-                "submission_queue",
-                durable=True,
-                silent=True,
-            )
+        try:
+            connection = RabbitConnection(silent=True)
+            with connection:
+                submission_queue = RabbitQueue(
+                    connection.channel,
+                    "submission_queue",
+                    durable=True,
+                    silent=True,
+                )
 
-            persisting_queue = RabbitQueue(
-                connection.channel,
-                "persisting_queue",
-                durable=True,
-                silent=True,
-            )
+                persisting_queue = RabbitQueue(
+                    connection.channel,
+                    "persisting_queue",
+                    durable=True,
+                    silent=True,
+                )
 
-            while True:
-                submission_buffer = []
-                delivery_tag_map = {}
-                while len(submission_buffer) < config.submitter.max_batch_size:
-                    method, properties, body = submission_queue.get()
-                    if method is None:
-                        if submission_buffer:
+                while True:
+                    submission_buffer = []
+                    delivery_tag_map = {}
+                    while len(submission_buffer) < config.submitter.max_batch_size:
+                        method, properties, body = submission_queue.get()
+                        if method is None:
+                            if submission_buffer:
+                                logger.info(
+                                    "Pulled all remaining {count} flags from the submission queue.",
+                                    count=len(submission_buffer),
+                                )
+                            else:
+                                logger.info(
+                                    "No flags remaining in the submission queue. Submission skipped."
+                                )
+                            break
+
+                        flag = body.decode().strip()
+                        submission_buffer.append(flag)
+                        delivery_tag_map[flag] = method.delivery_tag
+
+                        if len(submission_buffer) == config.submitter.max_batch_size:
                             logger.info(
-                                "Pulled all remaining {count} flags from the submission queue.",
+                                "Batch size reached. Pulled {count} flags from the submission queue.",
                                 count=len(submission_buffer),
                             )
-                        else:
-                            logger.info(
-                                "No flags remaining in the submission queue. Submission skipped."
-                            )
+                            break
+
+                    if not submission_buffer:
                         break
 
-                    flag = body.decode().strip()
-                    submission_buffer.append(flag)
-                    delivery_tag_map[flag] = method.delivery_tag
-
-                    if len(submission_buffer) == config.submitter.max_batch_size:
-                        logger.info(
-                            "Batch size reached. Pulled {count} flags from the submission queue.",
-                            count=len(submission_buffer),
-                        )
-                        break
-
-                if not submission_buffer:
-                    break
-
-                self._submit_flags_from_buffer(
-                    submission_buffer,
-                    delivery_tag_map,
-                    persisting_queue,
-                    connection,
-                )
+                    self._submit_flags_from_buffer(
+                        submission_buffer,
+                        delivery_tag_map,
+                        persisting_queue,
+                        connection,
+                    )
+        except Exception as e:
+            logger.error(
+                "Failed to connect to RabbitMQ: {error}",
+                error=e,
+            )
 
     def _submit_flags_from_buffer(
         self,
@@ -214,19 +232,27 @@ class Submitter:
 
         logger.info("Submitting <b>{count}</> flags...", count=len(submission_buffer))
 
-        flag_responses = [
-            FlagResponse(*response) for response in self.submit(submission_buffer)
-        ]
+        response_statuses: list[str] = []
+        dropped_flags: set[str] = set(submission_buffer)
 
-        for fr in flag_responses:
-            connection.ack(delivery_tag_map[fr.value])
-            persisting_queue.put(fr.to_json())
+        for response in self.submit(submission_buffer):
+            fr = FlagSubmissionResponse(*response)
+            if fr.status != "requeued":
+                connection.ack(delivery_tag_map[fr.flag])
+                persisting_queue.put(fr.model_dump_json())
+                dropped_flags.discard(fr.flag)
 
-        stats = Counter(fr.status for fr in flag_responses)
+            response_statuses.append(fr.status)
+
+        for flag in dropped_flags:
+            connection.reject(delivery_tag_map[flag], requeue=True)
+
+        stats = Counter(response_statuses)
         logger.info(
-            "<green>{accepted} accepted</green> - <red>{rejected} rejected</red>",
+            "<green>{accepted} accepted</green>, <red>{rejected} rejected</red>, <blue>{requeued} requeued</blue>",
             accepted=stats["accepted"],
             rejected=stats["rejected"],
+            requeued=stats["requeued"],
         )
 
     def _submit_flag_or_exit(self, flag: str):
@@ -251,19 +277,27 @@ class Submitter:
         flag = body.decode().strip()
         logger.debug("Received flag <b>{flag}</>", flag=flag)
 
-        response = FlagResponse(*self._submit_flag_or_exit(flag))
+        response = self._submit_flag_or_exit(flag)
+        if not response:
+            logger.debug("<blue>Requeued</blue> {flag}", flag=flag)
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
+            return
 
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-        self.persisting_queue.put(response.to_json())
-
-        logger.debug(
-            (
-                "<green>Accepted</green> {response}"
-                if response.status == "accepted"
-                else "<red>Rejected</red> {response}"
-            ),
-            response=response.response,
-        )
+        fr = FlagSubmissionResponse(*response)
+        if fr.status != "requeued":
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            self.persisting_queue.put(fr.model_dump_json())
+            logger.debug(
+                (
+                    "<green>Accepted</green> {response}"
+                    if fr.status == "accepted"
+                    else "<red>Rejected</red> {response}"
+                ),
+                response=fr.response,
+            )
+        else:
+            logger.debug("<blue>Requeued</blue> {response}", response=fr.response)
+            ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
 
     def _import_user_function(self, function_name: str):
         """Imports and reloads user written functions used for the actual flag submission."""
@@ -280,7 +314,7 @@ class Submitter:
 
     def _calculate_next_run_time(self) -> tuple[timedelta, datetime]:
         now = datetime.now()
-        tick_duration = get_tick_duration()
+        tick_duration = config.game.tick_duration
         next_tick_start = get_next_tick_start(now)
 
         submissions_per_tick = config.submitter.per_tick
@@ -299,7 +333,7 @@ class Submitter:
                 + (tick_elapsed // interval + 1) * interval
             )
         else:
-            next_run_time = get_first_tick_start() + interval
+            next_run_time = config.game.game_starts_at + interval
 
         return interval, next_run_time
 

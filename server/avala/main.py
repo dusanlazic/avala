@@ -13,9 +13,8 @@ from .routes.connect import router as connect_router
 from .routes.attack_data import router as attack_data_router
 from .routes.statistics import router as statistics_router
 from .database import setup_db_conn, create_tables
-from .config import config, load_user_config, DOT_DIR_PATH
+from .config import get_config, Config, DOT_DIR_PATH
 from .scheduler import initialize_scheduler
-from .setup_tests import main
 
 
 @asynccontextmanager
@@ -55,16 +54,15 @@ app = FastAPI(lifespan=lifespan)
 
 
 def main():
-    show_banner()
-    load_user_config()
+    config = get_config()
 
     app.include_router(flags_router)
     app.include_router(connect_router)
     app.include_router(attack_data_router)
     app.include_router(statistics_router)
 
-    configure_cors(app)
-    configure_static(app)
+    configure_cors(app, config)
+    configure_static(app, config)
 
     try:
         uvicorn.run(
@@ -90,7 +88,7 @@ def configure_logging():
     return uvicorn_log_config
 
 
-def configure_cors(app: FastAPI):
+def configure_cors(app: FastAPI, config: Config):
     """
     Configures CORS middleware if the Avala backend and web UI are hosted on different domains.
     """
@@ -104,7 +102,7 @@ def configure_cors(app: FastAPI):
         )
 
 
-def configure_static(app: FastAPI):
+def configure_static(app: FastAPI, config: Config):
     """
     Configures the static files serving if the web UI is served by the backend.
     """
@@ -165,20 +163,6 @@ def initialize_workspace():
  <b>7.</> 🚀 Run <b>docker compose up -d</> to run everything.
  <b>8.</> 🎉 Happy hacking!
         """
-    )
-
-
-def show_banner():
-    print(
-        """\033[32;1m
-      db 
-     ;MM:
-    ,V^MM. 7MM""Yq.  ,6"Yb.  `7M""MMF',6"Yb.  
-   ,M  `MM `MM   j8 8)   MM    M  MM 8)   MM  
-   AbmmmqMA MM""Yq.  ,pm9MM   ,P  MM  ,pm9MM  
-  A'     VML`M   j8 8M   MM . d'  MM 8M   MM  
-.AMA.   .AMMA.mmm9' `Moo9^Yo8M' .JMML`Moo9^Yo.
-\033[0m"""
     )
 
 

@@ -12,6 +12,8 @@ services:
         condition: service_started
     restart: always
     tty: true
+    environment:
+      TZ: Europe/Belgrade
     volumes:
       - ./:/home/avala/workspace
 
@@ -22,6 +24,8 @@ services:
       rabbitmq:
         condition: service_healthy
     restart: always
+    environment:
+      TZ: Europe/Belgrade
     volumes:
       - ./:/home/avala/workspace
   
@@ -35,6 +39,8 @@ services:
       postgres:
         condition: service_started
     restart: always
+    environment:
+      TZ: Europe/Belgrade
     volumes:
       - ./:/home/avala/workspace
 
@@ -69,16 +75,15 @@ services:
       - postgres-data:/var/lib/postgresql/data
     
   # Optional: Logsea for monitoring real-time logs on the machine via web UI.
-  # services:
-  #   logsea:
-  #     image: dusanlazic/logsea
-  #     ports:
-  #       - 8000:8000
-  #     volumes:
-  #       - /var/run/docker.sock:/var/run/docker.sock
-  #     environment:
-  #       BASIC_AUTH_USERNAME: user
-  #       BASIC_AUTH_PASSWORD: pass
+  # logsea:
+  #   image: dusanlazic/logsea
+  #   ports:
+  #     - 8000:8000
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   environment:
+  #     BASIC_AUTH_USERNAME: user
+  #     BASIC_AUTH_PASSWORD: pass
 
 volumes:
   rabbitmq-data:

@@ -2,19 +2,18 @@ from itertools import islice
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.blocking import BlockingScheduler
 from ..shared.logs import logger
-from ..models import Flag, FlagResponse
-from ..config import load_user_config
-from ..database import get_db
+from ..models import Flag
+from ..schemas import FlagSubmissionResponse
+from ..database import get_db_context
 from ..mq.rabbit import RabbitConnection, RabbitQueue
 
+# TODO: Make configurable
 BATCH_SIZE = 1000
 INTERVAL = 5
 
 
 def main():
-    load_user_config()
-
-    with get_db() as db:
+    with get_db_context() as db:
         worker = Persister(db)
         worker.start()
 
@@ -58,8 +57,9 @@ class Persister:
             )
 
             while True:
-                persisting_buffer = []
-                delivery_tag_map = {}
+                persisting_buffer: list[FlagSubmissionResponse] = []
+                delivery_tag_map: dict[str, int] = {}
+
                 while len(persisting_buffer) < BATCH_SIZE:
                     method, properties, body = persisting_queue.get()
                     if method is None:
@@ -74,7 +74,7 @@ class Persister:
                             )
                         break
 
-                    fr = FlagResponse.from_json(body.decode())
+                    fr = FlagSubmissionResponse.model_validate_json(body)
                     persisting_buffer.append(fr)
                     delivery_tag_map[fr.value] = method.delivery_tag
 
@@ -96,7 +96,7 @@ class Persister:
 
     def _persist_responses(
         self,
-        persisting_buffer: list[FlagResponse],
+        persisting_buffer: list[FlagSubmissionResponse],
         delivery_tag_map: dict[str, int],
         connection: RabbitConnection,
     ):
@@ -122,11 +122,12 @@ class Persister:
 
             updates = []
             for flag in flag_records_to_update:
+                flag_response = flag_responses_map[flag.value]
                 updates.append(
                     {
                         "id": flag.id,
-                        "status": flag_responses_map[flag.value].status,
-                        "response": flag_responses_map[flag.value].response,
+                        "status": flag_response.status,
+                        "response": flag_response.response,
                     }
                 )
 

@@ -3,16 +3,18 @@ import sys
 import random
 import string
 import traceback
+from typing import Callable
 from importlib import import_module, reload
+from .config import get_config
 from .shared.logs import logger
-from .config import config, load_user_config
 from .attack_data import import_user_functions as import_attack_data_functions
 
 is_verbose = False
+config = get_config()
 
-tests = []
-passed = []
-failed = []
+tests: Callable = []
+passed: str = []
+failed: str = []
 
 
 def test(name, dependencies=None):
@@ -54,7 +56,6 @@ def main(verbose=False):
     global is_verbose
     is_verbose = verbose
 
-    load_user_config()
     logger.info("Running tests...")
 
     for test in tests:
@@ -157,9 +158,13 @@ def test_flag_submission():
             "Second string in each tuple must be either 'accepted' or 'rejected', '%s' returned."
             % response[1]
         )
-    assert len(responses) == len(
-        flags
-    ), "Number of responses must match number of flags."
+    assert len(responses) == len(flags), (
+        "Number of responses must match number of flags. %d flags submitted, %d responses received."
+        % (
+            len(flags),
+            len(responses),
+        )
+    )
 
     if cleanup:
         cleanup()

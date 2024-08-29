@@ -2,19 +2,19 @@ import json
 from typing import Annotated
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
-from ..auth import basic_auth
+from ..auth import CurrentUser
 from ..state import StateManager
 from ..attack_data import attack_data_updated_event
-from ..database import get_db_for_request
+from ..database import get_db
 
-router = APIRouter(prefix="/attack_data", tags=["Attack data"])
+router = APIRouter(prefix="/attack-data", tags=["Attack data"])
 
 
 @router.get("/subscribe")
 async def get_latest_attack_data(
-    _: Annotated[str, Depends(basic_auth)],
-    db: Annotated[Session, Depends(get_db_for_request)],
+    username: CurrentUser,
     response: Response,
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Waits for and returns the latest attack data when it is updated.
@@ -34,10 +34,10 @@ async def get_latest_attack_data(
 
 
 @router.get("/current")
-async def get_current_attack_data(
-    _: Annotated[str, Depends(basic_auth)],
-    db: Annotated[Session, Depends(get_db_for_request)],
+def get_current_attack_data(
+    username: CurrentUser,
     response: Response,
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Returns the current available attack data.
