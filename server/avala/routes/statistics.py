@@ -25,75 +25,6 @@ from ..scheduler import get_tick_number
 router = APIRouter(prefix="/stats", tags=["Statistics"])
 
 
-def collect_stats(db: Session, config: AvalaConfig):
-    while True:
-        response = requests.get(
-            f"http://{config.rabbitmq.host}:{config.rabbitmq.management_port}/api/queues/%2F/submission_queue",
-            auth=HTTPBasicAuth(config.rabbitmq.user, config.rabbitmq.password),
-            params={
-                "lengths_age": 90,
-                "lengths_incr": 1,
-                "msg_rates_age": 90,
-                "msg_rates_incr": 1,
-                "data_rates_age": 90,
-                "data_rates_incr": 1,
-            },
-        )
-        data = response.json()
-
-        try:
-            submission_rate = int(data["message_stats"]["ack_details"]["rate"])
-            submission_history = transform_rabbitmq_stats(
-                data["message_stats"]["ack_details"]["samples"][::-1]
-            )
-        except KeyError:
-            submission_rate = 0
-            submission_history = []
-
-        try:
-            retrieval_rate = int(data["message_stats"]["publish_details"]["rate"])
-            retrieval_history = transform_rabbitmq_stats(
-                data["message_stats"]["publish_details"]["samples"][::-1]
-            )
-        except KeyError:
-            retrieval_rate = 0
-            retrieval_history = []
-
-        queued_count = data["messages"]
-
-        accepted_count = (
-            db.query(func.count(Flag.id)).filter(Flag.status == "accepted").scalar()
-        )
-        rejected_count = (
-            db.query(func.count(Flag.id)).filter(Flag.status == "rejected").scalar()
-        )
-
-        yield json.dumps(
-            {
-                "queued": queued_count,
-                "accepted": accepted_count,
-                "rejected": rejected_count,
-                "submission": {"rate": submission_rate, "history": submission_history},
-                "retrieval": {"rate": retrieval_rate, "history": retrieval_history},
-            }
-        ) + "\n"
-        time.sleep(1)
-
-
-transform_rabbitmq_stats = lambda items: list(
-    map(
-        lambda x, y: {
-            "sample": x["sample"] - y["sample"],
-            "timestamp": datetime.fromtimestamp(x["timestamp"] / 1000).strftime(
-                "%H:%M:%S"
-            ),
-        },
-        items[1:],
-        items[:-1],
-    )
-)
-
-
 @router.get("/dashboard", response_model=DashboardViewStats)
 def dashboard_view_stats(
     db: Annotated[Session, Depends(get_db)],
@@ -210,3 +141,24 @@ async def flags_event_stream():
     async with broadcast.subscribe(channel="flags") as subscriber:
         async for event in subscriber:
             yield "data: %s\n\n" % event.message
+
+
+@router.get("/stream/rabbit")
+async def stream_rabbit(username: CurrentUser):
+    return StreamingResponse(
+        rabbit_event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+async def rabbit_event_stream():
+    try:
+        async with broadcast.subscribe(channel="rabbit") as subscriber:
+            async for event in subscriber:
+                yield "data: %s\n\n" % event.message
+    except:
+        return

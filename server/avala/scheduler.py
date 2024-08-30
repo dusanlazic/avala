@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from .attack_data import reload_attack_data
 from .config import get_config
+from .mq.monitoring import fetch_and_broadcast_rates
 
 config = get_config()
 
@@ -28,6 +29,14 @@ def initialize_scheduler() -> BackgroundScheduler:
         seconds=config.game.tick_duration.seconds,
         id="attack_data_reloader",
         next_run_time=get_next_tick_start(),
+    )
+
+    scheduler.add_job(
+        func=fetch_and_broadcast_rates,
+        trigger="interval",
+        seconds=1,
+        id="rabbitmq_rates_emitter",
+        next_run_time=(datetime.now() + timedelta(seconds=1)).replace(microsecond=0),
     )
 
     print_current_tick(now)

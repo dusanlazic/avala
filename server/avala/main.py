@@ -1,11 +1,13 @@
 import shutil
 import uvicorn
+import asyncio
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .mq.rabbit_async import rabbit, RabbitQueue
+from .mq.monitoring import aggregate_flags
 from .broadcast import emitter
 from .broadcast import broadcast
 from .shared.logs import logger
@@ -44,6 +46,8 @@ async def lifespan(app: FastAPI):
 
     scheduler = initialize_scheduler()
     scheduler.start()
+
+    asyncio.create_task(aggregate_flags())
 
     yield
 

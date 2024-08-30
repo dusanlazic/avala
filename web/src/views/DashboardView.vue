@@ -67,6 +67,32 @@ function updateDashboardStats(chunk) {
 
 }
 
+function updateRabbitStats(chunk) {
+  const data = JSON.parse(chunk)
+  
+  retrievalRate.value = data.retrieved_per_second;
+  
+  retrievalHistory.value.push({
+    sample: data.retrieved_per_second,
+    timestamp: data.timestamp
+  });
+  
+  if (retrievalHistory.value.length > 60) {
+    retrievalHistory.value.shift();
+  }
+  
+  submissionRate.value = data.submitted_per_second;
+  
+  submissionHistory.value.push({
+    sample: data.submitted_per_second,
+    timestamp: data.timestamp
+  });
+  
+  if (submissionHistory.value.length > 60) {
+    submissionHistory.value.shift();
+  }
+}
+
 function consumeFlagEventStream() {
   const streamUrl = `${import.meta.env.VITE_API_URL}/stats/stream/flags`
 
@@ -74,6 +100,21 @@ function consumeFlagEventStream() {
 
   eventSource.onmessage = (event) => {
     updateDashboardStats(event.data)
+  }
+
+  eventSource.onerror = (error) => {
+    console.error('Error processing the event stream:', error)
+    eventSource.close()
+  }
+}
+
+function consumeRabbitEventStream() {
+  const streamUrl = `${import.meta.env.VITE_API_URL}/stats/stream/rabbit`
+
+  const eventSource = new EventSource(streamUrl, { withCredentials: true })
+
+  eventSource.onmessage = (event) => {
+    updateRabbitStats(event.data)
   }
 
   eventSource.onerror = (error) => {
@@ -111,6 +152,7 @@ watch(tickNumber, () => {
 
 onMounted(() => {
   consumeFlagEventStream()
+  consumeRabbitEventStream()
 })
 
 onUnmounted(() => {
