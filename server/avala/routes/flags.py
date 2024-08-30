@@ -9,6 +9,7 @@ from ..models import Flag
 from ..schemas import (
     FlagEnqueueRequest,
     FlagEnqueueResponse,
+    FlagCounterDelta,
     SearchResults,
     SearchResult,
     SearchMetadata,
@@ -17,6 +18,7 @@ from ..schemas import (
 )
 from ..database import get_db
 from ..mq.rabbit_async import rabbit
+from ..broadcast import emitter
 from ..scheduler import get_tick_number
 from ..config import AvalaConfig
 from ..search import parse_query, build_query
@@ -59,16 +61,17 @@ def enqueue(
             ttl=str(config.game.flag_ttl * 1000),
         )
 
-    # await broadcast.publish(
-    #     channel="incoming_flags",
-    #     message={
-    #         "target": flags.target,
-    #         "exploit": flags.exploit,
-    #         "player": username,
-    #         "duplicates": len(dup_flag_values),
-    #         "enqueued": len(new_flag_values),
-    #     },
-    # )
+    emitter.emit(
+        "flags",
+        FlagCounterDelta(
+            target=flags.target,
+            exploit=flags.exploit,
+            queued=len(new_flag_values),
+            discarded=len(dup_flag_values),
+            accepted=0,
+            rejected=0,
+        ).model_dump_json(),
+    )
 
     logger.info(
         "{status} <b>{total_flags}</> flags from <b>{target}</> via <b>{exploit}</> by <b>{user}</> (<green>{new_flags}</> new, <yellow>{dup_flags}</> duplicates).",

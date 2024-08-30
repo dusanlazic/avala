@@ -4,16 +4,18 @@ import requests
 from typing import Annotated
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from requests.auth import HTTPBasicAuth
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from ..auth import CurrentUser
+from ..broadcast import broadcast
 from ..config import AvalaConfig
 from ..database import get_db
 from ..models import Flag
 from ..schemas import (
     DatabaseViewStats,
+    DashboardViewStats,
     TickStats,
     ExploitAcceptedFlagsForTick,
     ExploitAcceptedFlagsHistory,
@@ -90,6 +92,25 @@ transform_rabbitmq_stats = lambda items: list(
         items[:-1],
     )
 )
+
+
+@router.get("/dashboard", response_model=DashboardViewStats)
+def dashboard_view_stats(
+    db: Annotated[Session, Depends(get_db)],
+    config: AvalaConfig,
+    username: CurrentUser,
+) -> DashboardViewStats:
+    expiration_time = datetime.now() - timedelta(seconds=config.game.flag_ttl)
+
+    accepted = db.query(Flag).filter(Flag.status == "accepted").count()
+    rejected = db.query(Flag).filter(Flag.status == "rejected").count()
+
+    queued = (
+        db.query(Flag)
+        .filter(Flag.status == "queued", Flag.timestamp >= expiration_time)
+        .count()
+    )
+    return DashboardViewStats(accepted=accepted, rejected=rejected, queued=queued)
 
 
 @router.get("/database", response_model=DatabaseViewStats)
@@ -170,25 +191,22 @@ def exploits(
             if item.tick == result.tick:
                 item.accepted = result.accepted_count
 
-    return exploits_history.values()
+    return [history.dict() for history in exploits_history.values()]
 
 
-@router.get("/subscribe")
-def stats(
-    db: Annotated[Session, Depends(get_db)],
-    username: CurrentUser,
-):
-    return StreamingResponse(collect_stats(db), media_type="application/x-ndjson")
+@router.get("/stream/flags")
+async def stream_flags(username: CurrentUser):
+    return StreamingResponse(
+        flags_event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
 
 
-# async def broadcast_incoming_flags():
-#     async with broadcast.subscribe(channel="incoming_flags") as subscription:
-#         async for event in subscription:
-#             yield json.dumps(event.message) + "\n"
-
-
-# @router.get("/flags/subscribe")
-# async def incoming_flags():
-#     return StreamingResponse(
-#         broadcast_incoming_flags(), media_type="application/x-ndjson"
-#     )
+async def flags_event_stream():
+    async with broadcast.subscribe(channel="flags") as subscriber:
+        async for event in subscriber:
+            yield "data: %s\n\n" % event.message

@@ -22,12 +22,11 @@ const cellBackgroundColor = (value) =>
 
 async function fetchTickStats() {
   try {
-    const response = await axios.get(`${import.meta.env.VITE_API_URL}/flags/tick-stats`, {
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/stats/timeline`, {
       withCredentials: true
     })
 
     pastTicks.value = response.data.map((item) => item.accepted)
-    getCurrentInstance().proxy.$forceUpdate()
   } catch (error) {
     console.error('Error fetching exploit stats:', error)
   }
@@ -38,13 +37,6 @@ const columnRows = 8
 const finetune = 3
 
 watch(tickNumber, () => {
-  fetchTickStats()
-  setTimeout(() => {
-    fetchTickStats()
-  }, 5000)
-})
-
-onMounted(() => {
   fetchTickStats()
 })
 </script>

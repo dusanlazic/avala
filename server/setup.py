@@ -20,6 +20,8 @@ setup(
         "pika",
         "aio_pika",
         "click",
+        "broadcaster",
+        "asyncpg",
     ],
     packages=find_packages(),
     include_package_data=True,

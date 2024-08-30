@@ -150,7 +150,7 @@ class APIClient:
         :rtype: UnscopedAttackData
         """
         try:
-            response = requests.get(f"{self.conn_str}/attack_data/subscribe")
+            response = requests.get(f"{self.conn_str}/attack-data/subscribe")
             response.raise_for_status()
 
             if response.status_code == 200:
@@ -169,7 +169,7 @@ class APIClient:
         :rtype: UnscopedAttackData
         """
         try:
-            response = requests.get(f"{self.conn_str}/attack_data/current")
+            response = requests.get(f"{self.conn_str}/attack-data/current")
             response.raise_for_status()
 
             if response.status_code == 200:

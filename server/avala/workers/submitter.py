@@ -5,9 +5,10 @@ from datetime import datetime, timedelta
 from collections import Counter
 from importlib import import_module, reload
 from ..shared.logs import logger
-from ..schemas import FlagSubmissionResponse
+from ..schemas import FlagSubmissionResponse, FlagCounterDelta
 from ..config import get_config
 from ..mq.rabbit import RabbitQueue, RabbitConnection
+from ..broadcast import emitter
 from ..scheduler import (
     get_tick_elapsed,
     get_next_tick_start,
@@ -18,6 +19,7 @@ config = get_config()
 
 
 def main():
+    emitter.connect()
     worker = Submitter()
     worker.start()
 
@@ -235,14 +237,14 @@ class Submitter:
         response_statuses: list[str] = []
         dropped_flags: set[str] = set(submission_buffer)
 
-        for response in self.submit(submission_buffer):
-            fr = FlagSubmissionResponse(*response)
-            if fr.status != "requeued":
-                connection.ack(delivery_tag_map[fr.flag])
-                persisting_queue.put(fr.model_dump_json())
-                dropped_flags.discard(fr.flag)
+        for response_tuple in self.submit(submission_buffer):
+            response = FlagSubmissionResponse.from_tuple(response_tuple)
+            if response.status != "requeued":
+                connection.ack(delivery_tag_map[response.value])
+                persisting_queue.put(response.model_dump_json())
+                dropped_flags.discard(response.value)
 
-            response_statuses.append(fr.status)
+            response_statuses.append(response.status)
 
         for flag in dropped_flags:
             connection.reject(delivery_tag_map[flag], requeue=True)
@@ -253,6 +255,16 @@ class Submitter:
             accepted=stats["accepted"],
             rejected=stats["rejected"],
             requeued=stats["requeued"],
+        )
+
+        emitter.emit(
+            "flags",
+            FlagCounterDelta(
+                queued=(stats["accepted"] + stats["rejected"]) * -1,
+                discarded=0,
+                accepted=stats["accepted"],
+                rejected=stats["rejected"],
+            ).model_dump_json(exclude_unset=True),
         )
 
     def _submit_flag_or_exit(self, flag: str):
@@ -277,26 +289,36 @@ class Submitter:
         flag = body.decode().strip()
         logger.debug("Received flag <b>{flag}</>", flag=flag)
 
-        response = self._submit_flag_or_exit(flag)
-        if not response:
+        response_tuple = self._submit_flag_or_exit(flag)
+        if not response_tuple:
             logger.debug("<blue>Requeued</blue> {flag}", flag=flag)
             ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
             return
 
-        fr = FlagSubmissionResponse(*response)
-        if fr.status != "requeued":
+        response = FlagSubmissionResponse.from_tuple(response_tuple)
+        if response.status != "requeued":
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            self.persisting_queue.put(fr.model_dump_json())
+            self.persisting_queue.put(response.model_dump_json())
             logger.debug(
                 (
                     "<green>Accepted</green> {response}"
-                    if fr.status == "accepted"
+                    if response.status == "accepted"
                     else "<red>Rejected</red> {response}"
                 ),
-                response=fr.response,
+                response=response.response,
+            )
+
+            emitter.emit(
+                "flags",
+                FlagCounterDelta(
+                    queued=-1,
+                    discarded=0,
+                    accepted=1 if response.status == "accepted" else 0,
+                    rejected=1 if response.status == "rejected" else 0,
+                ).model_dump_json(exclude_unset=True),
             )
         else:
-            logger.debug("<blue>Requeued</blue> {response}", response=fr.response)
+            logger.debug("<blue>Requeued</blue> {response}", response=response.response)
             ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
 
     def _import_user_function(self, function_name: str):

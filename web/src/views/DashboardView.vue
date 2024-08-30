@@ -13,87 +13,79 @@ const retrievalRate = ref(0)
 const retrievalHistory = ref([])
 const submissionRate = ref(0)
 const submissionHistory = ref([])
+
 const queuedCount = ref(0)
 const duplicatesCount = ref(0)
 const acceptedCount = ref(0)
 const rejectedCount = ref(0)
-const acceptedChange = ref(0)
-const rejectedChange = ref(0)
 
 const exploitsStats = ref([])
 
 const aborter = new AbortController()
 
-function refreshDashboardValues(chunk) {
-  const data = JSON.parse(chunk)
-  submissionRate.value = data.submission.rate
-  submissionHistory.value = data.submission.history
-  retrievalRate.value = data.retrieval.rate
-  retrievalHistory.value = data.retrieval.history
-
-  acceptedChange.value += data.accepted - acceptedCount.value
-  rejectedChange.value += data.rejected - rejectedCount.value
-
-  queuedCount.value = data.queued
-  acceptedCount.value = data.accepted
-  rejectedCount.value = data.rejected
+function resetDashboardStats() {
+  queuedCount.value = 0
+  duplicatesCount.value = 0
+  acceptedCount.value = 0
+  rejectedCount.value = 0
 }
 
-function handleArrivingFlags(chunk) {
-  const data = JSON.parse(chunk)
-  duplicatesCount.value += data.duplicates
-
-  let targetExploit = exploitsStats.value.find((exploit) => exploit.name === data.exploit)
-
-  if (targetExploit) {
-    if (!targetExploit.currentTick.targets) {
-      targetExploit.currentTick.targets = new Set()
-    }
-
-    targetExploit.currentTick.retrieved += data.enqueued
-    targetExploit.currentTick.duplicates += data.duplicates
-    targetExploit.currentTick.targets.add(data.target)
+async function fetchLatestDashboardStats() {
+  try {
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/stats/dashboard`, {
+      withCredentials: true
+    })
+    const data = response.data
+    acceptedCount.value += data.accepted
+    rejectedCount.value += data.rejected
+    queuedCount.value += data.queued
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error)
   }
 }
 
-async function consumeLiveStats() {
-  const streamUrl = `${import.meta.env.VITE_API_URL}/stats/subscribe`
-  try {
-    const response = await fetch(streamUrl, { signal: aborter.signal })
+function updateDashboardStats(chunk) {
+  const data = JSON.parse(chunk)
+  
+  queuedCount.value += data.queued
+  duplicatesCount.value += data.discarded
+  acceptedCount.value += data.accepted
+  rejectedCount.value += data.rejected
 
-    if (!response.body) {
-      console.error('Failed to get readable stream')
-      return
+  if (data.exploit) {
+    const targetExploit = exploitsStats.value.find((exploit) => exploit.name === data.exploit)
+    if (targetExploit) {
+      if (!targetExploit.currentTick.targets) {
+        targetExploit.currentTick.targets = new Set()
+      }
+
+      targetExploit.currentTick.retrieved += data.queued
+      targetExploit.currentTick.duplicates += data.discarded
+      targetExploit.currentTick.targets.add(data.target)
     }
+  }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let result = ''
+}
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+function consumeFlagEventStream() {
+  const streamUrl = `${import.meta.env.VITE_API_URL}/stats/stream/flags`
 
-      result += decoder.decode(value, { stream: true })
-      const lines = result.split('\n')
-      result = lines.pop()
+  const eventSource = new EventSource(streamUrl, { withCredentials: true })
 
-      lines.forEach((line) => {
-        if (line) refreshDashboardValues(line)
-      })
-    }
-  } catch (error) {
-    if (error.name === 'AbortError') {
-    } else {
-      console.error('Error processing the stream:', error)
-    }
+  eventSource.onmessage = (event) => {
+    updateDashboardStats(event.data)
+  }
+
+  eventSource.onerror = (error) => {
+    console.error('Error processing the event stream:', error)
+    eventSource.close()
   }
 }
 
 async function fetchExploitStats() {
   try {
     const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/stats/exploits/tick-summary`,
+      `${import.meta.env.VITE_API_URL}/stats/exploits`,
       {
         withCredentials: true
       }
@@ -111,53 +103,14 @@ async function fetchExploitStats() {
   }
 }
 
-async function consumeArrivingFlags() {
-  const streamUrl = `${import.meta.env.VITE_API_URL}/stats/flags/subscribe`
-  try {
-    const response = await fetch(streamUrl, { signal: aborter.signal })
-
-    if (!response.body) {
-      console.error('Failed to get readable stream')
-      return
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let result = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      result += decoder.decode(value, { stream: true })
-      const lines = result.split('\n')
-      result = lines.pop()
-
-      lines.forEach((line) => {
-        if (line) handleArrivingFlags(line)
-      })
-    }
-  } catch (error) {
-    if (error.name === 'AbortError') {
-    } else {
-      console.error('Error processing the stream:', error)
-    }
-  }
-}
-
 watch(tickNumber, () => {
-  acceptedChange.value = 0
-  rejectedChange.value = 0
-  duplicatesCount.value = 0
+  resetDashboardStats()
+  fetchLatestDashboardStats()
   fetchExploitStats()
 })
 
 onMounted(() => {
-  consumeLiveStats()
-  consumeArrivingFlags()
-  acceptedChange.value = 0
-  rejectedChange.value = 0
-  fetchExploitStats()
+  consumeFlagEventStream()
 })
 
 onUnmounted(() => {
@@ -178,13 +131,11 @@ onUnmounted(() => {
         icon="ri:check-double-fill"
         title="Accepted"
         :number="acceptedCount"
-        :change="acceptedChange"
       />
       <ValueCard
         icon="ri:close-fill"
         title="Rejected"
         :number="rejectedCount"
-        :change="rejectedChange"
       />
     </div>
 
@@ -202,8 +153,8 @@ onUnmounted(() => {
         title="Submission speed"
         :number="submissionRate"
         :unit="'flags/s'"
-        :data="retrievalHistory.map((obj) => obj.sample) || [0, 0]"
-        :labels="retrievalHistory.map((obj) => obj.timestamp) || [0, 0]"
+        :data="submissionHistory.map((obj) => obj.sample) || [0, 0]"
+        :labels="submissionHistory.map((obj) => obj.timestamp) || [0, 0]"
       />
     </div>
 

@@ -119,6 +119,9 @@ class DatabaseConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    def dsn(self) -> str:
+        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+
 
 class RabbitMQConfig(BaseModel):
     user: str
@@ -128,6 +131,9 @@ class RabbitMQConfig(BaseModel):
     management_port: int = Field(15672, ge=1, le=65535)
 
     model_config = ConfigDict(extra="forbid")
+
+    def dsn(self) -> str:
+        return f"amqp://{self.user}:{self.password}@{self.host}:{self.port}/"
 
 
 class Config(BaseModel):

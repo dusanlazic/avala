@@ -18,14 +18,6 @@ def main():
         worker.start()
 
 
-def batched(iterable, n):
-    if n < 1:
-        raise ValueError("n must be at least one")
-    iterator = iter(iterable)
-    while batch := tuple(islice(iterator, n)):
-        yield batch
-
-
 class Persister:
     def __init__(self, db: Session) -> None:
         self.scheduler: BlockingScheduler | None = None

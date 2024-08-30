@@ -16,6 +16,10 @@ class FlagSubmissionResponse(BaseModel):
             )
         return v
 
+    @classmethod
+    def from_tuple(cls, data: tuple[str, str, str]) -> "FlagSubmissionResponse":
+        return cls(value=data[0], status=data[1], response=data[2])
+
 
 class FlagEnqueueRequest(BaseModel):
     values: list[str]
@@ -71,6 +75,12 @@ class DatabaseViewStats(BaseModel):
     total: int
 
 
+class DashboardViewStats(BaseModel):
+    accepted: int
+    rejected: int
+    queued: int
+
+
 class TickStats(BaseModel):
     tick: int
     accepted: int
@@ -84,3 +94,12 @@ class ExploitAcceptedFlagsForTick(BaseModel):
 class ExploitAcceptedFlagsHistory(BaseModel):
     name: str
     history: list[ExploitAcceptedFlagsForTick]
+
+
+class FlagCounterDelta(BaseModel):
+    target: str | None = None
+    exploit: str | None = None
+    queued: int
+    discarded: int
+    accepted: int
+    rejected: int

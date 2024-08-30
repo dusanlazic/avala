@@ -9,6 +9,7 @@ const flagsInput = ref('')
 const matchedFlags = ref([])
 
 const submitting = ref(false)
+const errorMessage = ref('')
 
 const updateMatches = () => {
   matchedFlags.value = flagsInput.value.match(flagFormat.value) || []

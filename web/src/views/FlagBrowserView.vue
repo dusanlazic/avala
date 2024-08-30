@@ -35,7 +35,7 @@ const searchBar = ref(null)
 
 async function fetchDatabaseStats() {
   try {
-    const response = await axios.get(`${import.meta.env.VITE_API_URL}/flags/db-stats`, {
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/stats/database`, {
       withCredentials: true
     })
     const data = response.data
@@ -44,7 +44,7 @@ async function fetchDatabaseStats() {
     flagsManuallyAdded.value = data.manual
     flagsTotal.value = data.total
   } catch (error) {
-    console.error('Error fetching exploit stats:', error)
+    console.error('Error fetching flag stats:', error)
   }
 }
 
@@ -87,31 +87,15 @@ const prevPage = () => {
   performSearch()
 }
 
-const predefinedQuery = (dial) => {
+const jumpAndSearch = (query) => {
   searchBar.value.focus()
-  switch (dial) {
-    case 1:
-      searchQuery.value = `tick is ${tickNumber.value}`
-      break
-    case 2:
-      searchQuery.value = `tick is ${tickNumber.value - 1}`
-      break
-    case 3:
-      searchQuery.value = 'target is unknown and exploit is manual'
-      break
-    default:
-      searchQuery.value = ''
-  }
+  searchQuery.value = query
   fetchDatabaseStats()
   pageNumber.value = 1
   performSearch()
 }
 
 watch(tickNumber, () => {
-  fetchDatabaseStats()
-})
-
-onMounted(() => {
   fetchDatabaseStats()
 })
 </script>
@@ -128,25 +112,25 @@ onMounted(() => {
           icon="ri:timer-line"
           title="Current tick"
           :number="flagsInCurrentTick"
-          @click="predefinedQuery(1)"
+          @click="jumpAndSearch(`tick is ${tickNumber}`)"
         />
         <ValueCard
           icon="ri:history-fill"
           title="Last tick"
           :number="flagsInLastTick"
-          @click="predefinedQuery(2)"
+          @click="jumpAndSearch(`tick is ${tickNumber - 1}`)"
         />
         <ValueCard
           icon="ri:cursor-line"
           title="Manually submitted"
           :number="flagsManuallyAdded"
-          @click="predefinedQuery(3)"
+          @click="jumpAndSearch('target is unknown and exploit is manual')"
         />
         <ValueCard
           icon="ri:database-2-fill"
           title="Total flags"
           :number="flagsTotal"
-          @click="predefinedQuery(4)"
+          @click="jumpAndSearch('')"
         />
       </div>
       <input
