@@ -192,4 +192,8 @@ def get_config() -> Config:
     return config
 
 
-AvalaConfig = Annotated[Config, Depends(get_config)]
+async def get_config_async() -> Config:
+    return get_config()
+
+
+AvalaConfig = Annotated[Config, Depends(get_config_async)]

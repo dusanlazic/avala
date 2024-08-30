@@ -14,7 +14,7 @@ def debug(message: str, alias: str = None, target: str = None):
     :type target: str, optional
     """
     if not alias or not target:
-        logger.debug("{msg}", message=message)
+        logger.debug("{message}", message=message)
     else:
         logger.debug(
             "🔎 <b>{alias}</>-><b>{target}</>: {message}",

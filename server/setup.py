@@ -22,6 +22,8 @@ setup(
         "click",
         "broadcaster",
         "asyncpg",
+        "uvloop",
+        "httptools",
     ],
     packages=find_packages(),
     include_package_data=True,

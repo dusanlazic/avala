@@ -1,11 +1,7 @@
-import json
-import time
-import requests
 from typing import Annotated
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
-from requests.auth import HTTPBasicAuth
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from ..auth import CurrentUser
