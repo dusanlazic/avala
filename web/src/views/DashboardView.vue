@@ -38,7 +38,7 @@ async function fetchLatestDashboardStats() {
     const data = response.data
     acceptedCount.value += data.accepted
     rejectedCount.value += data.rejected
-    queuedCount.value += data.queued
+    queuedCount.value = Math.max(queuedCount.value + data.queued, 0)
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
   }
@@ -46,8 +46,8 @@ async function fetchLatestDashboardStats() {
 
 function updateDashboardStats(chunk) {
   const data = JSON.parse(chunk)
-  
-  queuedCount.value += data.queued
+
+  queuedCount.value = Math.max(queuedCount.value + data.queued, 0)
   duplicatesCount.value += data.discarded
   acceptedCount.value += data.accepted
   rejectedCount.value += data.rejected
@@ -64,32 +64,31 @@ function updateDashboardStats(chunk) {
       targetExploit.currentTick.targets.add(data.target)
     }
   }
-
 }
 
 function updateRabbitStats(chunk) {
   const data = JSON.parse(chunk)
-  
-  retrievalRate.value = data.retrieved_per_second;
-  
+
+  retrievalRate.value = data.retrieved_per_second
+
   retrievalHistory.value.push({
     sample: data.retrieved_per_second,
     timestamp: data.timestamp
-  });
-  
+  })
+
   if (retrievalHistory.value.length > 60) {
-    retrievalHistory.value.shift();
+    retrievalHistory.value.shift()
   }
-  
-  submissionRate.value = data.submitted_per_second;
-  
+
+  submissionRate.value = data.submitted_per_second
+
   submissionHistory.value.push({
     sample: data.submitted_per_second,
     timestamp: data.timestamp
-  });
-  
+  })
+
   if (submissionHistory.value.length > 60) {
-    submissionHistory.value.shift();
+    submissionHistory.value.shift()
   }
 }
 
@@ -125,12 +124,9 @@ function consumeRabbitEventStream() {
 
 async function fetchExploitStats() {
   try {
-    const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/stats/exploits`,
-      {
-        withCredentials: true
-      }
-    )
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/stats/exploits`, {
+      withCredentials: true
+    })
     exploitsStats.value = response.data.map((exploit) => ({
       ...exploit,
       currentTick: {
@@ -169,16 +165,8 @@ onUnmounted(() => {
     <div class="grid-container column-300">
       <ValueCard icon="ri:hourglass-2-fill" title="Queued" :number="queuedCount" />
       <ValueCard icon="ri:reset-left-fill" title="Duplicates" :number="duplicatesCount" />
-      <ValueCard
-        icon="ri:check-double-fill"
-        title="Accepted"
-        :number="acceptedCount"
-      />
-      <ValueCard
-        icon="ri:close-fill"
-        title="Rejected"
-        :number="rejectedCount"
-      />
+      <ValueCard icon="ri:check-double-fill" title="Accepted" :number="acceptedCount" />
+      <ValueCard icon="ri:close-fill" title="Rejected" :number="rejectedCount" />
     </div>
 
     <div class="grid-container column-500">

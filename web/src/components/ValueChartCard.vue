@@ -68,8 +68,8 @@ const props = defineProps({
 
 .card-chart {
   position: relative;
-  height: 76px;
-  width: 60%;
+  height: 80px;
+  width: 63%;
 }
 
 .title {
