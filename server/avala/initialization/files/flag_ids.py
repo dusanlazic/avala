@@ -2,14 +2,14 @@ import requests
 from typing import Any
 
 
-def fetch_json() -> dict:
+def fetch_json() -> dict | list:
     """
     Fetches raw flag IDs from the game server and returns them as a dictionary.
     Exceptions and retries are handled internally by Avala. It's advisable to
     set a timeout for requests to prevent the server from hanging indefinitely.
 
     :return: Raw flag IDs fetched from the game server.
-    :rtype: dict
+    :rtype: dict | list
     """
     response = requests.get("https://ad.fbi.com/teams.json", timeout=5)
     return response.json()

@@ -28,11 +28,11 @@ def submit(flag: str) -> tuple[str, str, str]:
 
     This function sends a single flag to the flag checking service, receives
     the response and returns a tuple containing the flag, status (should be
-    "accepted" or "rejected") and the full response message.
+    "accepted", "rejected" or "requeued") and the full response message.
 
     :param flag: A flag to submit.
     :type flag: str
-    :return: A tuple containing the flag, status ("accepted" or "rejected) and
+    :return: A tuple containing the flag, status ("accepted", "rejected", "requeued") and
     the full response message
     :rtype: tuple[str, str, str]
     """

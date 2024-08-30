@@ -6,6 +6,7 @@ done
 
 # Build frontend
 cd web/
+rm -rf node_modules || true
 npm install
 npm run build -- --outDir "../server/avala/static/dist"
 cd ..

@@ -5,6 +5,7 @@ from pathlib import Path
 from pydantic import (
     BaseModel,
     Field,
+    NonNegativeInt,
     PositiveInt,
     PositiveFloat,
     field_validator,
@@ -20,9 +21,9 @@ DOT_DIR_PATH = Path(".avala")
 
 
 class TimeDeltaConfig(BaseModel):
-    hours: PositiveInt | None = None
-    minutes: PositiveInt | None = None
-    seconds: PositiveInt | None = None
+    hours: NonNegativeInt = 0
+    minutes: NonNegativeInt = 0
+    seconds: NonNegativeInt = 0
 
     @model_validator(mode="before")
     def ensure_at_least_one(cls, v):

@@ -81,7 +81,10 @@ def test_attack_data_functions_import():
 @test("Fetch attack data.", dependencies=[test_attack_data_functions_import])
 def test_attack_data_fetch_json():
     fetch_json, _ = import_attack_data_functions()
-    assert isinstance(fetch_json(), dict), "Fetch function must return a dictionary."
+    json_or_list = fetch_json()
+    assert isinstance(
+        json_or_list, (dict, list)
+    ), "Fetch function must return a dictionary or a list."
 
 
 @test("Process attack data.", dependencies=[test_attack_data_fetch_json])

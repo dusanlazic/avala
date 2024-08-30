@@ -48,7 +48,7 @@ def submitter():
 
 @cli.command()
 def init():
-    from .main import initialize_workspace
+    from .initialization import initialize_workspace
 
     initialize_workspace()
 
