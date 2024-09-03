@@ -60,7 +60,7 @@ class GameConfig(BaseModel):
 
 
 class SubmitterConfig(BaseModel):
-    module: str = "subimtter"
+    module: str = "submitter"
     interval: PositiveInt | None = None
     per_tick: PositiveInt | None = None
     batch_size: PositiveInt | None = None

@@ -269,6 +269,7 @@ class ExploitConfig:
         self,
         service: str,
         meta: ExploitFuncMeta,
+        draft: bool = False,
         alias: str | None = None,
         targets: list[str] | TargetingStrategy = TargetingStrategy.AUTO,
         tick_scope: TickScope = TickScope.SINGLE,
@@ -281,9 +282,9 @@ class ExploitConfig:
         batching: Batching | None = None,
         workers: int = 128,
         timeout: int = 15,
-        is_draft: bool = False,
     ):
         self.service: str = service
+        self.is_draft: bool = draft
         self.meta: ExploitFuncMeta = meta
         self.alias: str = alias or meta.module + "." + meta.name
         self.targets: list[str] | None = targets
@@ -293,8 +294,9 @@ class ExploitConfig:
         self.cleanup: str | None = cleanup
         self.command: str | None = command
         self.env: dict[str, str] | None = env
-        self.delay: timedelta = timedelta(seconds=delay or 0)
-        self.batching: Batching | None = batching
+        self.delay: timedelta = (
+            timedelta(seconds=delay or 0) if not draft else timedelta(seconds=0)
+        )
+        self.batching: Batching | None = batching if not draft else None
         self.workers: int = workers
         self.timeout: int = timeout
-        self.is_draft: bool = is_draft

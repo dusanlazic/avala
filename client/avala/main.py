@@ -101,7 +101,7 @@ class Avala:
 
     def workshop(self):
         """
-        Runs draft exploits ("development" mode). This method runs exploit functions decorated with `@draft` in the registered directories, helping with the exploit development.
+        Runs draft exploits ("development" mode). This method runs exploit functions with `draft = True` in the registered directories, helping with the exploit development.
         This function can be called in a separate process while the client is already running in production mode. Call this method after initializing the client and registering exploit directories.
         """
         self._setup_db()
@@ -226,6 +226,20 @@ class Avala:
         # Ready and available attack data indicates development mode.
         should_be_draft = isinstance(attack_data, UnscopedAttackData)
 
+        def patch_pwntools(file_path: str) -> str:
+            """
+            Comments out `from pwn import *` to prevent "signal only works in main thread of the main interpreter" error.
+
+            :param code: Path to the Python file containing the exploit code.
+            :type code: str
+            :return: Exploit code without `from pwn import *`
+            :rtype: str
+            """
+            with open(python_file, "r") as file:
+                return file.read().replace(
+                    "from pwn import *\n", "# from pwn import *\n"
+                )
+
         exploits: list[Exploit] = []
         for directory in self.exploit_directories:
             for python_file in directory.glob("*.py"):
@@ -235,7 +249,11 @@ class Avala:
                         python_module_name, python_file.absolute()
                     )
                     module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
+                    patched_code = patch_pwntools(python_file)
+                    compiled_code = compile(
+                        patched_code, python_file.absolute(), "exec"
+                    )
+                    exec(compiled_code, module.__dict__)
                     for _, func in module.__dict__.items():
                         if (
                             callable(func)

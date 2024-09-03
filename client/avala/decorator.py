@@ -11,6 +11,7 @@ from .models import (
 
 def exploit(
     service: str,
+    draft: bool = False,
     alias: str | None = None,
     targets: list[str] | TargetingStrategy = TargetingStrategy.AUTO,
     tick_scope: TickScope = TickScope.SINGLE,
@@ -24,60 +25,13 @@ def exploit(
     timeout: int = 15,
     workers: int = 128,
 ):
-    def decorator_exploit(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-
-        wrapper.exploit_config = ExploitConfig(
-            service=service,
-            alias=alias,
-            targets=targets,
-            tick_scope=tick_scope,
-            skip=skip,
-            prepare=prepare,
-            cleanup=cleanup,
-            command=command,
-            env=env,
-            delay=delay,
-            batching=batching,
-            timeout=timeout,
-            workers=workers,
-            meta=ExploitFuncMeta(
-                name=func.__name__,
-                module=func.__module__,
-                directory=os.path.dirname(func.__code__.co_filename),
-                arg_count=func.__code__.co_argcount,
-            ),
-        )
-
-        return wrapper
-
-    return decorator_exploit
-
-
-def draft(
-    service: str,
-    targets: list[str] | TargetingStrategy,
-    alias: str | None = None,
-    tick_scope: TickScope = TickScope.SINGLE,
-    skip: list[str] | None = None,
-    prepare: str | None = None,
-    cleanup: str | None = None,
-    command: str | None = None,
-    env: dict[str, str] = {},
-    delay: int = 0,
-    batching: Batching | None = None,
-    timeout: int = 15,
-    workers: int = 128,
-):
     """
-    A decorator to mark an exploit function as a draft.
-
-    Use this decorator while developing an exploit. Draft exploits are executed by invoking the `workshop()` method of the `Avala` class.
+    A decorator to mark a function as an exploit.
 
     :param service: Name of the service attacked by the exploit. To see all services, visit `http(s)://AVALA_HOST:PORT/attack_data/current`.
     :type service: str
+    :param draft: Whether the exploit is a draft or not. Draft exploits are not executed when running client by calling `run()` method, but are executed by calling `workshop()`. Enabling this options ignores `delay` and `batching` options. Defaults to False.
+    :type draft: bool
     :param targets: IP addresses or hostnames of the targeted teams, or a targeting strategy (`AUTO`, `OWN_TEAM`, `NOP_TEAM`).
     Manually specify targets or use one of targeting strategies: `TargetingStrategy.AUTO` to target all currently available teams if your exploit is accepting `flag_ids` parameter; `TargetingStrategy.OWN_TEAM` to target your own team; `TargetingStrategy.NOP_TEAM` to target the NOP team.
     :type targets: list[str] | TargetingStrategy
@@ -117,6 +71,7 @@ def draft(
 
         wrapper.exploit_config = ExploitConfig(
             service=service,
+            draft=draft,
             alias=alias,
             targets=targets,
             tick_scope=tick_scope,
@@ -125,10 +80,10 @@ def draft(
             cleanup=cleanup,
             command=command,
             env=env,
-            delay=0,
-            workers=workers,
+            delay=delay,
+            batching=batching,
             timeout=timeout,
-            is_draft=True,
+            workers=workers,
             meta=ExploitFuncMeta(
                 name=func.__name__,
                 module=func.__module__,

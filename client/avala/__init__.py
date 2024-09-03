@@ -1,5 +1,5 @@
 from .main import Avala
-from .decorator import exploit, draft, TargetingStrategy, TickScope, Batching
+from .decorator import exploit, TargetingStrategy, TickScope, Batching
 
 AUTO = TargetingStrategy.AUTO
 NOP_TEAM = TargetingStrategy.NOP_TEAM
@@ -11,7 +11,6 @@ LAST_N = TickScope.LAST_N
 __all__ = [
     "Avala",
     "exploit",
-    "draft",
     "TargetingStrategy",
     "AUTO",
     "NOP_TEAM",
