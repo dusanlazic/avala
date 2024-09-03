@@ -136,6 +136,50 @@ class Avala:
 
         self._run_hook(self.after_all_hook)
 
+    def fire(self, selected_exploits: list[str]):
+        """
+        Runs selected exploits immediately, in given order. This function can be called in a separate process while the client is already running in production mode.
+        Call this method after initializing the client and registering exploit directories.
+
+        :param selected_exploits: Aliases of the exploits to run.
+        :type selected_exploits: list[str]
+        """
+        self._setup_db()
+        self._check_directories()
+
+        self.client = APIClient(self.config)
+
+        if not (DOT_DIR_PATH / "api_client.json").exists():
+            try:
+                self.client.connect()
+            except:
+                logger.error(
+                    "Failed to connect to the server and configure the client."
+                )
+                exit(1)
+            else:
+                self.client.export_settings()
+        else:
+            self.client.import_settings()
+
+        try:
+            attack_data = self.client.get_attack_data()
+        except (RuntimeError, FileNotFoundError) as e:
+            logger.error("{error} aa", error=e)
+            exit(1)
+
+        self._run_hook(self.before_all_hook)
+
+        exploits = [
+            exploit
+            for exploit in self._reload_exploits(attack_data, load_all=True)
+            if exploit.alias in selected_exploits
+        ]
+        for exploit in exploits:
+            exploit.setup() and exploit.run()
+
+        self._run_hook(self.after_all_hook)
+
     def register_directory(self, dir_path: str):
         """
         Register a directory containing exploits. The directory path could be either absolute, or relative to your **current working directory when running the client**.
@@ -214,12 +258,15 @@ class Avala:
     def _reload_exploits(
         self,
         attack_data: UnscopedAttackData | Future[UnscopedAttackData],
+        load_all: bool = False,
     ) -> list[Exploit]:
         """
         Reloads exploits, collects their configuration and constructs a list of runnable `Exploit` objects.
 
         :param attack_data: Either an instance of `UnscopedAttackData` for development mode, or a future object that will return `UnscopedAttackData` for production mode.
         :type attack_data: UnscopedAttackData | Future[UnscopedAttackData]
+        :param load_all: Whether to load all exploits, regardless of their draft status. Defaults to False.
+        :type load_all: bool, optional
         :return: List of `Exploit` objects that can be setup and scheduled.
         :rtype: list[Exploit]
         """
@@ -258,7 +305,10 @@ class Avala:
                         if (
                             callable(func)
                             and hasattr(func, "exploit_config")  # Has decorator
-                            and func.exploit_config.is_draft == should_be_draft
+                            and (
+                                load_all
+                                or func.exploit_config.is_draft == should_be_draft
+                            )
                         ):
                             e = Exploit(func.exploit_config, self.client, attack_data)
                             exploits.append(e)
