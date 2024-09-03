@@ -18,7 +18,7 @@ game:
   # Regular expression pattern for matching flags.
   # Note: If given in rulebook, remove ^ and $ from the pattern to match flags 
   # anywhere in your output.
-  flag_format: FLAG{[a-zA-Z0-9]+}
+  flag_format: "FLAG{[a-zA-Z0-9]+}"
 
   # IP addresses or hostnames of your team's vulnerable machines (vulnboxes).
   # There is usually just one machine per team, but some competitions may have more.

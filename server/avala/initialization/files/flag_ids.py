@@ -21,14 +21,17 @@ def process_json(raw: dict) -> dict[str, dict[str, list[Any]]]:
     Flag IDs must be organized by service name and team IP address, and be stored
     in a list where each item corresponds to the flag IDs of a single tick.
 
-    Example structure of the returned dictionary:
+    Example of the returned dictionary:
     {
-        "service_name": {
-            "team_ip_address": [
-                "flag_id1",  # Flag IDs of the most recent tick
-                "flag_id2"   # Flag IDs of the previous tick
-            ]
-        }
+        "SomeService": {
+            "10.10.24.5": [
+                "foo",   # Flag IDs of the most recent tick
+                "bar",   # Flag IDs of the previous tick
+                (...)
+            ],
+            (...)
+        },
+        (...)
     }
 
     Use type hints as a guide for the expected data structure.

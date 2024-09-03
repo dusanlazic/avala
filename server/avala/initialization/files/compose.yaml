@@ -1,6 +1,6 @@
 services:
   avala-server:
-    image: gitea.local/dusanlazic/avala:latest
+    image: avala
     container_name: avala-server
     command: avl server
     ports:
@@ -18,7 +18,7 @@ services:
       - ./:/home/avala/workspace
 
   avala-submitter:
-    image: gitea.local/dusanlazic/avala:latest
+    image: avala
     command: avl submitter
     depends_on:
       rabbitmq:
@@ -30,7 +30,7 @@ services:
       - ./:/home/avala/workspace
   
   avala-persister:
-    image: gitea.local/dusanlazic/avala:latest
+    image: avala
     container_name: avala-persister
     command: avl persister
     depends_on:
@@ -45,7 +45,7 @@ services:
       - ./:/home/avala/workspace
 
   rabbitmq:
-    image: rabbitmq:management  # Management plugin is required for real-time statistics displayed on the dashboard.
+    image: rabbitmq:management
     ports:
       - 5672:5672
       - 15672:15672
@@ -75,15 +75,15 @@ services:
       - postgres-data:/var/lib/postgresql/data
     
   # Optional: Logsea for monitoring real-time logs on the machine via web UI.
-  # logsea:
-  #   image: dusanlazic/logsea
-  #   ports:
-  #     - 8000:8000
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #   environment:
-  #     BASIC_AUTH_USERNAME: user
-  #     BASIC_AUTH_PASSWORD: pass
+  logsea:
+    image: dusanlazic/logsea
+    ports:
+      - 8000:8000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      BASIC_AUTH_USERNAME: user
+      BASIC_AUTH_PASSWORD: pass
 
 volumes:
   rabbitmq-data:
