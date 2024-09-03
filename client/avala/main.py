@@ -1,3 +1,4 @@
+import requests
 import importlib
 import importlib.util
 import concurrent.futures
@@ -39,19 +40,19 @@ class Avala:
         :param password: Password for the Avala server, defaults to None
         :type password: str | None, optional
         """
-        self.config: ConnectionConfig = ConnectionConfig(
+        self._config: ConnectionConfig = ConnectionConfig(
             protocol=protocol,
             host=host,
             port=port,
             username=username,
             password=password,
         )
-        self.client: APIClient = None
-        self.scheduler: BlockingScheduler = None
+        self._client: APIClient = None
+        self._scheduler: BlockingScheduler = None
 
-        self.exploit_directories: list[Path] = []
-        self.before_all_hook = None
-        self.after_all_hook = None
+        self._exploit_directories: list[Path] = []
+        self._before_all_hook = None
+        self._after_all_hook = None
 
     def run(self):
         """
@@ -63,29 +64,29 @@ class Avala:
         self._check_directories()
         self._initialize_client()
         self._initialize_scheduler()
-        self.client.get_attack_data()
+        self._client.get_attack_data()
 
         first_tick_start = convert_to_local_tz(
-            self.client.schedule.first_tick_start,
-            self.client.schedule.tz,
+            self._client.schedule.first_tick_start,
+            self._client.schedule.tz,
         )
 
         next_tick_start = get_next_tick_start(
             first_tick_start,
-            timedelta(seconds=self.client.schedule.tick_duration),
+            timedelta(seconds=self._client.schedule.tick_duration),
         )
 
         # Schedule job that schedules exploits every tick.
-        self.scheduler.add_job(
+        self._scheduler.add_job(
             func=self._schedule_exploits,
             trigger="interval",
-            seconds=self.client.schedule.tick_duration,
+            seconds=self._client.schedule.tick_duration,
             id="schedule_exploits",
             next_run_time=next_tick_start,
         )
 
         # Schedule job that enqueues pending (non forwarded) flags every 15 seconds.
-        self.scheduler.add_job(
+        self._scheduler.add_job(
             func=self._enqueue_pending_flags,
             trigger="interval",
             seconds=15,
@@ -93,10 +94,10 @@ class Avala:
         )
 
         try:
-            self.scheduler.start()
+            self._scheduler.start()
         except KeyboardInterrupt:
             print()  # Add a newline after the ^C
-            self.scheduler.shutdown()
+            self._scheduler.shutdown()
             logger.info("Thanks for using Avala!")
 
     def workshop(self):
@@ -107,34 +108,21 @@ class Avala:
         self._setup_db()
         self._check_directories()
 
-        self.client = APIClient(self.config)
-
-        if not (DOT_DIR_PATH / "api_client.json").exists():
-            try:
-                self.client.connect()
-            except:
-                logger.error(
-                    "Failed to connect to the server and configure the client."
-                )
-                exit(1)
-            else:
-                self.client.export_settings()
-        else:
-            self.client.import_settings()
+        self._initialize_client(connect_then_import=False)
 
         try:
-            attack_data = self.client.get_attack_data()
+            attack_data = self._client.get_attack_data()
         except (RuntimeError, FileNotFoundError) as e:
             logger.error("{error} aa", error=e)
             exit(1)
 
-        self._run_hook(self.before_all_hook)
+        self._run_hook(self._before_all_hook)
 
         exploits = self._reload_exploits(attack_data)
         for exploit in exploits:
             exploit.setup() and exploit.run()
 
-        self._run_hook(self.after_all_hook)
+        self._run_hook(self._after_all_hook)
 
     def fire(self, selected_exploits: list[str]):
         """
@@ -147,28 +135,15 @@ class Avala:
         self._setup_db()
         self._check_directories()
 
-        self.client = APIClient(self.config)
-
-        if not (DOT_DIR_PATH / "api_client.json").exists():
-            try:
-                self.client.connect()
-            except:
-                logger.error(
-                    "Failed to connect to the server and configure the client."
-                )
-                exit(1)
-            else:
-                self.client.export_settings()
-        else:
-            self.client.import_settings()
+        self._initialize_client(connect_then_import=False)
 
         try:
-            attack_data = self.client.get_attack_data()
+            attack_data = self._client.get_attack_data()
         except (RuntimeError, FileNotFoundError) as e:
             logger.error("{error} aa", error=e)
             exit(1)
 
-        self._run_hook(self.before_all_hook)
+        self._run_hook(self._before_all_hook)
 
         exploits = [
             exploit
@@ -178,7 +153,7 @@ class Avala:
         for exploit in exploits:
             exploit.setup() and exploit.run()
 
-        self._run_hook(self.after_all_hook)
+        self._run_hook(self._after_all_hook)
 
     def register_directory(self, dir_path: str):
         """
@@ -188,8 +163,8 @@ class Avala:
         :type dir_path: str
         """
         path = Path(dir_path).resolve()
-        if path not in self.exploit_directories:
-            self.exploit_directories.append(path)
+        if path not in self._exploit_directories:
+            self._exploit_directories.append(path)
 
     def before_all(self):
         """
@@ -199,7 +174,7 @@ class Avala:
         """
 
         def decorator(func):
-            self.before_all_hook = func
+            self._before_all_hook = func
             return func
 
         return decorator
@@ -212,26 +187,88 @@ class Avala:
         """
 
         def decorator(func):
-            self.after_all_hook = func
+            self._after_all_hook = func
             return func
 
         return decorator
 
-    def _initialize_client(self):
+    def get_attack_data(self) -> UnscopedAttackData:
+        """
+        Fetches the current available attack data fetched by the Avala server.
+
+        :return: Unscoped attack data covering flag IDs from all services, targets and ticks.
+        :rtype: UnscopedAttackData
+        """
+        self._initialize_client(connect_then_import=False)
+        return self._client.get_attack_data()
+
+    def get_services(self) -> list[str]:
+        """
+        Fetches the list of services available in the attack data.
+
+        :return: List of service names.
+        :rtype: list[str]
+        """
+        return self.get_attack_data().get_services()
+
+    def submit_flags(
+        self,
+        flags: list[str],
+        exploit_alias: str = "manual",
+        target: str = "unknown",
+    ):
+        """
+        Sends flags to the server for enqueuing and duplicate filtering.
+
+        :param flags: List of flags to enqueue.
+        :type flags: list[str]
+        :param exploit_alias: Alias of the exploit that retrieved the flags.
+        :type exploit_alias: str
+        :param target: IP address or hostname of the target/victim team.
+        :type target: str
+        """
+        self._initialize_client(connect_then_import=False)
+
+        enqueue_body = {
+            "values": flags,
+            "exploit": exploit_alias,
+            "target": target,
+        }
+
+        response = requests.post(
+            f"{self._client.conn_str}/flags/queue", json=enqueue_body
+        )
+        response.raise_for_status()
+
+    def _initialize_client(self, connect_then_import: bool = True):
         """
         Initializes the API client. It imports settings from a JSON file as a fallback if the client fails to connect to the server.
         If the fallback fails too (FileNotFoundError), the client will exit.
         """
-        self.client = APIClient(self.config)
-        try:
-            self.client.connect()
-        except:
-            self.client.import_settings()
+        self._client = APIClient(self._config)
+
+        if connect_then_import:
+            try:
+                self._client.connect()
+            except:
+                self._client.import_settings()
+            else:
+                self._client.export_settings()
+        elif (DOT_DIR_PATH / "api_client.json").exists():
+            self._client.import_settings()
         else:
-            self.client.export_settings()
+            try:
+                self._client.connect()
+            except:
+                logger.error(
+                    "Failed to connect to the server and configure the client."
+                )
+                exit(1)
+            else:
+                self._client.export_settings()
 
     def _initialize_scheduler(self):
-        self.scheduler = BlockingScheduler()
+        self._scheduler = BlockingScheduler()
 
     def _setup_db(self):
         setup_db_conn()
@@ -242,7 +279,7 @@ class Avala:
         Validates and filters out invalid registered exploit directories.
         """
         valid_directories = []
-        for path in self.exploit_directories:
+        for path in self._exploit_directories:
             if not path.exists() or not path.is_dir():
                 logger.error("Directory not found: {path}", path=path)
             else:
@@ -253,7 +290,7 @@ class Avala:
             directories=", ".join([d.name for d in valid_directories]),
         )
 
-        self.exploit_directories = valid_directories
+        self._exploit_directories = valid_directories
 
     def _reload_exploits(
         self,
@@ -288,7 +325,7 @@ class Avala:
                 )
 
         exploits: list[Exploit] = []
-        for directory in self.exploit_directories:
+        for directory in self._exploit_directories:
             for python_file in directory.glob("*.py"):
                 try:
                     python_module_name = python_file.stem
@@ -310,7 +347,7 @@ class Avala:
                                 or func.exploit_config.is_draft == should_be_draft
                             )
                         ):
-                            e = Exploit(func.exploit_config, self.client, attack_data)
+                            e = Exploit(func.exploit_config, self._client, attack_data)
                             exploits.append(e)
                 except Exception as e:
                     logger.error(
@@ -328,10 +365,10 @@ class Avala:
         fetching attack_data and running before_all and after_all hooks.
         """
         executor = concurrent.futures.ThreadPoolExecutor()
-        attack_data_future = executor.submit(self.client.wait_for_attack_data)
+        attack_data_future = executor.submit(self._client.wait_for_attack_data)
 
-        if self.before_all_hook:
-            self.before_all_hook()
+        if self._before_all_hook:
+            self._before_all_hook()
 
         exploits = self._reload_exploits(attack_data_future)
 
@@ -350,7 +387,7 @@ class Avala:
             if not exploit.setup():
                 continue
             if not exploit.batches:
-                self.scheduler.add_job(
+                self._scheduler.add_job(
                     exploit.run,
                     "date",
                     run_date=now + exploit.delay,
@@ -358,7 +395,7 @@ class Avala:
                 )
             else:
                 for batch_idx in range(len(exploit.batches)):
-                    self.scheduler.add_job(
+                    self._scheduler.add_job(
                         exploit.run,
                         "date",
                         run_date=now + exploit.delay + exploit.batching.gap * batch_idx,
@@ -368,8 +405,8 @@ class Avala:
 
         executor.shutdown(wait=True)
 
-        if self.after_all_hook:
-            self.after_all_hook()
+        if self._after_all_hook:
+            self._after_all_hook()
 
     def _run_hook(self, func: Callable):
         """
@@ -393,7 +430,7 @@ class Avala:
         """
         with get_db() as db:
             try:
-                self.client.heartbeat()
+                self._client.heartbeat()
             except:
                 logger.warning(
                     "⚠️ Cannot establish connection with the server. <b>{pending_flags}</> flags are waiting to be submitted.",
@@ -418,7 +455,7 @@ class Avala:
 
                 for row in results:
                     flags = row.flags.split(",")
-                    self.client.enqueue(flags, row.alias, row.target)
+                    self._client.enqueue(flags, row.alias, row.target)
                     db.query(PendingFlag).filter(
                         PendingFlag.target == row.target,
                         PendingFlag.alias == row.alias,
