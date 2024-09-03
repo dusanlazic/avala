@@ -240,6 +240,8 @@ class Avala:
         )
         response.raise_for_status()
 
+        return response.json()
+
     def _initialize_client(self, connect_then_import: bool = True):
         """
         Initializes the API client. It imports settings from a JSON file as a fallback if the client fails to connect to the server.

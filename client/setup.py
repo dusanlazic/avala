@@ -16,6 +16,7 @@ setup(
         "jsonschema",
         "APScheduler==3.10.1",
         "addict",
+        "pygments",
     ],
     packages=find_packages(),
 )
