@@ -1,3 +1,4 @@
+import re
 import requests
 import importlib
 import importlib.util
@@ -7,7 +8,7 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 from apscheduler.schedulers.blocking import BlockingScheduler
 from concurrent.futures import Future
-from typing import Callable
+from typing import Callable, Any
 from .database import setup_db_conn, create_tables, get_db
 from .models import UnscopedAttackData, PendingFlag
 from .shared.logs import logger
@@ -241,6 +242,17 @@ class Avala:
         response.raise_for_status()
 
         return response.json()
+
+    def match_flags(self, output: Any) -> list[str]:
+        """
+        Matches flags in the output using the flag format defined in the server settings.
+
+        :param output: Any object that may contain flags when converted to a string.
+        :type output: Any
+        :return: List of flags extracted from the output.
+        :rtype: list[str]
+        """
+        return re.findall(self._client.game.flag_format, str(output))
 
     def _initialize_client(self, connect_then_import: bool = True):
         """

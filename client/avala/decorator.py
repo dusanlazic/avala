@@ -28,7 +28,7 @@ def exploit(
     """
     A decorator to mark a function as an exploit.
 
-    :param service: Name of the service attacked by the exploit. To see all services, visit `http(s)://AVALA_HOST:PORT/attack_data/current`.
+    :param service: Name of the service attacked by the exploit. To see all services, you can use `get_services()` method of `Avala` instance.
     :type service: str
     :param draft: Whether the exploit is a draft or not. Draft exploits are not executed when running client by calling `run()` method, but are executed by calling `workshop()`. Enabling this options ignores `delay` and `batching` options. Defaults to False.
     :type draft: bool
@@ -55,7 +55,7 @@ def exploit(
     :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. This is helpful when running multiple exploits to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage.
     Note: Delay is **ignored in draft exploits** and is listed for easier switching between draft and non-draft exploits.
     :type delay: int, optional
-    :param timeout: Timeout in seconds after which the exploit will be terminated if it's stuck or takes too long to complete, defaults to 15.
+    :param timeout: Timeout in seconds after which the exploit will be terminated if it's stuck or takes too long to complete, defaults to 15. Note that the timeout is applied to the exploit execution itself and not each individual attack: timeout is applied on batches of exploits, and your exploit will likely timeout if the number of `workers` is too low.
     :type timeout: int, optional
     :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes.
     Read more about batching in :class:`avala.models.Batching`. Note: Batching is **ignored in draft exploits** and is listed for easier switching between draft and non-draft exploits.
