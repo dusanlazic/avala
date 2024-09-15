@@ -3,13 +3,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pyparsing import ParseException
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import CurrentUser
 from ..broadcast import emitter
 from ..config import config
-from ..database import get_sync_db
+from ..database import get_sync_db, get_async_db
 from ..models import Flag
 from ..mq.rabbit_async import rabbit
 from ..scheduler import get_tick_number
@@ -31,14 +32,18 @@ router = APIRouter(prefix="/flags", tags=["Flags"])
 
 
 @router.post("/queue", response_model=FlagEnqueueResponse)
-def enqueue(
+async def enqueue(
     flags: FlagEnqueueRequest,
     bg: BackgroundTasks,
-    db: Annotated[Session, Depends(get_sync_db)],
+    db: Annotated[AsyncSession, Depends(get_async_db)],
     username: CurrentUser,
 ) -> FlagEnqueueResponse:
     current_tick = get_tick_number()
-    existing_flags = db.query(Flag.value).filter(Flag.value.in_(flags.values)).all()
+    existing_flags = (
+        (await db.execute(select(Flag.value).where(Flag.value.in_(flags.values))))
+        .scalars()
+        .all()
+    )
     dup_flag_values = {flag.value for flag in existing_flags}
     new_flag_values = list(set(flags.values) - dup_flag_values)
 
@@ -53,11 +58,12 @@ def enqueue(
         )
         for value in new_flag_values
     ]
-    db.bulk_save_objects(new_flags)
+    db.add_all(new_flags)
+    await db.commit()
 
+    submission_queue = rabbit.get_queue("submission_queue")
     for flag in new_flag_values:
-        bg.add_task(
-            rabbit.get_queue("submission_queue").put,
+        await submission_queue.put(
             flag,
             ttl=str(config.game.flag_ttl * 1000),
         )
