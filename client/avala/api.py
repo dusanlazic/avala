@@ -81,7 +81,7 @@ class APIClient:
         if not self.conn_str:
             raise RuntimeError("Not connected to the server.")
 
-        requests.get(f"{self.conn_str}/connect/health").raise_for_status()
+        requests.get(f"{self.conn_str}/connect/health", timeout=5).raise_for_status()
 
     def export_settings(self):
         """Exports fetched API client settings to a JSON file so executors and workshop
