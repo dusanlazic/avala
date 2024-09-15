@@ -1,10 +1,11 @@
 import tzlocal
 from fastapi import APIRouter
+
 from ..auth import CurrentUser
 from ..config import AvalaConfig
 from ..scheduler import (
-    get_network_open_at_tick,
     get_game_ends_at_tick,
+    get_network_open_at_tick,
 )
 
 router = APIRouter(prefix="/connect", tags=["Connect"])

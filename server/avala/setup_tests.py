@@ -1,13 +1,14 @@
 import os
-import sys
 import random
 import string
+import sys
 import traceback
-from typing import Callable
 from importlib import import_module, reload
+from typing import Callable
+
+from .attack_data import import_user_functions as import_attack_data_functions
 from .config import get_config
 from .shared.logs import logger
-from .attack_data import import_user_functions as import_attack_data_functions
 
 is_verbose = False
 config = get_config()

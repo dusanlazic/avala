@@ -1,22 +1,24 @@
-from typing import Annotated
-from sqlalchemy import func
-from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from ..auth import CurrentUser
 from ..broadcast import broadcast
 from ..config import AvalaConfig
 from ..database import get_db
 from ..models import Flag
+from ..scheduler import get_tick_number
 from ..schemas import (
-    DatabaseViewStats,
     DashboardViewStats,
-    TickStats,
+    DatabaseViewStats,
     ExploitAcceptedFlagsForTick,
     ExploitAcceptedFlagsHistory,
+    TickStats,
 )
-from ..scheduler import get_tick_number
 
 router = APIRouter(prefix="/stats", tags=["Statistics"])
 

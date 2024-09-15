@@ -1,9 +1,10 @@
 import json
-from queue import Queue
 from datetime import datetime
-from ..schemas import FlagCounterDelta
+from queue import Queue
+
+from ..broadcast import broadcast, emitter
 from ..config import get_config
-from ..broadcast import emitter, broadcast
+from ..schemas import FlagCounterDelta
 
 config = get_config()
 deltas_queue = Queue()

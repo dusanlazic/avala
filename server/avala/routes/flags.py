@@ -1,27 +1,29 @@
 import time
-from fastapi import APIRouter, Depends, BackgroundTasks, Query, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pyparsing import ParseException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from typing import Annotated
+
 from ..auth import CurrentUser
+from ..broadcast import emitter
+from ..config import AvalaConfig
+from ..database import get_db
 from ..models import Flag
+from ..mq.rabbit_async import rabbit
+from ..scheduler import get_tick_number
 from ..schemas import (
+    FlagCounterDelta,
     FlagEnqueueRequest,
     FlagEnqueueResponse,
-    FlagCounterDelta,
-    SearchResults,
-    SearchResult,
     SearchMetadata,
     SearchPagingMetadata,
+    SearchResult,
+    SearchResults,
     SearchStatsMetadata,
 )
-from ..database import get_db
-from ..mq.rabbit_async import rabbit
-from ..broadcast import emitter
-from ..scheduler import get_tick_number
-from ..config import AvalaConfig
-from ..search import parse_query, build_query
+from ..search import build_query, parse_query
 from ..shared.logs import logger
 from ..shared.util import colorize
 

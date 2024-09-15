@@ -1,26 +1,28 @@
-import re
-import os
-import sys
-import json
-import shlex
 import argparse
-import subprocess
 import concurrent.futures
-from sqlalchemy.orm import Session
-from sqlalchemy.dialects.sqlite import insert
-from typing import Callable, Any
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
 from importlib import import_module
-from avala.shared.logs import logger
-from avala.shared.util import colorize
+from typing import Any, Callable
+
+from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.orm import Session
+
 from avala.api import APIClient
+from avala.database import get_db
 from avala.models import (
-    ServiceScopedAttackData,
-    TickScopedAttackData,
-    TickScope,
     FlagIdsHash,
     PendingFlag,
+    ServiceScopedAttackData,
+    TickScope,
+    TickScopedAttackData,
 )
-from avala.database import get_db
+from avala.shared.logs import logger
+from avala.shared.util import colorize
 
 
 def main(args):

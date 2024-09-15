@@ -1,10 +1,12 @@
 import sys
 from contextlib import contextmanager
-from .shared.logs import logger
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
 from .config import get_config
+from .shared.logs import logger
 
 config = get_config()
 engine = None

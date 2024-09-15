@@ -1,10 +1,11 @@
+from typing import Callable
+
 import pika
 from pika import BlockingConnection
 from pika.adapters.blocking_connection import BlockingChannel
-from typing import Callable
+
 from ..config import get_config
 from ..shared.logs import logger
-
 
 config = get_config()
 

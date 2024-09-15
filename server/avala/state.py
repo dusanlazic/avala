@@ -1,5 +1,6 @@
-from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session
+
 from .models import State
 
 

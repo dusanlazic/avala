@@ -1,9 +1,11 @@
-from .shared.logs import logger
 from datetime import datetime, timedelta
+
 from apscheduler.schedulers.background import BackgroundScheduler
+
 from .attack_data import reload_attack_data
 from .config import get_config
 from .mq.monitoring import fetch_and_broadcast_rates
+from .shared.logs import logger
 
 config = get_config()
 

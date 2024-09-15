@@ -1,26 +1,27 @@
+import argparse
+import concurrent.futures
+import json
 import os
 import re
-import sys
-import json
 import shlex
-import argparse
-import tempfile
 import subprocess
-import concurrent.futures
-from sqlalchemy.orm import Session
+import sys
+import tempfile
+
 from sqlalchemy.dialects.sqlite import insert
-from avala.shared.logs import logger
-from avala.shared.util import colorize
+from sqlalchemy.orm import Session
+
 from avala.api import APIClient
+from avala.database import get_db
 from avala.models import (
-    ServiceScopedAttackData,
-    TickScopedAttackData,
-    TickScope,
     FlagIdsHash,
     PendingFlag,
+    ServiceScopedAttackData,
+    TickScope,
+    TickScopedAttackData,
 )
-from avala.database import get_db
-
+from avala.shared.logs import logger
+from avala.shared.util import colorize
 
 TARGET_PLACEHOLDER = "{target}"
 FLAG_IDS_PATH_PLACEHOLDER = "{flag_ids_path}"

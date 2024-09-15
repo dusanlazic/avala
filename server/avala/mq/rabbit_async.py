@@ -1,9 +1,10 @@
-import aio_pika
-from aio_pika import Channel, Message, IncomingMessage, RobustConnection
 from typing import Callable
+
+import aio_pika
+from aio_pika import Channel, IncomingMessage, Message, RobustConnection
+
 from ..config import get_config
 from ..shared.logs import logger
-
 
 config = get_config()
 

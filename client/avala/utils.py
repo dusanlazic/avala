@@ -1,5 +1,5 @@
-from .shared.util import colorize
 from .shared.logs import logger
+from .shared.util import colorize
 
 
 def debug(message: str, alias: str = None, target: str = None):

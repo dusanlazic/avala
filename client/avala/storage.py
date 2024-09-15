@@ -1,10 +1,12 @@
 import pickle
-from typing import Generator, Any
 from contextlib import contextmanager
-from sqlalchemy.orm import Session
+from typing import Any, Generator
+
 from sqlalchemy.dialects.sqlite import insert
-from .models import StoredObject
+from sqlalchemy.orm import Session
+
 from .database import get_db
+from .models import StoredObject
 
 
 @contextmanager

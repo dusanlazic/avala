@@ -1,21 +1,22 @@
-import yaml
-from typing import Annotated
-from fastapi import Depends
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Annotated
+
+import yaml
+from fastapi import Depends
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     NonNegativeInt,
-    PositiveInt,
     PositiveFloat,
+    PositiveInt,
+    ValidationError,
     field_validator,
     model_validator,
-    ConfigDict,
-    ValidationError,
 )
-from datetime import datetime, timedelta
-from .shared.logs import logger
 
+from .shared.logs import logger
 
 DOT_DIR_PATH = Path(".avala")
 

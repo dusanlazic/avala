@@ -1,11 +1,13 @@
 import json
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
-from ..auth import CurrentUser
-from ..state import StateManager
+
 from ..attack_data import attack_data_updated_event
+from ..auth import CurrentUser
 from ..database import get_db
+from ..state import StateManager
 
 router = APIRouter(prefix="/attack-data", tags=["Attack data"])
 

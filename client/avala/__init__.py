@@ -1,5 +1,5 @@
+from .decorator import Batching, TargetingStrategy, TickScope, exploit
 from .main import Avala
-from .decorator import exploit, TargetingStrategy, TickScope, Batching
 
 AUTO = TargetingStrategy.AUTO
 NOP_TEAM = TargetingStrategy.NOP_TEAM

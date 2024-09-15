@@ -1,9 +1,10 @@
 import os
 from functools import wraps
+
 from .models import (
     Batching,
-    ExploitFuncMeta,
     ExploitConfig,
+    ExploitFuncMeta,
     TargetingStrategy,
     TickScope,
 )

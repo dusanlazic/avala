@@ -1,24 +1,25 @@
-import shutil
-import uvicorn
 import asyncio
-from pathlib import Path
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
+import shutil
 from contextlib import asynccontextmanager
-from .mq.rabbit_async import rabbit, RabbitQueue
+from pathlib import Path
+
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from .broadcast import broadcast, emitter
+from .config import DOT_DIR_PATH, Config, get_config
+from .database import create_tables, setup_db_conn
 from .mq.monitoring import aggregate_flags
-from .broadcast import emitter
-from .broadcast import broadcast
-from .shared.logs import logger
-from .shared.logs import config as log_config
-from .routes.flags import router as flags_router
-from .routes.connect import router as connect_router
+from .mq.rabbit_async import RabbitQueue, rabbit
 from .routes.attack_data import router as attack_data_router
+from .routes.connect import router as connect_router
+from .routes.flags import router as flags_router
 from .routes.statistics import router as statistics_router
-from .database import setup_db_conn, create_tables
-from .config import get_config, Config, DOT_DIR_PATH
 from .scheduler import initialize_scheduler
+from .shared.logs import config as log_config
+from .shared.logs import logger
 
 
 @asynccontextmanager

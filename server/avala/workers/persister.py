@@ -1,11 +1,13 @@
 from itertools import islice
-from sqlalchemy.orm import Session
+
 from apscheduler.schedulers.blocking import BlockingScheduler
-from ..shared.logs import logger
-from ..models import Flag
-from ..schemas import FlagSubmissionResponse
+from sqlalchemy.orm import Session
+
 from ..database import get_db_context
+from ..models import Flag
 from ..mq.rabbit import RabbitConnection, RabbitQueue
+from ..schemas import FlagSubmissionResponse
+from ..shared.logs import logger
 
 # TODO: Make configurable
 BATCH_SIZE = 1000

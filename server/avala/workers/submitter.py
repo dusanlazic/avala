@@ -1,19 +1,21 @@
 import os
 import sys
-from apscheduler.schedulers.blocking import BlockingScheduler
-from datetime import datetime, timedelta
 from collections import Counter
+from datetime import datetime, timedelta
 from importlib import import_module, reload
-from ..shared.logs import logger
-from ..schemas import FlagSubmissionResponse, FlagCounterDelta
-from ..config import get_config
-from ..mq.rabbit import RabbitQueue, RabbitConnection
+
+from apscheduler.schedulers.blocking import BlockingScheduler
+
 from ..broadcast import emitter
+from ..config import get_config
+from ..mq.rabbit import RabbitConnection, RabbitQueue
 from ..scheduler import (
-    get_tick_elapsed,
-    get_next_tick_start,
     game_has_started,
+    get_next_tick_start,
+    get_tick_elapsed,
 )
+from ..schemas import FlagCounterDelta, FlagSubmissionResponse
+from ..shared.logs import logger
 
 config = get_config()
 

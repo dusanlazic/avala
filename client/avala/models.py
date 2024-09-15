@@ -1,12 +1,14 @@
-import json
 import hashlib
-from enum import Enum
-from typing import NamedTuple, Any
-from pygments import highlight
-from pygments.lexers import JsonLexer
-from pygments.formatters import TerminalFormatter
+import json
 from datetime import timedelta
-from sqlalchemy import Column, String, Boolean, LargeBinary
+from enum import Enum
+from typing import Any, NamedTuple
+
+from pygments import highlight
+from pygments.formatters import TerminalFormatter
+from pygments.lexers import JsonLexer
+from sqlalchemy import Boolean, Column, LargeBinary, String
+
 from .database import Base, get_db
 
 
@@ -288,7 +290,9 @@ class UnscopedAttackData:
             for service, targets in data.items()
         }
 
-    def serialize(self) -> dict[
+    def serialize(
+        self,
+    ) -> dict[
         str,
         dict[str, list[Any]],
     ]:

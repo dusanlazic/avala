@@ -1,10 +1,12 @@
 import json
-from sqlalchemy import Column, Text, Integer, String, DateTime, func
-from sqlalchemy.schema import CheckConstraint
-from sqlalchemy.dialects.postgresql import UUID
-from collections import namedtuple
-from .database import Base
 import uuid
+from collections import namedtuple
+
+from sqlalchemy import Column, DateTime, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.schema import CheckConstraint
+
+from .database import Base
 
 
 class Flag(Base):

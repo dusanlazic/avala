@@ -1,5 +1,6 @@
 import psycopg2
 from broadcaster import Broadcast
+
 from .config import get_config
 
 config = get_config()

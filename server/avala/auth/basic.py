@@ -1,7 +1,8 @@
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+
+from ..config import Config, get_config
 from ..shared.logs import logger
-from ..config import get_config, Config
 
 httpbasic = HTTPBasic()
 
