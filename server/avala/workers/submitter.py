@@ -7,7 +7,7 @@ from importlib import import_module, reload
 from apscheduler.schedulers.blocking import BlockingScheduler
 
 from ..broadcast import emitter
-from ..config import get_config
+from ..config import config
 from ..mq.rabbit import RabbitConnection, RabbitQueue
 from ..scheduler import (
     game_has_started,
@@ -16,8 +16,6 @@ from ..scheduler import (
 )
 from ..schemas import FlagCounterDelta, FlagSubmissionResponse
 from ..shared.logs import logger
-
-config = get_config()
 
 
 def main():

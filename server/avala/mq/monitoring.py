@@ -3,10 +3,9 @@ from datetime import datetime
 from queue import Queue
 
 from ..broadcast import broadcast, emitter
-from ..config import get_config
 from ..schemas import FlagCounterDelta
 
-config = get_config()
+
 deltas_queue = Queue()
 
 

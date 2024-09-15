@@ -7,13 +7,12 @@ import time
 from importlib import import_module, reload
 from typing import Any, Callable
 
-from .config import get_config
+from .config import config
 from .database import get_db_context
 from .shared.logs import logger
 from .state import StateManager
 
 attack_data_updated_event: asyncio.Event = asyncio.Event()
-config = get_config()
 
 
 def reload_attack_data():

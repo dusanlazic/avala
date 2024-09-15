@@ -1,15 +1,13 @@
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
-from ..config import Config, get_config
+from ..config import config
 from ..shared.logs import logger
 
 httpbasic = HTTPBasic()
 
 
-async def custom_security(
-    request: Request, config: Config = Depends(get_config)
-) -> HTTPBasicCredentials:
+async def custom_security(request: Request) -> HTTPBasicCredentials:
     """
     Enforces HTTPBasic authentication if the password is configured.
     """
@@ -21,7 +19,6 @@ async def custom_security(
 async def get_current_user(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(custom_security),
-    config: Config = Depends(get_config),
 ) -> str:
     if config.server.password is None:
         return "someone_at_%s" % request.client.host

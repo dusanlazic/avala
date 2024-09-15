@@ -15,8 +15,16 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+    PydanticBaseSettingsSource,
+    YamlConfigSettingsSource,
+)
+
 
 from .shared.logs import logger
+
 
 DOT_DIR_PATH = Path(".avala")
 
@@ -138,7 +146,7 @@ class RabbitMQConfig(BaseModel):
         return f"amqp://{self.user}:{self.password}@{self.host}:{self.port}/"
 
 
-class Config(BaseModel):
+class AvalaConfig(BaseSettings):
     game: GameConfig
     server: ServerConfig
     submitter: SubmitterConfig
@@ -146,56 +154,33 @@ class Config(BaseModel):
     database: DatabaseConfig
     rabbitmq: RabbitMQConfig
 
+    model_config = SettingsConfigDict(
+        extra="forbid",
+        yaml_file=["server.yaml", "server.yml"],
+    )
 
-config: Config = None
-
-
-def load_user_config():
-    global config
-
-    # Remove datetime resolver
-    # https://stackoverflow.com/a/52312810
-    yaml.SafeLoader.yaml_implicit_resolvers = {
-        k: [r for r in v if r[0] != "tag:yaml.org,2002:timestamp"]
-        for k, v in yaml.SafeLoader.yaml_implicit_resolvers.items()
-    }
-
-    for ext in ["yml", "yaml"]:
-        if Path(f"server.{ext}").is_file():
-            with open(f"server.{ext}", "r") as file:
-                try:
-                    config_data = yaml.safe_load(file)
-                    if not config_data:
-                        logger.error(
-                            "No configuration found in server.{ext}. Exiting...",
-                            ext=ext,
-                        )
-                        exit(1)
-
-                    config = Config(**config_data)
-                    logger.info("Loaded user configuration.")
-                except ValidationError as e:
-                    logger.error("Errors found in server.{ext}: {e}", ext=ext, e=e)
-                    exit(1)
-                except Exception as e:
-                    logger.error("Error loading server.{ext}: {e}", ext=ext, e=e)
-                    exit(1)
-                break
-    else:
-        logger.error(
-            "server.yaml/.yml not found in the current working directory. Exiting..."
-        )
-        exit(1)
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: BaseSettings,
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (YamlConfigSettingsSource(settings_cls),)
 
 
-def get_config() -> Config:
-    if config is None:
-        load_user_config()
-    return config
+try:
+    config: AvalaConfig = AvalaConfig()
+except ValidationError as e:
+    error_messages = []
+    for error in e.errors():
+        error_path = ".".join(error["loc"])
+        error_messages.append("Error in %s\n\t%s\n" % (error_path, error["msg"]))
 
-
-async def get_config_async() -> Config:
-    return get_config()
-
-
-AvalaConfig = Annotated[Config, Depends(get_config_async)]
+    logger.error(
+        "Configuration validation failed:\n{error_messages}",
+        error_messages="\n".join(error_messages),
+    )
+    exit(1)

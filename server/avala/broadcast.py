@@ -1,9 +1,9 @@
 import psycopg2
 from broadcaster import Broadcast
 
-from .config import get_config
+from .config import config
 
-config = get_config()
+
 postgres_url = config.database.dsn()
 
 

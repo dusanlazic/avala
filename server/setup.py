@@ -24,6 +24,7 @@ setup(
         "asyncpg",
         "uvloop",
         "httptools",
+        "pydantic-settings",
     ],
     packages=find_packages(),
     include_package_data=True,

@@ -1,5 +1,4 @@
 import asyncio
-import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -9,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .broadcast import broadcast, emitter
-from .config import DOT_DIR_PATH, Config, get_config
+from .config import DOT_DIR_PATH, config
 from .database import create_tables, setup_db_conn
 from .mq.monitoring import aggregate_flags
 from .mq.rabbit_async import RabbitQueue, rabbit
@@ -63,15 +62,13 @@ app = FastAPI(lifespan=lifespan)
 
 
 def main():
-    config = get_config()
-
     app.include_router(flags_router)
     app.include_router(connect_router)
     app.include_router(attack_data_router)
     app.include_router(statistics_router)
 
-    configure_cors(app, config)
-    configure_static(app, config)
+    configure_cors(app)
+    configure_static(app)
 
     try:
         uvicorn.run(
@@ -97,7 +94,7 @@ def configure_logging():
     return uvicorn_log_config
 
 
-def configure_cors(app: FastAPI, config: Config):
+def configure_cors(app: FastAPI):
     """
     Configures CORS middleware if the Avala backend and web UI are hosted on different domains.
     """
@@ -111,7 +108,7 @@ def configure_cors(app: FastAPI, config: Config):
         )
 
 
-def configure_static(app: FastAPI, config: Config):
+def configure_static(app: FastAPI):
     """
     Configures the static files serving if the web UI is served by the backend.
     """

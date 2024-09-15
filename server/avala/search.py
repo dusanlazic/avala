@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from pyparsing import *
+from pyparsing import *  # noqa: F403
 
 from .models import Flag
 

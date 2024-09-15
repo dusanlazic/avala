@@ -3,10 +3,8 @@ from typing import Callable
 import aio_pika
 from aio_pika import Channel, IncomingMessage, Message, RobustConnection
 
-from ..config import get_config
+from ..config import config
 from ..shared.logs import logger
-
-config = get_config()
 
 
 class RabbitQueue:

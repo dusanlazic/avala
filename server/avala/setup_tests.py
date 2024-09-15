@@ -7,11 +7,11 @@ from importlib import import_module, reload
 from typing import Callable
 
 from .attack_data import import_user_functions as import_attack_data_functions
-from .config import get_config
+from .config import config
 from .shared.logs import logger
 
 is_verbose = False
-config = get_config()
+
 
 tests: Callable = []
 passed: str = []
@@ -155,11 +155,8 @@ def test_flag_submission():
             "First string in each tuple must be a submitted flag, '%s' returned."
             % response[0]
         )
-        assert response[1] in {
-            "accepted",
-            "rejected",
-        }, (
-            "Second string in each tuple must be either 'accepted' or 'rejected', '%s' returned."
+        assert response[1] in {"accepted", "rejected", "requeued"}, (
+            "Second string in each tuple must be either 'accepted', 'rejected' or 'requeued'. '%s' returned."
             % response[1]
         )
     assert len(responses) == len(flags), (
@@ -188,6 +185,7 @@ def import_submitter_function(function_name: str):
     return getattr(imported_module, function_name, None)
 
 
-gen_test_flag = lambda: "TEST_" + "".join(
-    random.choices(string.ascii_uppercase + string.digits, k=30)
-)
+def gen_test_flag():
+    return "TEST_" + "".join(
+        random.choices(string.ascii_uppercase + string.digits, k=30)
+    )
