@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .broadcast import broadcast, emitter
 from .config import DOT_DIR_PATH, config
-from .database import create_tables, setup_db_conn
+from .database import create_tables
 from .mq.monitoring import aggregate_flags
 from .mq.rabbit_async import RabbitQueue, rabbit
 from .routes.attack_data import router as attack_data_router
@@ -24,8 +24,7 @@ from .shared.logs import logger
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_dot_dir()
-    setup_db_conn()
-    create_tables()
+    await create_tables()
     emitter.connect()
     await broadcast.connect()
     await rabbit.connect()

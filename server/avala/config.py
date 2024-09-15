@@ -17,14 +17,12 @@ from pydantic import (
 )
 from pydantic_settings import (
     BaseSettings,
-    SettingsConfigDict,
     PydanticBaseSettingsSource,
+    SettingsConfigDict,
     YamlConfigSettingsSource,
 )
 
-
 from .shared.logs import logger
-
 
 DOT_DIR_PATH = Path(".avala")
 
@@ -129,8 +127,8 @@ class DatabaseConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    def dsn(self) -> str:
-        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+    def dsn(self, driver: str = "") -> str:
+        return f"postgresql{'+' if driver else ''}{driver}://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
 
 
 class RabbitMQConfig(BaseModel):

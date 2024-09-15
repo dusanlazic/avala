@@ -8,7 +8,7 @@ from importlib import import_module, reload
 from typing import Any, Callable
 
 from .config import config
-from .database import get_db_context
+from .database import get_sync_db_session
 from .shared.logs import logger
 from .state import StateManager
 
@@ -29,7 +29,7 @@ def reload_attack_data():
         attack_data_updated_event.set()
         return
 
-    with get_db_context() as db, StateManager(db) as state:
+    with get_sync_db_session() as db, StateManager(db) as state:
         old_json_hash = state.attack_data_hash
         attempts_left = config.attack_data.max_attempts
 

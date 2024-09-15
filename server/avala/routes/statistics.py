@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser
 from ..broadcast import broadcast
-from ..config import AvalaConfig
-from ..database import get_db
+from ..config import config
+from ..database import get_sync_db
 from ..models import Flag
 from ..scheduler import get_tick_number
 from ..schemas import (
@@ -25,8 +25,7 @@ router = APIRouter(prefix="/stats", tags=["Statistics"])
 
 @router.get("/dashboard", response_model=DashboardViewStats)
 def dashboard_view_stats(
-    db: Annotated[Session, Depends(get_db)],
-    config: AvalaConfig,
+    db: Annotated[Session, Depends(get_sync_db)],
     username: CurrentUser,
 ) -> DashboardViewStats:
     expiration_time = datetime.now() - timedelta(seconds=config.game.flag_ttl)
@@ -44,7 +43,7 @@ def dashboard_view_stats(
 
 @router.get("/database", response_model=DatabaseViewStats)
 def database_view_stats(
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_sync_db)],
     username: CurrentUser,
 ) -> DatabaseViewStats:
     current_tick = get_tick_number()
@@ -68,7 +67,7 @@ def database_view_stats(
 
 @router.get("/timeline", response_model=list[TickStats])
 def timeline_view_stats(
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_sync_db)],
     username: CurrentUser,
 ) -> list[TickStats]:
     current_tick = get_tick_number()
@@ -89,7 +88,7 @@ def timeline_view_stats(
 
 @router.get("/exploits")
 def exploits(
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_sync_db)],
     username: CurrentUser,
 ):
     last_tick = get_tick_number() - 1

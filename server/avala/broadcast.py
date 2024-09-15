@@ -3,7 +3,6 @@ from broadcaster import Broadcast
 
 from .config import config
 
-
 postgres_url = config.database.dsn()
 
 

@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser
 from ..broadcast import emitter
-from ..config import AvalaConfig
-from ..database import get_db
+from ..config import config
+from ..database import get_sync_db
 from ..models import Flag
 from ..mq.rabbit_async import rabbit
 from ..scheduler import get_tick_number
@@ -34,9 +34,8 @@ router = APIRouter(prefix="/flags", tags=["Flags"])
 def enqueue(
     flags: FlagEnqueueRequest,
     bg: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_sync_db)],
     username: CurrentUser,
-    config: AvalaConfig,
 ) -> FlagEnqueueResponse:
     current_tick = get_tick_number()
     existing_flags = db.query(Flag.value).filter(Flag.value.in_(flags.values)).all()
@@ -99,7 +98,7 @@ def search(
     page: int = Query(1, ge=1),
     show: int = Query(25, le=100),
     sort: list[str] | None = Query(None),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_sync_db),
 ) -> SearchResults:
     # Build search query
     try:

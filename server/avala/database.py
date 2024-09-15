@@ -1,49 +1,35 @@
-import sys
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
+from typing import AsyncIterator, Iterator
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from .config import config
-from .shared.logs import logger
 
-
-engine = None
-SessionLocal = None
 Base = declarative_base()
 
 
-def setup_db_conn():
-    global engine, SessionLocal
+sync_engine = create_engine(config.database.dsn(driver="psycopg2"))
+SyncSessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=sync_engine,
+)
 
-    if engine is not None and SessionLocal is not None:
-        return
 
-    try:
-        engine = create_engine(
-            "postgresql://%s:%s@%s:%s/%s"
-            % (
-                config.database.user,
-                config.database.password,
-                config.database.host,
-                config.database.port,
-                config.database.name,
-            )
-        )
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    except Exception as e:
-        logger.error(
-            "An error occurred when connecting to the database:\n<red>{error}</red>",
-            error=e,
-        )
-        sys.exit(1)
+async_engine = create_async_engine(config.database.dsn(driver="asyncpg"))
+AsyncSessionLocal = async_sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=async_engine,
+)
 
 
 @contextmanager
-def get_db_context():
-    setup_db_conn()
-    db = SessionLocal()
+def get_sync_db_session() -> Iterator[Session]:
+    db = SyncSessionLocal()
     try:
         yield db
         db.commit()
@@ -54,23 +40,29 @@ def get_db_context():
         db.close()
 
 
-def get_db():
-    with get_db_context() as db:
+def get_sync_db():
+    with get_sync_db_session() as db:
         yield db
 
 
-def create_tables():
-    Base.metadata.create_all(bind=engine)
-
-
-def test_connection():
+@asynccontextmanager
+async def get_async_db_session() -> AsyncIterator[AsyncSession]:
+    db = AsyncSessionLocal()
     try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-        logger.info("Database connection established.")
-    except Exception as e:
-        logger.error(
-            "An error occurred when connecting to the database:\n<red>{error}</red>",
-            error=e,
-        )
-        sys.exit(1)
+        yield db
+        db.commit()
+    except:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+async def get_async_db():
+    async with get_async_db_session() as db:
+        yield db
+
+
+async def create_tables():
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)

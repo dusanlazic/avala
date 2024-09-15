@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..attack_data import attack_data_updated_event
 from ..auth import CurrentUser
-from ..database import get_db
+from ..database import get_sync_db
 from ..state import StateManager
 
 router = APIRouter(prefix="/attack-data", tags=["Attack data"])
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/attack-data", tags=["Attack data"])
 async def get_latest_attack_data(
     username: CurrentUser,
     response: Response,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_sync_db)],
 ):
     """
     Waits for and returns the latest attack data when it is updated.
@@ -39,7 +39,7 @@ async def get_latest_attack_data(
 def get_current_attack_data(
     username: CurrentUser,
     response: Response,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[Session, Depends(get_sync_db)],
 ):
     """
     Returns the current available attack data.

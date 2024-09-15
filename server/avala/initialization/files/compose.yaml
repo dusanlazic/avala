@@ -19,6 +19,7 @@ services:
 
   avala-submitter:
     image: avala
+    container_name: avala-submitter
     command: avl submitter
     depends_on:
       rabbitmq:

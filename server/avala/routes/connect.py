@@ -2,7 +2,7 @@ import tzlocal
 from fastapi import APIRouter
 
 from ..auth import CurrentUser
-from ..config import AvalaConfig
+from ..config import config
 from ..scheduler import (
     get_game_ends_at_tick,
     get_network_open_at_tick,
@@ -17,10 +17,7 @@ async def health():
 
 
 @router.get("/game")
-async def enqueue(
-    username: CurrentUser,
-    config: AvalaConfig,
-):
+async def game(username: CurrentUser):
     return {
         "flag_format": config.game.flag_format,
         "team_ip": config.game.team_ip,
@@ -29,10 +26,7 @@ async def enqueue(
 
 
 @router.get("/schedule")
-async def schedule(
-    username: CurrentUser,
-    config: AvalaConfig,
-):
+async def schedule(username: CurrentUser):
     return {
         "first_tick_start": config.game.game_starts_at,
         "tick_duration": config.game.tick_duration.total_seconds(),

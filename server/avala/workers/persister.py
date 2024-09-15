@@ -1,9 +1,7 @@
-from itertools import islice
-
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy.orm import Session
 
-from ..database import get_db_context
+from ..database import get_sync_db_session
 from ..models import Flag
 from ..mq.rabbit import RabbitConnection, RabbitQueue
 from ..schemas import FlagSubmissionResponse
@@ -15,7 +13,7 @@ INTERVAL = 5
 
 
 def main():
-    with get_db_context() as db:
+    with get_sync_db_session() as db:
         worker = Persister(db)
         worker.start()
 
