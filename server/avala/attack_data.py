@@ -32,11 +32,9 @@ def reload_attack_data():
 
     with get_db_context() as db, StateManager(db) as state:
         old_json_hash = state.attack_data_hash
-
-        json_updated = False
         attempts_left = config.attack_data.max_attempts
 
-        while not json_updated:
+        while attempts_left:
             try:
                 new_json = fetch_json()
             except Exception as e:
@@ -44,27 +42,26 @@ def reload_attack_data():
                 logger.error(
                     "An error occurred while fetching attack data: {error}", error=e
                 )
-                logger.info(
-                    "Retrying in {interval}s, {attempts} attempts left.",
-                    interval=config.attack_data.retry_interval,
-                    attempts=attempts_left,
-                )
-                time.sleep(config.attack_data.retry_interval)
-                if not attempts_left:
+                if attempts_left:
+                    logger.info(
+                        "Retrying in {interval}s, {attempts} attempts left.",
+                        interval=config.attack_data.retry_interval,
+                        attempts=attempts_left,
+                    )
+                    time.sleep(config.attack_data.retry_interval)
+                else:
                     logger.warning(
                         "It seems that your <b>{module}.py</> module is not working properly. Please check it.",
                         module=config.attack_data.module,
                     )
-                    break
-                continue
 
             new_json_norm = normalize_dict(new_json)
             new_json_str = json.dumps(new_json_norm)
             new_json_hash = hashlib.md5(new_json_str.encode()).hexdigest()
 
-            json_updated = new_json_hash != old_json_hash or old_json_hash is None
+            json_is_updated = new_json_hash != old_json_hash or old_json_hash is None
 
-            if not json_updated and attempts_left:
+            if not json_is_updated and attempts_left:
                 attempts_left -= 1
                 logger.info(
                     "Fetched old attack data (<yellow>{hash}</>). Retrying in {interval}s, {attempts} attempts left.",
@@ -76,7 +73,7 @@ def reload_attack_data():
             else:
                 break
 
-        if json_updated:
+        if json_is_updated:
             logger.info(
                 "Fetched new attack data (<yellow>{old_hash}</> -> <green>{new_hash}</>).",
                 old_hash=str(old_json_hash)[:8],
@@ -106,17 +103,25 @@ def normalize_dict(data: dict | list | Any) -> dict | list | Any:
     Recursively sort keys and items in a dictionary. This is useful for not mistaking
     a differently ordered dictionary as a different one, which sometimes happens with
     attack.json / teams.json files.
+
+    Note: It doesn't handle lists of "unsortable" items (e.g. lists of dictionaries).
+    Function will return such lists without sorting them.
     """
     if isinstance(data, dict):
         return {key: normalize_dict(value) for key, value in sorted(data.items())}
     elif isinstance(data, list):
-        return sorted(normalize_dict(item) for item in data)
+        normalized_list = [normalize_dict(item) for item in data]
+        try:
+            return sorted(normalized_list)
+        except TypeError:
+            # If sorting is not possible, return the list as is
+            return normalized_list
     else:
         return data
 
 
 def import_user_functions() -> (
-    tuple[Callable[[], dict], Callable[[dict], dict[str, dict[str, list[Any]]]]]
+    tuple[Callable[[], dict | list], Callable[[dict], dict[str, dict[str, list[Any]]]]]
 ):
     """
     Imports and reloads the fetch and process functions that fetch and process attack data.
