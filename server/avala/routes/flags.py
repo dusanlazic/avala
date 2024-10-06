@@ -39,13 +39,12 @@ async def enqueue(
     username: CurrentUser,
 ) -> FlagEnqueueResponse:
     current_tick = get_tick_number()
-    existing_flags = (
+    dup_flag_values = (
         (await db.execute(select(Flag.value).where(Flag.value.in_(flags.values))))
         .scalars()
         .all()
     )
-    dup_flag_values = {flag for flag in existing_flags}
-    new_flag_values = list(set(flags.values) - dup_flag_values)
+    new_flag_values = list(set(flags.values) - set(dup_flag_values))
 
     new_flags = [
         Flag(

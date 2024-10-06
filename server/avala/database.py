@@ -11,7 +11,11 @@ from .config import config
 Base = declarative_base()
 
 
-sync_engine = create_engine(config.database.dsn(driver="psycopg2"))
+sync_engine = create_engine(
+    config.database.dsn(driver="psycopg2"),
+    pool_size=80,
+    max_overflow=10,
+)
 SyncSessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -19,7 +23,11 @@ SyncSessionLocal = sessionmaker(
 )
 
 
-async_engine = create_async_engine(config.database.dsn(driver="asyncpg"))
+async_engine = create_async_engine(
+    config.database.dsn(driver="asyncpg"),
+    pool_size=80,
+    max_overflow=10,
+)
 AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -50,12 +58,12 @@ async def get_async_db_session() -> AsyncIterator[AsyncSession]:
     db = AsyncSessionLocal()
     try:
         yield db
-        db.commit()
+        await db.commit()
     except:
-        db.rollback()
+        await db.rollback()
         raise
     finally:
-        db.close()
+        await db.close()
 
 
 async def get_async_db():
