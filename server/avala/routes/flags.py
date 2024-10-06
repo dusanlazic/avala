@@ -44,7 +44,7 @@ async def enqueue(
         .scalars()
         .all()
     )
-    dup_flag_values = {flag.value for flag in existing_flags}
+    dup_flag_values = {flag for flag in existing_flags}
     new_flag_values = list(set(flags.values) - dup_flag_values)
 
     new_flags = [
