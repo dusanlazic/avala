@@ -1,6 +1,4 @@
-import json
 import uuid
-from collections import namedtuple
 
 from sqlalchemy import Column, DateTime, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID

@@ -1,6 +1,5 @@
 import sys
 from contextlib import contextmanager
-from pathlib import Path
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base

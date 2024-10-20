@@ -4,13 +4,13 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pyparsing import ParseException
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser
 from ..broadcast import emitter
 from ..config import config
-from ..database import get_sync_db, get_async_db
+from ..database import get_async_db, get_sync_db
 from ..models import Flag
 from ..mq.rabbit_async import rabbit
 from ..scheduler import get_tick_number

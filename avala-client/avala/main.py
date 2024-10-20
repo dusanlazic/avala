@@ -266,7 +266,7 @@ class Avala:
         if connect_then_import:
             try:
                 self._client.connect()
-            except:
+            except Exception:
                 self._client.import_settings()
             else:
                 self._client.export_settings()
@@ -275,7 +275,7 @@ class Avala:
         else:
             try:
                 self._client.connect()
-            except:
+            except Exception:
                 logger.error(
                     "Failed to connect to the server and configure the client."
                 )
@@ -447,11 +447,11 @@ class Avala:
         with get_db() as db:
             try:
                 self._client.heartbeat()
-            except:
+            except Exception:
                 logger.warning(
                     "⚠️ Cannot establish connection with the server. <b>{pending_flags}</> flags are waiting to be submitted.",
                     pending_flags=db.query(func.count(PendingFlag.value))
-                    .filter(PendingFlag.submitted == False)
+                    .filter(PendingFlag.submitted == False)  # noqa E712
                     .scalar(),
                 )
             else:
@@ -461,7 +461,7 @@ class Avala:
                         PendingFlag.alias,
                         func.group_concat(PendingFlag.value).label("flags"),
                     )
-                    .filter(PendingFlag.submitted == False)
+                    .filter(PendingFlag.submitted == False)  # noqa E712
                     .group_by(PendingFlag.target, PendingFlag.alias)
                     .all()
                 )

@@ -1,6 +1,23 @@
 from datetime import datetime, timedelta
+from typing import Any, Callable
 
-from pyparsing import *  # noqa: F403
+from pyparsing import (
+    CaselessKeyword,
+    DelimitedList,
+    Group,
+    Optional,
+    QuotedString,
+    Regex,
+    Suppress,
+    Word,
+    alphanums,
+    alphas,
+    infixNotation,
+    nums,
+    one_of,
+    opAssoc,
+    printables,
+)
 
 from .models import Flag
 
@@ -120,7 +137,9 @@ AND = one_of(and_, caseless=True)
 OR = one_of(or_, caseless=True)
 
 
-def makeLRlike(numterms: int = None):
+def nest_tokens_left_recursively(
+    numterms: int = None,
+) -> Callable[[str, int, list[Any]], list[Any]]:
     """
     Take the flat lists of tokens and nest them as if parsed left-recursively.
 
@@ -133,7 +152,7 @@ def makeLRlike(numterms: int = None):
         initlen = {0: 1, 1: 2, 2: 3, 3: 5}[numterms]
         incr = {0: 1, 1: 1, 2: 2, 3: 4}[numterms]
 
-    def pa(s, l, t):
+    def pa(s: str, l: int, t: list[Any]) -> list[Any]:  # noqa: E741
         t = t[0]
         if len(t) > initlen:
             ret = t[:initlen]
@@ -149,9 +168,9 @@ def makeLRlike(numterms: int = None):
 boolean_condition = infixNotation(
     condition,
     [
-        (NOT, 1, opAssoc.RIGHT, makeLRlike()),
-        (AND, 2, opAssoc.LEFT, makeLRlike(2)),
-        (OR, 2, opAssoc.LEFT, makeLRlike(2)),
+        (NOT, 1, opAssoc.RIGHT, nest_tokens_left_recursively()),
+        (AND, 2, opAssoc.LEFT, nest_tokens_left_recursively(2)),
+        (OR, 2, opAssoc.LEFT, nest_tokens_left_recursively(2)),
     ],
 )
 

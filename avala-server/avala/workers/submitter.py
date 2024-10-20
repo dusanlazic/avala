@@ -272,7 +272,7 @@ class Submitter:
         while attempts:
             try:
                 return self.submit(flag)
-            except:
+            except Exception:
                 attempts -= 1
                 if self.cleanup:
                     self.cleanup()

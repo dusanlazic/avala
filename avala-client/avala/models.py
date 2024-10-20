@@ -9,7 +9,7 @@ from pygments.formatters import TerminalFormatter
 from pygments.lexers import JsonLexer
 from sqlalchemy import Boolean, Column, LargeBinary, String
 
-from .database import Base, get_db
+from .database import Base
 
 
 class Batching:

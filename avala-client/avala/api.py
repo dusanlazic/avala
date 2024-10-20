@@ -159,7 +159,7 @@ class APIClient:
                 self._cache_attack_data(response.json())
 
             return UnscopedAttackData(response.json())
-        except:
+        except Exception:
             return self._get_cached_attack_data()
 
     def get_attack_data(self) -> UnscopedAttackData:
@@ -178,7 +178,7 @@ class APIClient:
                 self._cache_attack_data(response.json())
 
             return UnscopedAttackData(response.json())
-        except:
+        except Exception:
             return self._get_cached_attack_data()
 
     def _cache_attack_data(self, response_json: dict) -> None:
@@ -209,5 +209,5 @@ class APIClient:
         with open(DOT_DIR_PATH / "cached_attack_data.json") as file:
             try:
                 return UnscopedAttackData(json.load(file))
-            except:
+            except Exception:
                 raise RuntimeError("Attack data is corrupted or was never fetched.")

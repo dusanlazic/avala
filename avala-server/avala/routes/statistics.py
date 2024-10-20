@@ -157,5 +157,5 @@ async def rabbit_event_stream():
         async with broadcast.subscribe(channel="rabbit") as subscriber:
             async for event in subscriber:
                 yield "data: %s\n\n" % event.message
-    except:
+    except Exception:
         return
