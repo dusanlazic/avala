@@ -1,6 +1,0 @@
-recursive-include avala/static *
-exclude avala/initialization/files/*
-include avala/initialization/files/flag_ids.py
-include avala/initialization/files/submitter.py
-include avala/initialization/files/compose.yaml
-include avala/initialization/files/server.yaml

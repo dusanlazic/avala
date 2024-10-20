@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "avala-client"
+version = "0.1.0"
+description = "Avala client for writing and running exploits"
+authors = ["Dušan Lazić <lazicdusan@protonmail.com>"]
+readme = "README.md"
+packages = [{include = "avala"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.32.3"
+loguru = "^0.7.2"
+sqlalchemy = "^2.0.36"
+apscheduler = "^3.10.4"
+addict = "^2.4.0"
+pygments = "^2.18.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.7.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
