@@ -1,11 +1,11 @@
 from apscheduler.schedulers.blocking import BlockingScheduler
+from avala_shared.logs import logger
 from sqlalchemy.orm import Session
 
 from ..database import get_sync_db_session
 from ..models import Flag
 from ..mq.rabbit import RabbitConnection, RabbitQueue
 from ..schemas import FlagSubmissionResponse
-from ..shared.logs import logger
 
 # TODO: Make configurable
 BATCH_SIZE = 1000

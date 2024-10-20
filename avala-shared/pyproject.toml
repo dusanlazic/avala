@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "avala-shared"
+version = "0.1.0"
+description = "Shared functions used in both avala-server and avala-client"
+authors = ["Dušan Lazić <lazicdusan@protonmail.com>"]
+readme = "README.md"
+packages = [{include = "avala_shared"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+loguru = "^0.7.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

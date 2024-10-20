@@ -40,6 +40,22 @@ twisted = ["twisted"]
 zookeeper = ["kazoo"]
 
 [[package]]
+name = "avala-shared"
+version = "0.1.0"
+description = "Shared functions used in both avala-server and avala-client"
+optional = false
+python-versions = "^3.11"
+files = []
+develop = false
+
+[package.dependencies]
+loguru = "^0.7.2"
+
+[package.source]
+type = "directory"
+url = "../avala-shared"
+
+[[package]]
 name = "certifi"
 version = "2024.8.30"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -545,4 +561,4 @@ dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "9649b384e85cbc003c72e92983fd7048a51b2725827d63fbddeb848423b644c9"
+content-hash = "761adbd704c707208a086570575cb32ddd38ec6c7e1da9082b16e6756eccef62"

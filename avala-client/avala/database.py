@@ -1,12 +1,12 @@
 import sys
 from contextlib import contextmanager
 
+from avala_shared.logs import logger
 from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from .config import DOT_DIR_PATH
-from .shared.logs import logger
 
 engine = None
 SessionLocal = None

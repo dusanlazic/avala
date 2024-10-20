@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from importlib import import_module, reload
 
 from apscheduler.schedulers.blocking import BlockingScheduler
+from avala_shared.logs import logger
 
 from ..broadcast import emitter
 from ..config import config
@@ -15,7 +16,6 @@ from ..scheduler import (
     get_tick_elapsed,
 )
 from ..schemas import FlagCounterDelta, FlagSubmissionResponse
-from ..shared.logs import logger
 
 
 def main():

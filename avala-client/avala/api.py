@@ -2,11 +2,11 @@ import json
 
 import requests
 from addict import Dict
+from avala_shared.logs import logger
+from avala_shared.util import colorize
 
 from .config import DOT_DIR_PATH, ConnectionConfig
 from .models import UnscopedAttackData
-from .shared.logs import logger
-from .shared.util import colorize
 
 
 class APIClient:

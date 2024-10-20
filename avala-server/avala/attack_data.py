@@ -7,9 +7,10 @@ import time
 from importlib import import_module, reload
 from typing import Any, Callable
 
+from avala_shared.logs import logger
+
 from .config import config
 from .database import get_sync_db_session
-from .shared.logs import logger
 from .state import StateManager
 
 attack_data_updated_event: asyncio.Event = asyncio.Event()

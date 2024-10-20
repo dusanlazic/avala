@@ -1,6 +1,8 @@
 import time
 from typing import Annotated
 
+from avala_shared.logs import logger
+from avala_shared.util import colorize
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pyparsing import ParseException
 from sqlalchemy import func, select
@@ -25,8 +27,6 @@ from ..schemas import (
     SearchStatsMetadata,
 )
 from ..search import build_query, parse_query
-from ..shared.logs import logger
-from ..shared.util import colorize
 
 router = APIRouter(prefix="/flags", tags=["Flags"])
 

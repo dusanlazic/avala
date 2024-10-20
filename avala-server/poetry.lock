@@ -153,6 +153,22 @@ gssauth = ["gssapi", "sspilib"]
 test = ["distro (>=1.9.0,<1.10.0)", "flake8 (>=6.1,<7.0)", "flake8-pyi (>=24.1.0,<24.2.0)", "gssapi", "k5test", "mypy (>=1.8.0,<1.9.0)", "sspilib", "uvloop (>=0.15.3)"]
 
 [[package]]
+name = "avala-shared"
+version = "0.1.0"
+description = "Shared functions used in both avala-server and avala-client"
+optional = false
+python-versions = "^3.11"
+files = []
+develop = false
+
+[package.dependencies]
+loguru = "^0.7.2"
+
+[package.source]
+type = "directory"
+url = "../avala-shared"
+
+[[package]]
 name = "broadcaster"
 version = "0.3.1"
 description = "Simple broadcast channels."
@@ -1444,4 +1460,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "bbb633bc15651d3b3fc057312bba5a1268756266cd1ddb56f3fe09cbb913a153"
+content-hash = "3e3f760b2fbb06f0a206345e7d0a744610d5aab65fc2c015e0d2c506d11a9226"

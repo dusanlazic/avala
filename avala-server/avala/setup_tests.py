@@ -6,9 +6,10 @@ import traceback
 from importlib import import_module, reload
 from typing import Callable
 
+from avala_shared.logs import logger
+
 from .attack_data import import_user_functions as import_attack_data_functions
 from .config import config
-from .shared.logs import logger
 
 is_verbose = False
 

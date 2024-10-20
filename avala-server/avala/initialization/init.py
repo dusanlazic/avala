@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 
-from ..shared.logs import logger
+from avala_shared.logs import logger
 
 
 def initialize_workspace():

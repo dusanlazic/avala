@@ -9,11 +9,11 @@ packages = [{include = "avala"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 requests = "^2.32.3"
-loguru = "^0.7.2"
 sqlalchemy = "^2.0.36"
 apscheduler = "^3.10.4"
 addict = "^2.4.0"
 pygments = "^2.18.0"
+avala-shared = {path = "../avala-shared"}
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.7.0"

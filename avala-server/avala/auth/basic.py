@@ -1,8 +1,8 @@
+from avala_shared.logs import logger
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from ..config import config
-from ..shared.logs import logger
 
 httpbasic = HTTPBasic()
 

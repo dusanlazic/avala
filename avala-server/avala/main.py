@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
+from avala_shared.logs import config as log_config
+from avala_shared.logs import logger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,8 +19,6 @@ from .routes.connect import router as connect_router
 from .routes.flags import router as flags_router
 from .routes.statistics import router as statistics_router
 from .scheduler import initialize_scheduler
-from .shared.logs import config as log_config
-from .shared.logs import logger
 
 
 @asynccontextmanager

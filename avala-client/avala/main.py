@@ -9,6 +9,8 @@ from typing import Any, Callable
 
 import requests
 from apscheduler.schedulers.blocking import BlockingScheduler
+from avala_shared.logs import logger
+from avala_shared.util import convert_to_local_tz, get_next_tick_start
 from sqlalchemy import func
 
 from .api import APIClient
@@ -16,8 +18,6 @@ from .config import DOT_DIR_PATH, ConnectionConfig
 from .database import create_tables, get_db, setup_db_conn
 from .exploit import Exploit
 from .models import PendingFlag, UnscopedAttackData
-from .shared.logs import logger
-from .shared.util import convert_to_local_tz, get_next_tick_start
 
 
 class Avala:

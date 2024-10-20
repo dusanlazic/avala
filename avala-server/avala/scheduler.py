@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from avala_shared.logs import logger
 
 from .attack_data import reload_attack_data
 from .config import config
 from .mq.monitoring import fetch_and_broadcast_rates
-from .shared.logs import logger
 
 
 def initialize_scheduler() -> BackgroundScheduler:

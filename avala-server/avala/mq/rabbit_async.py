@@ -2,9 +2,9 @@ from typing import Callable
 
 import aio_pika
 from aio_pika import Channel, IncomingMessage, Message, RobustConnection
+from avala_shared.logs import logger
 
 from ..config import config
-from ..shared.logs import logger
 
 
 class RabbitQueue:

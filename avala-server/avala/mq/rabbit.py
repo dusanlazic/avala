@@ -1,11 +1,11 @@
 from typing import Callable
 
 import pika
+from avala_shared.logs import logger
 from pika import BlockingConnection
 from pika.adapters.blocking_connection import BlockingChannel
 
 from ..config import config
-from ..shared.logs import logger
 
 
 class RabbitQueue:

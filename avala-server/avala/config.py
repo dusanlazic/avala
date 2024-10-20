@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from avala_shared.logs import logger
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -18,8 +19,6 @@ from pydantic_settings import (
     SettingsConfigDict,
     YamlConfigSettingsSource,
 )
-
-from .shared.logs import logger
 
 DOT_DIR_PATH = Path(".avala")
 
