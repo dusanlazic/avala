@@ -50,12 +50,12 @@ class Avala:
             username=username,
             password=password,
         )
-        self._client: APIClient = None
-        self._scheduler: BlockingScheduler = None
+        self._client: APIClient
+        self._scheduler: BlockingScheduler
 
         self._exploit_directories: list[Path] = []
-        self._before_all_hook = None
-        self._after_all_hook = None
+        self._before_all_hook: Callable | None = None
+        self._after_all_hook: Callable | None = None
 
     def run(self):
         """
@@ -310,23 +310,26 @@ class Avala:
 
     def _reload_exploits(
         self,
-        attack_data: UnscopedAttackData | Future[UnscopedAttackData],
+        attack_data: UnscopedAttackData | None = None,
+        attack_data_future: Future[UnscopedAttackData] | None = None,
         load_all: bool = False,
     ) -> list[Exploit]:
         """
         Reloads exploits, collects their configuration and constructs a list of runnable `Exploit` objects.
 
-        :param attack_data: Either an instance of `UnscopedAttackData` for development mode, or a future object that will return `UnscopedAttackData` for production mode.
+        :param attack_data: `UnscopedAttackData` fetched immediately from the Avala server, used for running exploits in drafts mode.
         :type attack_data: UnscopedAttackData | Future[UnscopedAttackData]
-        :param load_all: Whether to load all exploits, regardless of their draft status. Defaults to False.
+        :param attack_data_future: Future object that will return `UnscopedAttackData` when the Avala server responds, used for running exploits.
+        :type attack_data_future: Future[UnscopedAttackData] | None
+        :param load_all: Whether to load all exploits, regardless of their draft setting. Used when running `fire` command. Defaults to False.
         :type load_all: bool, optional
         :return: List of `Exploit` objects that can be setup and scheduled.
         :rtype: list[Exploit]
         """
-        # Ready and available attack data indicates development mode.
-        should_be_draft = isinstance(attack_data, UnscopedAttackData)
+        # Ready and available attack data indicates that exploit is a draft.
+        should_be_draft = attack_data is not None
 
-        def patch_pwntools(file_path: str) -> str:
+        def patch_pwntools(file_path: Path) -> str:
             """
             Comments out `from pwn import *` to prevent "signal only works in main thread of the main interpreter" error.
 
@@ -335,7 +338,7 @@ class Avala:
             :return: Exploit code without `from pwn import *`
             :rtype: str
             """
-            with open(python_file, "r") as file:
+            with file_path.open() as file:
                 return file.read().replace(
                     "from pwn import *\n", "# from pwn import *\n"
                 )
@@ -348,6 +351,10 @@ class Avala:
                     spec = importlib.util.spec_from_file_location(
                         python_module_name, python_file.absolute()
                     )
+
+                    if spec is None:
+                        raise Exception("Failed to load module spec.")
+
                     module = importlib.util.module_from_spec(spec)
                     patched_code = patch_pwntools(python_file)
                     compiled_code = compile(
@@ -363,7 +370,12 @@ class Avala:
                                 or func.exploit_config.is_draft == should_be_draft
                             )
                         ):
-                            e = Exploit(func.exploit_config, self._client, attack_data)
+                            e = Exploit(
+                                config=func.exploit_config,
+                                client=self._client,
+                                attack_data=attack_data,
+                                attack_data_future=attack_data_future,
+                            )
                             exploits.append(e)
                 except Exception as e:
                     logger.error(
@@ -389,8 +401,8 @@ class Avala:
         exploits = self._reload_exploits(attack_data_future)
 
         exploits_not_requiring_flag_ids, exploits_requiring_flag_ids = (
-            [e for e in exploits if not e.requires_flag_ids],
-            [e for e in exploits if e.requires_flag_ids],
+            [e for e in exploits if not e.func_takes_flag_ids],
+            [e for e in exploits if e.func_takes_flag_ids],
         )
 
         now = datetime.now()
@@ -402,7 +414,7 @@ class Avala:
         for exploit in exploits_not_requiring_flag_ids + exploits_requiring_flag_ids:
             if not exploit.setup():
                 continue
-            if not exploit.batches:
+            if not exploit.batched_target_hosts:
                 self._scheduler.add_job(
                     exploit.run,
                     "date",
@@ -410,11 +422,13 @@ class Avala:
                     misfire_grace_time=None,
                 )
             else:
-                for batch_idx in range(len(exploit.batches)):
+                for batch_idx in range(len(exploit.batched_target_hosts)):
                     self._scheduler.add_job(
                         exploit.run,
                         "date",
-                        run_date=now + exploit.delay + exploit.batching.gap * batch_idx,
+                        run_date=now
+                        + exploit.delay
+                        + exploit.batched_hosts.gap * batch_idx,
                         args=[batch_idx],
                         misfire_grace_time=None,
                     )
@@ -424,7 +438,7 @@ class Avala:
         if self._after_all_hook:
             self._after_all_hook()
 
-    def _run_hook(self, func: Callable):
+    def _run_hook(self, func: Callable | None):
         """
         Runs a hook function, catches and logs any exceptions that occur.
 

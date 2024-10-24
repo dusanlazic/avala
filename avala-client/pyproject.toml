@@ -14,9 +14,26 @@ apscheduler = "^3.10.4"
 addict = "^2.4.0"
 pygments = "^2.18.0"
 avala-shared = {path = "../avala-shared"}
+mypy = "^1.12.1"
+pydantic = "^2.9.2"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.7.0"
+types-requests = "^2.32.0.20241016"
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.ruff]
+lint.select = ["I"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+known_first_party = ["avala"]
 
 [build-system]
 requires = ["poetry-core"]

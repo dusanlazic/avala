@@ -1,12 +1,12 @@
 import json
 
 import requests
-from addict import Dict
 from avala_shared.logs import logger
 from avala_shared.util import colorize
 
 from .config import DOT_DIR_PATH, ConnectionConfig
 from .models import UnscopedAttackData
+from .schemas import GameResponse, ScheduleResponse
 
 
 class APIClient:
@@ -14,12 +14,12 @@ class APIClient:
     Class for interacting with the Avala API server and keeping configuration for the game and scheduling.
     """
 
-    def __init__(self, config: ConnectionConfig = None) -> None:
+    def __init__(self, config: ConnectionConfig | None = None) -> None:
         self.config: ConnectionConfig | None = config
 
-        self.conn_str: str = None
-        self.game: Dict = None
-        self.schedule: Dict = None
+        self.conn_str: str
+        self.game: GameResponse
+        self.schedule: ScheduleResponse
 
     def connect(self):
         """Connect to the server and fetch game information."""
@@ -58,14 +58,16 @@ class APIClient:
 
         # Fetch information about the game (e.g. flag format, team IP, etc.)
         try:
-            self.game = Dict(requests.get(f"{self.conn_str}/connect/game").json())
+            self.game = GameResponse().model_validate(
+                requests.get(f"{self.conn_str}/connect/game").json()
+            )
         except Exception as e:
             logger.error("Failed to fetch game information: {error}", error=e)
             raise
 
         # Fetch information needed for synchronizing client with the server.
         try:
-            self.schedule = Dict(
+            self.schedule = ScheduleResponse().model_validate(
                 requests.get(f"{self.conn_str}/connect/schedule").json()
             )
         except Exception as e:
@@ -108,10 +110,10 @@ class APIClient:
             raise FileNotFoundError()
 
         with open(DOT_DIR_PATH / "api_client.json", "r") as file:
-            data = Dict(json.load(file))
-            self.conn_str = data.conn_str
-            self.game = data.game
-            self.schedule = data.schedule
+            data = json.load(file)
+            self.conn_str = data["conn_str"]
+            self.game = GameResponse.model_validate(data["game"])
+            self.schedule = ScheduleResponse.model_validate(data["schedule"])
 
     def enqueue(self, flags: list[str], exploit_alias: str, target: str):
         """

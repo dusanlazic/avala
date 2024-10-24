@@ -45,6 +45,9 @@ class Batching:
         :raises ValueError: If 'count' is provided but is not a positive integer.
         :raises ValueError: If 'gap' is not a positive number.
         """
+
+        # TODO: Replace with Pydantic
+
         if size is None and count is None:
             raise ValueError("Either 'size' or 'count' must be set.")
         if size and count:
@@ -340,7 +343,8 @@ class ExploitConfig:
         meta: ExploitFuncMeta,
         draft: bool = False,
         alias: str | None = None,
-        targets: list[str] | TargetingStrategy = TargetingStrategy.AUTO,
+        target_hosts: list[str] | None = None,
+        target_strategy: TargetingStrategy | None = None,
         tick_scope: TickScope = TickScope.SINGLE,
         skip: list[str] | None = None,
         prepare: str | None = None,
@@ -356,13 +360,14 @@ class ExploitConfig:
         self.is_draft: bool = draft
         self.meta: ExploitFuncMeta = meta
         self.alias: str = alias or meta.module + "." + meta.name
-        self.targets: list[str] | None = targets
+        self.target_hosts: list[str] | None = target_hosts
+        self.target_strategy: TargetingStrategy | None = target_strategy
         self.tick_scope: TickScope = tick_scope
         self.skip: list[str] | None = skip
         self.prepare: str | None = prepare
         self.cleanup: str | None = cleanup
         self.command: str | None = command
-        self.env: dict[str, str] | None = env
+        self.env: dict[str, str] = env
         self.delay: timedelta = (
             timedelta(seconds=delay or 0) if not draft else timedelta(seconds=0)
         )

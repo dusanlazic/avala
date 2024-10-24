@@ -70,11 +70,15 @@ def exploit(
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
+        target_hosts = targets if isinstance(targets, list) else None
+        target_strategy = targets if isinstance(targets, TargetingStrategy) else None
+
         wrapper.exploit_config = ExploitConfig(
             service=service,
             draft=draft,
             alias=alias,
-            targets=targets,
+            target_hosts=target_hosts,
+            target_strategy=target_strategy,
             tick_scope=tick_scope,
             skip=skip,
             prepare=prepare,

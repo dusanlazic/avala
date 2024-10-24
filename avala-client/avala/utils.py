@@ -2,7 +2,7 @@ from avala_shared.logs import logger
 from avala_shared.util import colorize
 
 
-def debug(message: str, alias: str = None, target: str = None):
+def debug(message: str, alias: str | None = None, target: str | None = None):
     """
     Prints a debug message to the console.
 

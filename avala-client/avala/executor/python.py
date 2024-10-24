@@ -1,7 +1,6 @@
 import argparse
 import concurrent.futures
 import json
-import os
 import re
 import shlex
 import subprocess
@@ -9,6 +8,8 @@ import sys
 from importlib import import_module
 from typing import Any, Callable
 
+from avala_shared.logs import logger
+from avala_shared.util import colorize
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Session
 
@@ -21,11 +22,9 @@ from avala.models import (
     TickScope,
     TickScopedAttackData,
 )
-from avala.shared.logs import logger
-from avala.shared.util import colorize
 
 
-def main(args):
+def main(args) -> None:
     client = APIClient()
     client.import_settings()
 
@@ -158,12 +157,17 @@ def main(args):
         subprocess.run(shlex.split(args.cleanup), text=True)
 
 
-def import_func(name, module, directory=os.getcwd()) -> Callable:
+def import_func(name: str, module: str, directory: str) -> Callable:
     if directory not in sys.path:
         sys.path.append(directory)
 
-    module = import_module(module)
-    return getattr(module, name, None)
+    imported_module = import_module(module)
+    imported_func = getattr(imported_module, name, None)
+
+    if callable(imported_func):
+        return imported_func
+
+    raise ImportError(f"Function {name} not found in module {module}.")
 
 
 def match_flags(pattern: str, output: Any) -> list[str]:
@@ -176,19 +180,17 @@ def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
             return ServiceScopedAttackData(json.load(file))
     except FileNotFoundError:
         logger.error("Flag IDs file <b>{file}</> not found.", file=filepath)
-        return
     except PermissionError:
         logger.error("Flag IDs file <b>{file}</> is not accessible.", file=filepath)
-        return
     except json.JSONDecodeError:
         logger.error("Flag IDs file <b>{file}</> is not a valid JSON.", file=filepath)
-        return
     except Exception as e:
         logger.error(
             "An error has occurred while reading flag IDs file: {error}",
             error=e,
         )
-        return
+
+    return None
 
 
 def get_flag_ids(
