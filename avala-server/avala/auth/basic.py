@@ -7,26 +7,20 @@ from ..config import config
 httpbasic = HTTPBasic()
 
 
-async def custom_security(request: Request) -> HTTPBasicCredentials:
-    """
-    Enforces HTTPBasic authentication if the password is configured.
-    """
-    if config.server.password:
-        return await httpbasic(request)
-    return None
-
-
 async def get_current_user(
     request: Request,
-    credentials: HTTPBasicCredentials = Depends(custom_security),
+    credentials: HTTPBasicCredentials = Depends(httpbasic),
 ) -> str:
+    """
+    Enforces HTTP Basic Auth if a password is set in the config and returns the authenticated user's username.
+    """
     if config.server.password is None:
-        return "someone_at_%s" % request.client.host
+        return "someone_at_%s" % request.client.host if request.client else "unknown"
 
     if credentials.password != config.server.password:
         logger.error(
             "Invalid password attempt from <b>{host}</>. Username: {username}. User Agent: {user_agent}. Request path: {path}.",
-            host=request.client.host,
+            host=request.client.host if request.client else "unknown",
             username=credentials.username,
             user_agent=request.headers.get("User-Agent"),
             path=request.url.path,

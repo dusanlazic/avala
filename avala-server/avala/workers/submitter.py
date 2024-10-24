@@ -339,12 +339,16 @@ class Submitter:
         tick_duration = config.game.tick_duration
         next_tick_start = get_next_tick_start(now)
 
-        submissions_per_tick = config.submitter.per_tick
+        interval: timedelta
 
-        if submissions_per_tick:
-            interval: timedelta = tick_duration / (submissions_per_tick - 1)
+        if config.submitter.per_tick:
+            interval = tick_duration / (config.submitter.per_tick - 1)
+        elif config.submitter.interval:
+            interval = timedelta(seconds=config.submitter.interval)
         else:
-            interval: timedelta = timedelta(seconds=config.submitter.interval)
+            raise ValueError(
+                "Either config.submitter.per_tick or config.submitter.interval have to be set."
+            )
 
         if game_has_started():
             tick_elapsed = get_tick_elapsed(now)

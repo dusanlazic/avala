@@ -46,11 +46,11 @@ def submit(flag: str) -> tuple[str, str, str]:
     response_flag = response.split(" ")[0]
 
     if response.endswith("OK"):
-        return response_flag, "accepted"
+        return response_flag, "accepted", response
     if response.endswith("ERR"):
-        return response_flag, "requeued"
+        return response_flag, "requeued", response
     else:
-        return response_flag, "rejected"
+        return response_flag, "rejected", response
 
 
 def submit(flags: list[str]) -> list[tuple[str, str, str]]:

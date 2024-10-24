@@ -21,7 +21,7 @@ class RabbitQueue:
         durable: bool = False,
         exclusive: bool = False,
         auto_delete: bool = False,
-        arguments: dict = None,
+        arguments: dict | None = None,
     ) -> None:
         self.channel: Channel = channel
         self.routing_key: str = routing_key
@@ -33,7 +33,7 @@ class RabbitQueue:
         self.durable: bool = durable
         self.exclusive: bool = exclusive
         self.auto_delete: bool = auto_delete
-        self.arguments: dict = arguments
+        self.arguments: dict | None = arguments
 
     async def declare(self) -> "RabbitQueue":
         queue = await self.channel.declare_queue(
@@ -63,7 +63,7 @@ class RabbitQueue:
 
         return self
 
-    async def put(self, message: str, ttl: str = None):
+    async def put(self, message: str, ttl: str | None = None):
         """
         Publishes a message to the queue.
 

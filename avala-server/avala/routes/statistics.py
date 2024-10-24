@@ -72,7 +72,7 @@ def timeline_view_stats(
 ) -> list[TickStats]:
     current_tick = get_tick_number()
 
-    tick_stats = dict(
+    tick_stats: dict[int, int] = dict(
         db.query(Flag.tick, func.count(Flag.id).label("count"))
         .filter(Flag.status == "accepted")
         .group_by(Flag.tick)

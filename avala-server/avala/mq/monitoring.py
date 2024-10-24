@@ -5,7 +5,7 @@ from queue import Queue
 from ..broadcast import broadcast, emitter
 from ..schemas import FlagCounterDelta
 
-deltas_queue = Queue()
+deltas_queue: Queue = Queue()
 
 
 async def aggregate_flags():

@@ -27,10 +27,10 @@ def parse_negative_timedelta(tokens: list[list[str]]):
     """
     Used to parse negative time deltas, e.g. "2 hours ago", "15 minutes ago", etc.
     """
-    tokens = tokens[0]  # Unwrap the list
+    _tokens = tokens[0]  # Unwrap the list
 
-    value: int = int(tokens[0])
-    unit: str = tokens[1].lower()
+    value: int = int(_tokens[0])
+    unit: str = _tokens[1].lower()
 
     if unit in seconds:
         return datetime.now() - timedelta(seconds=value)
@@ -44,10 +44,10 @@ def parse_time(tokens: list[list[str]]):
     """
     Used to parse time values, e.g. "12:30", "15:45:30", etc.
     """
-    tokens = tokens[0]  # Unwrap the list
-    hour: int = int(tokens[0])
-    minute: int = int(tokens[1])
-    second: int = int(tokens[2]) if len(tokens) > 2 else 0
+    _tokens = tokens[0]  # Unwrap the list
+    hour: int = int(_tokens[0])
+    minute: int = int(_tokens[1])
+    second: int = int(_tokens[2]) if len(_tokens) > 2 else 0
 
     return datetime.now().replace(
         hour=hour,
@@ -138,7 +138,7 @@ OR = one_of(or_, caseless=True)
 
 
 def nest_tokens_left_recursively(
-    numterms: int = None,
+    numterms: int | None = None,
 ) -> Callable[[str, int, list[Any]], list[Any]]:
     """
     Take the flat lists of tokens and nest them as if parsed left-recursively.

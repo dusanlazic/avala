@@ -39,7 +39,7 @@ class Persister:
             id="persister",
         )
 
-    def _persist_responses_in_batches_job(self):
+    def _persist_responses_in_batches_job(self) -> None:
         with RabbitConnection(silent=True) as connection:
             persisting_queue = RabbitQueue(
                 connection.channel,
@@ -91,7 +91,7 @@ class Persister:
         persisting_buffer: list[FlagSubmissionResponse],
         delivery_tag_map: dict[str, int],
         connection: RabbitConnection,
-    ):
+    ) -> None:
         """
         Persists responses from the persistence buffer into the database.
         """

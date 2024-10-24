@@ -22,7 +22,7 @@ class RabbitQueue:
         durable: bool = False,
         exclusive: bool = False,
         auto_delete: bool = False,
-        arguments: dict = None,
+        arguments: dict | None = None,
         silent: bool = False,
     ) -> None:
         self.channel: BlockingChannel = channel
@@ -58,7 +58,7 @@ class RabbitQueue:
                     type=exchange_type,
                 )
 
-    def put(self, message: str, ttl: str = None):
+    def put(self, message: str, ttl: str | None = None):
         """
         Publishes a message to the queue.
 

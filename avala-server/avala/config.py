@@ -36,6 +36,7 @@ class TimeDeltaConfig(BaseModel):
 
     @model_validator(mode="after")
     def to_timedelta(cls, values):
+        # TODO: Find a better way to convert this to a timedelta to fix mypy errors.
         return timedelta(
             hours=values.hours or 0,
             minutes=values.minutes or 0,
@@ -50,7 +51,7 @@ class GameConfig(BaseModel):
     flag_format: str
     team_ip: list[str]
     nop_team_ip: list[str]
-    flag_ttl: PositiveInt | None = None
+    flag_ttl: PositiveInt
     game_starts_at: datetime
     networks_open_after: TimeDeltaConfig
     game_ends_after: TimeDeltaConfig
@@ -162,11 +163,11 @@ class AvalaConfig(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        return (YamlConfigSettingsSource(settings_cls),)
+        return (YamlConfigSettingsSource(settings_cls),)  # type: ignore[arg-type]
 
 
 try:
-    config: AvalaConfig = AvalaConfig()
+    config: AvalaConfig = AvalaConfig()  # type: ignore[call-arg]
 except ValidationError as e:
     error_messages = []
     for error in e.errors():

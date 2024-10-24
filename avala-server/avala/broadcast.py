@@ -1,5 +1,6 @@
 import psycopg2
 from broadcaster import Broadcast
+from psycopg2.extensions import connection as Connection
 
 from .config import config
 
@@ -14,7 +15,7 @@ class PostgresEmitter:
 
     def __init__(self, dsn: str) -> None:
         self._dsn = dsn
-        self._conn = None
+        self._conn: Connection
 
     def connect(self):
         self._conn = psycopg2.connect(self._dsn)

@@ -14,9 +14,9 @@ from .config import config
 is_verbose = False
 
 
-tests: Callable = []
-passed: str = []
-failed: str = []
+tests: list[Callable] = []
+passed: list[str] = []
+failed: list[str] = []
 
 
 def test(name, dependencies=None):
@@ -126,7 +126,7 @@ def test_submitter_import():
 
 
 @test("Submit 50 fake flags.", dependencies=[test_submitter_import])
-def test_flag_submission():
+def test_flag_submission() -> None:
     submit = import_submitter_function("submit")
     prepare = import_submitter_function("prepare")
     cleanup = import_submitter_function("cleanup")

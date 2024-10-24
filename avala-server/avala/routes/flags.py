@@ -135,10 +135,10 @@ def search(
     # Run query
     start = time.time()
     try:
-        query = db.query(Flag).filter(sqlalchemy_query).order_by(*sort_expressions)
+        flag_query = db.query(Flag).filter(sqlalchemy_query).order_by(*sort_expressions)
         results = [
             SearchResult.model_validate(flag)
-            for flag in query.offset((page - 1) * show).limit(show).all()
+            for flag in flag_query.offset((page - 1) * show).limit(show).all()
         ]
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to run the query: %s" % e)

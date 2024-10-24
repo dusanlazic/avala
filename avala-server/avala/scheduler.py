@@ -63,32 +63,28 @@ def get_game_ends_at_tick() -> int:
     ) // config.game.tick_duration
 
 
-def get_tick_elapsed(now=None) -> timedelta:
-    now = now or datetime.now()
+def get_tick_elapsed(now: datetime = datetime.now()) -> timedelta:
     if not game_has_started():
-        return 0
+        return timedelta(0)
 
     return (now - config.game.game_starts_at) % config.game.tick_duration
 
 
-def get_tick_number(now=None) -> int:
-    now = now or datetime.now()
+def get_tick_number(now: datetime = datetime.now()) -> int:
     if not game_has_started():
         return 0
 
     return (now - config.game.game_starts_at) // config.game.tick_duration + 1
 
 
-def get_next_tick_start(now=None) -> datetime:
-    now = now or datetime.now()
+def get_next_tick_start(now: datetime = datetime.now()) -> datetime:
     if not game_has_started():
         return config.game.game_starts_at
 
     return now + config.game.tick_duration - get_tick_elapsed(now)
 
 
-def game_has_started(now=None) -> bool:
-    now = now or datetime.now()
+def game_has_started(now: datetime = datetime.now()) -> bool:
     return now >= config.game.game_starts_at
 
 
@@ -103,7 +99,7 @@ def tick_announcer():
     )
 
 
-def print_current_tick(now=None):
+def print_current_tick(now: datetime = datetime.now()):
     """
     Logs the current tick number and the next tick's scheduled start time. If the game has not started yet,
     it logs the first tick's scheduled start time.
