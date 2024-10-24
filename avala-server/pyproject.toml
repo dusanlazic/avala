@@ -16,7 +16,7 @@ include = [
 [tool.poetry.dependencies]
 python = "^3.11"
 requests = "^2.32.3"
-sqlalchemy = "^2.0.36"
+sqlalchemy = {extras = ["mypy"], version = "^2.0.36"}
 psycopg2-binary = "^2.9.10"
 pyparsing = "^3.2.0"
 fastapi = "^0.115.2"
@@ -35,12 +35,28 @@ avala-shared = {path = "../avala-shared"}
 [tool.poetry.scripts]
 avl = "avala.cli:cli"
 
-
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.7.0"
+types-requests = "^2.32.0.20241016"
+mypy = "^1.13.0"
+sqlalchemy = {extras = ["mypy"], version = "^2.0.36"}
+
+[tool.mypy]
+ignore_missing_imports = true
+exclude = ["avala/initialization/files"]
+plugins = "sqlalchemy.ext.mypy.plugin"
 
 [tool.ruff]
 exclude = ["avala/initialization/files"]
+lint.select = ["I"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+known_first_party = ["avala"]
 
 [build-system]
 requires = ["poetry-core"]
