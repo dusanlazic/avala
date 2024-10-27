@@ -13,7 +13,7 @@ sqlalchemy = "^2.0.36"
 apscheduler = "^3.10.4"
 addict = "^2.4.0"
 pygments = "^2.18.0"
-avala-shared = {path = "../avala-shared"}
+avala-shared = {path = "../shared"}
 pydantic = "^2.9.2"
 
 [tool.poetry.group.dev.dependencies]

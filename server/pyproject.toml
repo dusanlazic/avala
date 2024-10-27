@@ -30,7 +30,7 @@ asyncpg = "^0.30.0"
 uvloop = "^0.21.0"
 httptools = "^0.6.4"
 pydantic-settings = "^2.6.0"
-avala-shared = {path = "../avala-shared"}
+avala-shared = {path = "../shared"}
 
 [tool.poetry.scripts]
 avl = "avala.cli:cli"
