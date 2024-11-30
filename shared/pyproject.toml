@@ -1,16 +1,27 @@
-[tool.poetry]
+[project]
 name = "avala-shared"
 version = "0.1.0"
 description = "Shared functions used in both avala-server and avala-client"
-authors = ["Dušan Lazić <lazicdusan@protonmail.com>"]
+authors = [
+    {name = "Dušan Lazić", email = "lazicdusan@protonmail.com"}
+]
 readme = "README.md"
-packages = [{include = "avala_shared"}]
+requires-python = ">=3.11"
+dependencies = [
+    "loguru>=0.7.2",
+    "pytz>=2024.2",
+    "tzlocal>=5.2",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-loguru = "^0.7.2"
+[dependency-groups]
+dev = [
+    "mypy>=1.13.0",
+    "ruff>=0.8.1",
+    "types-pytz>=2024.2.0.20241003",
+]
 
+[tool.ruff.lint]
+select = ["I"]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.isort]
+include_trailing_comma = true
