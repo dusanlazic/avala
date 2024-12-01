@@ -8,28 +8,25 @@ import subprocess
 import sys
 import tempfile
 
-from avala_shared.logs import logger
-from avala_shared.util import colorize
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Session
 
-from avala.api import APIClient
+from avala.api_client import APIClient
 from avala.database import get_db
+from avala.decorator import TickScope
+from avala.logging import colorize, logger
 from avala.models import (
     FlagIdsHash,
     PendingFlag,
-    ServiceScopedAttackData,
-    TickScope,
-    TickScopedAttackData,
 )
+from avala.schemas import ServiceScopedAttackData, TickScopedAttackData
 
 TARGET_PLACEHOLDER = "{target}"
 FLAG_IDS_PATH_PLACEHOLDER = "{flag_ids_path}"
 
 
 def main(args) -> None:
-    client = APIClient()
-    client.import_settings()
+    client = APIClient.reuse()
 
     if args.prepare:
         subprocess.run(shlex.split(args.prepare), text=True)
@@ -41,9 +38,10 @@ def main(args) -> None:
     used_flag_id_hashes: list[dict] = []
     pending_flags: list[dict] = []
 
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=args.workers
-    ) as executor, get_db() as db:
+    with (
+        concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor,
+        get_db() as db,
+    ):
         if service_attack_data:
             if args.tick_scope == TickScope.SINGLE.value:
                 futures = {

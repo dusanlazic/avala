@@ -1,29 +1,27 @@
 import concurrent.futures
-import importlib
 import importlib.util
 import re
 from concurrent.futures import Future
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
-import requests
-from apscheduler.schedulers.blocking import BlockingScheduler
-from avala_shared.logs import logger
-from avala_shared.util import convert_to_local_tz, get_next_tick_start
+import tzlocal
+from apscheduler import BlockingScheduler
+from pydantic import AwareDatetime
 from sqlalchemy import func
 
-from .api import APIClient
-from .config import DOT_DIR_PATH, ConnectionConfig
-from .database import create_tables, get_db, setup_db_conn
+from .api_client import APIClient, ConnectionConfig, UnscopedAttackData
+from .database import create_tables, get_db, test_connection
 from .exploit import Exploit
-from .models import PendingFlag, UnscopedAttackData
+from .logging import logger
+from .models import PendingFlag
 
 
 class Avala:
     def __init__(
         self,
-        protocol: str = "http",
+        protocol: Literal["http", "https"] = "http",
         host: str = "localhost",
         port: int = 2024,
         username: str = "anon",
@@ -43,7 +41,7 @@ class Avala:
         :param password: Password for the Avala server, defaults to None
         :type password: str | None, optional
         """
-        self._config: ConnectionConfig = ConnectionConfig(
+        self._connection: ConnectionConfig = ConnectionConfig(
             protocol=protocol,
             host=host,
             port=port,
@@ -59,24 +57,20 @@ class Avala:
 
     def run(self):
         """
-        Runs the Avala client in "production" mode. The client will start scheduling and running exploit functions decorated with `@exploit` in registered directories.
-        Call this method after initializing the client and registering exploit directories.
+        Runs the Avala client in production mode. The client will start scheduling and running exploit functions decorated with `@exploit` in the registered directories.
+        Call this method after initializing the client and registering the exploit directories.
         """
         self._show_banner()
-        self._setup_db()
-        self._check_directories()
-        self._initialize_client()
-        self._initialize_scheduler()
-        self._client.get_attack_data()
+        self._setup_database()
+        self._validate_directories()
 
-        first_tick_start = convert_to_local_tz(
+        self._scheduler = BlockingScheduler()
+        self._client = APIClient(self._connection)
+        self._client.cache_settings()
+
+        next_tick_start = self._get_next_tick_start(
             self._client.schedule.first_tick_start,
-            self._client.schedule.tz,
-        )
-
-        next_tick_start = get_next_tick_start(
-            first_tick_start,
-            timedelta(seconds=self._client.schedule.tick_duration),
+            self._client.schedule.tick_duration,
         )
 
         # Schedule job that schedules exploits every tick.
@@ -88,7 +82,7 @@ class Avala:
             next_run_time=next_tick_start,
         )
 
-        # Schedule job that enqueues pending (non forwarded) flags every 15 seconds.
+        # Schedule job that enqueues flags from the fallback store every 15 seconds.
         self._scheduler.add_job(
             func=self._enqueue_pending_flags,
             trigger="interval",
@@ -105,13 +99,13 @@ class Avala:
 
     def workshop(self):
         """
-        Runs draft exploits ("development" mode). This method runs exploit functions with `draft = True` in the registered directories, helping with the exploit development.
+        Runs draft exploits (development mode). This method runs exploit functions with `draft = True` in the registered directories, helping with the exploit development.
         This function can be called in a separate process while the client is already running in production mode. Call this method after initializing the client and registering exploit directories.
         """
-        self._setup_db()
-        self._check_directories()
+        self._setup_database()
+        self._validate_directories()
 
-        self._initialize_client(connect_then_import=False)
+        self._client = APIClient.reuse_first(self._connection)
 
         try:
             attack_data = self._client.get_attack_data()
@@ -135,10 +129,10 @@ class Avala:
         :param selected_exploits: Aliases of the exploits to run.
         :type selected_exploits: list[str]
         """
-        self._setup_db()
-        self._check_directories()
+        self._setup_database()
+        self._validate_directories()
 
-        self._initialize_client(connect_then_import=False)
+        self._client = APIClient.reuse_first(self._connection)
 
         try:
             attack_data = self._client.get_attack_data()
@@ -202,8 +196,7 @@ class Avala:
         :return: Unscoped attack data covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedAttackData
         """
-        self._initialize_client(connect_then_import=False)
-        return self._client.get_attack_data()
+        return APIClient(self._connection).get_attack_data()
 
     def get_services(self) -> list[str]:
         """
@@ -212,14 +205,14 @@ class Avala:
         :return: List of service names.
         :rtype: list[str]
         """
-        return self.get_attack_data().get_services()
+        return APIClient(self._connection).get_attack_data().get_services()
 
     def submit_flags(
         self,
         flags: list[str],
         exploit_alias: str = "manual",
         target: str = "unknown",
-    ):
+    ) -> None:
         """
         Sends flags to the server for enqueuing and duplicate filtering.
 
@@ -230,20 +223,7 @@ class Avala:
         :param target: IP address or hostname of the target/victim team.
         :type target: str
         """
-        self._initialize_client(connect_then_import=False)
-
-        enqueue_body = {
-            "values": flags,
-            "exploit": exploit_alias,
-            "target": target,
-        }
-
-        response = requests.post(
-            f"{self._client.conn_str}/flags/queue", json=enqueue_body
-        )
-        response.raise_for_status()
-
-        return response.json()
+        APIClient(self._connection).enqueue(flags, exploit_alias, target)
 
     def match_flags(self, output: Any) -> list[str]:
         """
@@ -256,48 +236,25 @@ class Avala:
         """
         return re.findall(self._client.game.flag_format, str(output))
 
-    def _initialize_client(self, connect_then_import: bool = True):
+    def _setup_database(self):
         """
-        Initializes the API client. It imports settings from a JSON file as a fallback if the client fails to connect to the server.
-        If the fallback fails too (FileNotFoundError), the client will exit.
+        Tests connection to the local SQLite database and creates required tables if they do not exist.
         """
-        self._client = APIClient(self._config)
+        try:
+            test_connection()
+        except Exception:
+            exit(1)
 
-        if connect_then_import:
-            try:
-                self._client.connect()
-            except Exception:
-                self._client.import_settings()
-            else:
-                self._client.export_settings()
-        elif (DOT_DIR_PATH / "api_client.json").exists():
-            self._client.import_settings()
-        else:
-            try:
-                self._client.connect()
-            except Exception:
-                logger.error(
-                    "Failed to connect to the server and configure the client."
-                )
-                exit(1)
-            else:
-                self._client.export_settings()
-
-    def _initialize_scheduler(self):
-        self._scheduler = BlockingScheduler()
-
-    def _setup_db(self):
-        setup_db_conn()
         create_tables()
 
-    def _check_directories(self):
+    def _validate_directories(self):
         """
-        Validates and filters out invalid registered exploit directories.
+        Validates and filters out invalid (non-existent) registered exploit directories.
         """
         valid_directories = []
         for path in self._exploit_directories:
             if not path.exists() or not path.is_dir():
-                logger.error("Directory not found: {path}", path=path)
+                logger.warning("Directory not found: {path}", path=path)
             else:
                 valid_directories.append(path)
 
@@ -490,6 +447,26 @@ class Avala:
                         PendingFlag.target == row.target,
                         PendingFlag.alias == row.alias,
                     ).update({PendingFlag.submitted: True})
+
+    @staticmethod
+    def _get_next_tick_start(
+        first_tick_start: AwareDatetime, tick_duration: timedelta
+    ) -> AwareDatetime:
+        """
+        Calculate the start time of the next tick.
+
+        :param first_tick_start: The starting time of the first tick.
+        :type first_tick_start: AwareDatetime
+        :param tick_duration: The duration of each tick.
+        :type tick_duration: timedelta
+        :return: The calculated start time of the next tick.
+        :rtype: AwareDatetime
+        """
+        now: AwareDatetime = datetime.now(tzlocal.get_localzone())
+        if now < first_tick_start:
+            return first_tick_start
+
+        return now + tick_duration - ((now - first_tick_start) % tick_duration)
 
     def _show_banner(self):
         print(

@@ -1,24 +1,18 @@
-from avala_shared.logs import logger
-from avala_shared.util import colorize
+import difflib
 
 
-def debug(message: str, alias: str | None = None, target: str | None = None):
+def suggest_closest_match(input_string: str, candidates: list[str]) -> str:
     """
-    Prints a debug message to the console.
+    Suggest the closest matching string from a list of candidates.
 
-    :param message: Message to print
-    :type message: str
-    :param alias: Alias of the exploit for better log message visibility, defaults to None
-    :type alias: str, optional
-    :param target: Target for better log message visibility, defaults to None
-    :type target: str, optional
+    :param input_string: The input string to find a match for.
+    :type input_string: str
+    :param candidates: A list of candidate strings to compare against.
+    :type candidates: List[str]
+    :return: A suggestion message with the closest match, or an empty string if no match is found.
+    :rtype: str
     """
-    if not alias or not target:
-        logger.debug("{message}", message=message)
-    else:
-        logger.debug(
-            "🔎 <b>{alias}</>-><b>{target}</>: {message}",
-            alias=colorize(alias),
-            target=colorize(target),
-            message=message,
-        )
+    matches = difflib.get_close_matches(input_string, candidates)
+    if matches:
+        return f"Did you mean <b>{matches[0]}</>?"
+    return ""
