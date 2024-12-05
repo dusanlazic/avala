@@ -19,7 +19,7 @@ from avala.models import (
     FlagIdsHash,
     PendingFlag,
 )
-from avala.schemas import ServiceScopedAttackData, TickScopedAttackData
+from avala.schemas import ServiceScopedFlagIds, TickScopedFlagIds
 
 TARGET_PLACEHOLDER = "{target}"
 FLAG_IDS_PATH_PLACEHOLDER = "{flag_ids_path}"
@@ -31,9 +31,7 @@ def main(args) -> None:
     if args.prepare:
         subprocess.run(shlex.split(args.prepare), text=True)
 
-    service_attack_data = (
-        read_flag_ids(args.attack_data_file) if args.attack_data_file else None
-    )
+    service_flag_ids = read_flag_ids(args.flag_ids_file) if args.flag_ids_file else None
 
     used_flag_id_hashes: list[dict] = []
     pending_flags: list[dict] = []
@@ -42,7 +40,7 @@ def main(args) -> None:
         concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor,
         get_db() as db,
     ):
-        if service_attack_data:
+        if service_flag_ids:
             if args.tick_scope == TickScope.SINGLE.value:
                 futures = {
                     executor.submit(
@@ -52,7 +50,7 @@ def main(args) -> None:
                         flag_ids,
                     ): (target, flag_ids)
                     for target in args.targets
-                    for flag_ids in get_flag_ids(service_attack_data, target, db)
+                    for flag_ids in get_flag_ids(service_flag_ids, target, db)
                 }
             elif args.tick_scope == TickScope.LAST_N.value:
                 futures = {
@@ -60,15 +58,12 @@ def main(args) -> None:
                         execute_attack,
                         args.command,
                         target,
-                        get_flag_ids(service_attack_data, target, db),
+                        get_flag_ids(service_flag_ids, target, db),
                     ): (target, None)
                     for target in args.targets
                 }
         else:
-            futures = {
-                executor.submit(execute_attack, args.command, target): target
-                for target in args.targets
-            }
+            futures = {executor.submit(execute_attack, args.command, target): target for target in args.targets}
 
         for future in concurrent.futures.as_completed(futures):
             target, flag_ids = futures[future]
@@ -114,27 +109,13 @@ def main(args) -> None:
                 )
 
             if flag_ids:
-                used_flag_id_hashes.append(
-                    {
-                        "value": TickScopedAttackData.hash_flag_ids(
-                            args.alias, target, flag_ids
-                        )
-                    }
-                )
+                used_flag_id_hashes.append({"value": TickScopedFlagIds.hash_flag_ids(args.alias, target, flag_ids)})
 
         if used_flag_id_hashes:
-            db.execute(
-                insert(FlagIdsHash)
-                .values(used_flag_id_hashes)
-                .on_conflict_do_nothing(index_elements=["value"])
-            )
+            db.execute(insert(FlagIdsHash).values(used_flag_id_hashes).on_conflict_do_nothing(index_elements=["value"]))
 
         if pending_flags:
-            db.execute(
-                insert(PendingFlag)
-                .values(pending_flags)
-                .on_conflict_do_nothing(index_elements=["value"])
-            )
+            db.execute(insert(PendingFlag).values(pending_flags).on_conflict_do_nothing(index_elements=["value"]))
             logger.warning(
                 "<b>{count}</> more flags obtained via <b>{alias}</> are stored into the local flag store.",
                 count=len(pending_flags),
@@ -150,22 +131,15 @@ def execute_attack(command, target, flag_ids=None) -> str:
     Executes the attack by running the provided command within a subprocess.
     Returns the command's output to the standard output.
     """
-    command_args = [
-        target if arg == TARGET_PLACEHOLDER else arg for arg in shlex.split(command)
-    ]
+    command_args = [target if arg == TARGET_PLACEHOLDER else arg for arg in shlex.split(command)]
 
     if flag_ids is not None:
         flag_ids_path = export_flag_ids(flag_ids)
         if FLAG_IDS_PATH_PLACEHOLDER in command_args:
-            command_args = [
-                flag_ids_path if arg == FLAG_IDS_PATH_PLACEHOLDER else arg
-                for arg in command_args
-            ]
+            command_args = [flag_ids_path if arg == FLAG_IDS_PATH_PLACEHOLDER else arg for arg in command_args]
 
     try:
-        result = subprocess.run(
-            command_args, text=True, capture_output=True, timeout=args.timeout
-        )
+        result = subprocess.run(command_args, text=True, capture_output=True, timeout=args.timeout)
     except subprocess.TimeoutExpired:
         sys.exit(2)
     finally:
@@ -198,10 +172,10 @@ def match_flags(pattern: str, output: str) -> list[str]:
     return re.findall(pattern, output)
 
 
-def read_flag_ids(filepath: str) -> ServiceScopedAttackData | None:
+def read_flag_ids(filepath: str) -> ServiceScopedFlagIds | None:
     try:
         with open(filepath) as file:
-            return ServiceScopedAttackData(json.load(file))
+            return ServiceScopedFlagIds(json.load(file))
     except FileNotFoundError:
         logger.error("Flag IDs file <b>{file}</> not found.", file=filepath)
     except PermissionError:
@@ -224,12 +198,12 @@ def export_flag_ids(flag_ids):
 
 
 def get_flag_ids(
-    service_attack_data: ServiceScopedAttackData,
+    service_flag_ids: ServiceScopedFlagIds,
     target: str,
     db: Session,
 ) -> list:
     try:
-        flag_ids = service_attack_data / target
+        flag_ids = service_flag_ids / target
     except KeyError:
         logger.error(
             "Target <b>{target}</> not found for exploit <b>{alias}</>.",
@@ -241,21 +215,11 @@ def get_flag_ids(
     if args.draft:
         return flag_ids.serialize()
 
-    hashes = [
-        TickScopedAttackData.hash_flag_ids(args.alias, target, tick.flag_ids)
-        for tick in flag_ids.ticks
-    ]
+    hashes = [TickScopedFlagIds.hash_flag_ids(args.alias, target, tick.flag_ids) for tick in flag_ids.ticks]
 
-    existing_hashes = [
-        value
-        for (value,) in db.query(FlagIdsHash.value)
-        .filter(FlagIdsHash.value.in_(hashes))
-        .all()
-    ]
+    existing_hashes = [value for (value,) in db.query(FlagIdsHash.value).filter(FlagIdsHash.value.in_(hashes)).all()]
 
-    flag_ids.ticks = [
-        t for t, h in zip(flag_ids.ticks, hashes) if h not in existing_hashes
-    ]
+    flag_ids.ticks = [t for t, h in zip(flag_ids.ticks, hashes, strict=False) if h not in existing_hashes]
 
     return flag_ids.serialize()
 
@@ -285,7 +249,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--attack-data-file",
         type=str,
-        help="Path to a file containing attack data of all targets of the specified service.",
+        help="Path to a file containing flag ids of all targets of the specified service.",
     )
     parser.add_argument(
         "--tick-scope",

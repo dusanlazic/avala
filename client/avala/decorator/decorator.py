@@ -1,28 +1,34 @@
 import os
+from datetime import timedelta
 from functools import wraps
+from typing import Iterable
 
+from ..exploit import Exploit
 from .enums import TargetingStrategy, TickScope
-from .schemas import Batching, ExploitConfig, ExploitFuncMeta
+from .schemas import Batching, ExploitFuncMeta
 
 
 def exploit(
     service: str,
     draft: bool = False,
     alias: str | None = None,
-    targets: list[str] | TargetingStrategy = TargetingStrategy.AUTO,
+    targets: Iterable[str] | TargetingStrategy = TargetingStrategy.AUTO,
     tick_scope: TickScope = TickScope.SINGLE,
-    skip: list[str] | None = None,
+    skip: Iterable[str] | None = None,
+    include: Iterable[str] | None = None,
     prepare: str | None = None,
     cleanup: str | None = None,
     command: str | None = None,
-    env: dict[str, str] = {},
-    delay: int = 0,
-    batching: Batching | None = None,
-    timeout: int = 15,
+    env: dict[str, str] | None = None,
+    delay: int | float | timedelta = timedelta(seconds=0),
+    batching: Batching = Batching(count=1),
+    timeout: int | float | timedelta = timedelta(seconds=15),
     workers: int = 128,
 ):
     """
-    A decorator to mark a function as an exploit.
+    TODO: Update docstirng
+
+    A decorator to mark a function as an exploit and configure it.
 
     :param service: Name of the service attacked by the exploit. To see all services, you can use `get_services()` method of `Avala` instance.
     :type service: str
@@ -65,31 +71,31 @@ def exploit(
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        target_hosts = targets if isinstance(targets, list) else None
-        target_strategy = targets if isinstance(targets, TargetingStrategy) else None
+        func_meta = ExploitFuncMeta(
+            name=func.__name__,
+            module=func.__module__,
+            directory=os.path.dirname(func.__code__.co_filename),
+            arg_count=func.__code__.co_argcount,
+        )
 
-        wrapper.exploit_config = ExploitConfig(
+        wrapper.exploit = Exploit(
             service=service,
-            draft=draft,
-            alias=alias,
-            target_hosts=target_hosts,
-            target_strategy=target_strategy,
+            is_draft=draft,
+            alias=alias or f"{func_meta.module}.{func_meta.name}",
+            targets_skip=set(skip) if skip else set(),
+            targets_include=set(include) if include else set(),
+            targets_explicit=set(targets) if isinstance(targets, Iterable) else set(),
+            targets_strategy=targets if isinstance(targets, TargetingStrategy) else None,
             tick_scope=tick_scope,
-            skip=skip,
             prepare=prepare,
             cleanup=cleanup,
             command=command,
-            env=env,
-            delay=delay,
+            env=env or {},
+            delay=timedelta(seconds=delay) if isinstance(delay, (int, float)) else delay,
             batching=batching,
-            timeout=timeout,
+            timeout=timedelta(seconds=timeout) if isinstance(timeout, (int, float)) else timeout,
             workers=workers,
-            meta=ExploitFuncMeta(
-                name=func.__name__,
-                module=func.__module__,
-                directory=os.path.dirname(func.__code__.co_filename),
-                arg_count=func.__code__.co_argcount,
-            ),
+            func_meta=func_meta,
         )
 
         return wrapper

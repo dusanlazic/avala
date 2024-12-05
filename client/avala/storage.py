@@ -58,14 +58,15 @@ class BlobStorage:
         """
         Stores a key-value pair in the database. The value is pickled before storage.
 
-        If the `overwrite` flag is set to `False`, the method will not overwrite the existing object associated with the given key.
+        If the `overwrite` flag is set to `False`, the method will not overwrite the existing object associated with the
+        given key.
 
         :param key: Key under which the value will be stored.
         :type key: str
         :param value: Value to store. Must be serializable.
         :type value: Any
-        :param overwrite: If True, overwrites the existing value. If False and the key exists,
-                          the function does nothing and returns None. Defaults to True.
+        :param overwrite: If True, overwrites the existing value. If False and the key exists, the function does nothing
+        and returns None. Defaults to True.
         :type overwrite: bool, optional
         :raises ValueError: If the provided value is None.
         :return: Stored value, or None if the key already exists and `overwrite` is False.

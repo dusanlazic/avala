@@ -1,6 +1,5 @@
 from . import storage
-from .decorator.decorator import exploit
-from .decorator.enums import TargetingStrategy, TickScope
+from .decorator import Batching, TargetingStrategy, TickScope, exploit
 from .main import Avala
 
-__all__ = ["Avala", "exploit", "TargetingStrategy", "TickScope", "storage"]
+__all__ = ["Avala", "exploit", "TargetingStrategy", "TickScope", "Batching", "storage"]

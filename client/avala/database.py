@@ -9,9 +9,7 @@ from .logging import logger
 
 DOT_DIR_PATH.mkdir(exist_ok=True)
 
-engine = create_engine(
-    "sqlite:///%s" % (DOT_DIR_PATH / "database.db").resolve().as_posix()
-)
+engine = create_engine("sqlite:///%s" % (DOT_DIR_PATH / "database.db").resolve().as_posix())
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from pydantic import BaseModel, PositiveInt, model_validator
+from pydantic import BaseModel, Field, PositiveInt, model_validator
 from typing_extensions import Self
 
 from .enums import TargetingStrategy, TickScope
@@ -67,41 +67,20 @@ class ExploitFuncMeta(BaseModel):
     arg_count: int
 
 
-class ExploitConfig:
-    def __init__(
-        self,
-        service: str,
-        meta: ExploitFuncMeta,
-        draft: bool = False,
-        alias: str | None = None,
-        target_hosts: list[str] | None = None,
-        target_strategy: TargetingStrategy | None = None,
-        tick_scope: TickScope = TickScope.SINGLE,
-        skip: list[str] | None = None,
-        prepare: str | None = None,
-        cleanup: str | None = None,
-        command: str | None = None,
-        env: dict[str, str] = {},
-        delay: int = 0,
-        batching: Batching | None = None,
-        workers: int = 128,
-        timeout: int = 15,
-    ):
-        self.service: str = service
-        self.is_draft: bool = draft
-        self.meta: ExploitFuncMeta = meta
-        self.alias: str = alias or meta.module + "." + meta.name
-        self.target_hosts: list[str] | None = target_hosts
-        self.target_strategy: TargetingStrategy | None = target_strategy
-        self.tick_scope: TickScope = tick_scope
-        self.skip: list[str] | None = skip
-        self.prepare: str | None = prepare
-        self.cleanup: str | None = cleanup
-        self.command: str | None = command
-        self.env: dict[str, str] = env
-        self.delay: timedelta = (
-            timedelta(seconds=delay or 0) if not draft else timedelta(seconds=0)
-        )
-        self.batching: Batching | None = batching if not draft else None
-        self.workers: int = workers
-        self.timeout: int = timeout
+class ExploitConfig(BaseModel):
+    meta: ExploitFuncMeta
+    service: str
+    is_draft: bool = False
+    alias: str = Field(default_factory=lambda data: data["meta"].module + "." + data["meta"].name)
+    target_hosts: list[str] | None = None
+    target_strategy: TargetingStrategy | None = None
+    tick_scope: TickScope = TickScope.SINGLE
+    skip: list[str] = Field(default_factory=list)
+    prepare: str | None = None
+    cleanup: str | None = None
+    command: str | None = None
+    env: dict[str, str] = Field(default_factory=dict)
+    delay: timedelta
+    batching: Batching | None = None
+    workers: PositiveInt = 128
+    timeout: PositiveInt = 15

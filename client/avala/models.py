@@ -1,16 +1,18 @@
-from sqlalchemy import Boolean, Column, LargeBinary, String
+from sqlalchemy import Boolean, LargeBinary, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
 
 
 class FlagIdsHash(Base):
     """
-    SQLAlchemy model representing a hash generated from the exploit alias, target, and the flag ID value for a specific tick.
+    SQLAlchemy model representing a hash generated from the exploit alias, target, and the flag ID value for a specific
+    tick.
     """
 
     __tablename__ = "hashes"
 
-    value = Column(String, primary_key=True)
+    value: Mapped[str] = mapped_column(String, primary_key=True)
 
 
 class StoredObject(Base):
@@ -20,8 +22,8 @@ class StoredObject(Base):
 
     __tablename__ = "objects"
 
-    key = Column(String, primary_key=True)
-    value = Column(LargeBinary)
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[bytes] = mapped_column(LargeBinary)
 
 
 class PendingFlag(Base):
@@ -31,7 +33,7 @@ class PendingFlag(Base):
 
     __tablename__ = "pending_flags"
 
-    value = Column(String, primary_key=True)
-    target = Column(String)
-    alias = Column(String)
-    submitted = Column(Boolean, default=False)
+    value: Mapped[str] = mapped_column(String, primary_key=True)
+    target: Mapped[str] = mapped_column(String)
+    alias: Mapped[str] = mapped_column(String)
+    submitted: Mapped[bool] = mapped_column(Boolean, default=False)

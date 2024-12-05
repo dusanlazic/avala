@@ -99,7 +99,8 @@ def _hash_to_color(s: str) -> tuple[int, int, int]:
 
 def colorize(s: str) -> str:
     """
-    Colorizes a string deterministically based on its hash. The same string will always have the same color.
+    Colorizes a string deterministically based on its hash. The same string will always
+    have the same color.
 
     :param s: Input string
     :type s: str

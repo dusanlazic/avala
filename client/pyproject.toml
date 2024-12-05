@@ -26,8 +26,11 @@ dev = [
 [tool.mypy]
 ignore_missing_imports = true
 
+[tool.ruff]
+line-length = 120
+
 [tool.ruff.lint]
-select = ["I"]
+select = ["I", "W", "E", "F", "C", "B9"]
 
 [tool.isort]
 known_first_party = ["avala", "avala_shared"]

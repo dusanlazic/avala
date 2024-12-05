@@ -4,8 +4,8 @@ from .schemas import (
     ConnectionConfig,
     GameConfig,
     ScheduleConfig,
-    ServiceScopedAttackData,
-    TargetScopedAttackData,
-    TickScopedAttackData,
-    UnscopedAttackData,
+    ServiceScopedFlagIds,
+    TargetScopedFlagIds,
+    TickScopedFlagIds,
+    UnscopedFlagIds,
 )

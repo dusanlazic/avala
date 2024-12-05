@@ -7,9 +7,11 @@ from ..logging import colorize, logger
 from .schemas import (
     CachedConfig,
     ConnectionConfig,
+    EnqueueBody,
+    FlagEnqueueResponse,
     GameConfig,
     ScheduleConfig,
-    UnscopedAttackData,
+    UnscopedFlagIds,
 )
 
 DOT_DIR_PATH = Path(".avala")
@@ -17,7 +19,8 @@ DOT_DIR_PATH = Path(".avala")
 
 class APIClient:
     """
-    Class for interacting with the Avala server API and keeping configuration for the game and scheduling.
+    Class for interacting with the Avala server API and keeping configuration for the
+    game and scheduling.
     """
 
     def __init__(
@@ -75,8 +78,8 @@ class APIClient:
             return cls.connect(connection)
 
     def cache_settings(self):
-        """Exports settings fetched from the API to a local file so they can be reused when
-        instancing the APIClient using `APIClient.reuse()`."""
+        """Exports settings fetched from the API to a local file so they can be reused
+        when instancing the APIClient using `APIClient.reuse()`."""
         DOT_DIR_PATH.mkdir(exist_ok=True)
 
         with open(DOT_DIR_PATH / "api_client.json", "w") as file:
@@ -90,9 +93,10 @@ class APIClient:
         Check if the client is still connected to the server.
 
         :raises RuntimeError: If the connection was never established.
-        :raises httpx.HTTPStatusError: If the server is unreachable within 10 seconds or responds with an error status code.
+        :raises httpx.HTTPStatusError: If the server is unreachable within 10 seconds or
+        responds with an error status code.
         """
-        self.client.get(f"/connect/health", timeout=10).raise_for_status()
+        self.client.get("/connect/health", timeout=10).raise_for_status()
 
     def enqueue(self, flags: list[str], exploit_alias: str, target: str) -> None:
         """
@@ -106,64 +110,72 @@ class APIClient:
         :type target: str
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
         """
-        enqueue_body = {
-            "values": flags,
-            "exploit": exploit_alias,
-            "target": target,
-        }
+        enqueue_body = EnqueueBody(
+            values=flags,
+            exploit=exploit_alias,
+            target=target,
+        )
 
-        response = self.client.post("/flags/queue", json=enqueue_body)
+        response = self.client.post(
+            "/flags/queue",
+            json=enqueue_body.model_dump(mode="json"),
+        )
         response.raise_for_status()
 
-        data = response.json()
+        flag_enqueue_response = FlagEnqueueResponse(**response.json())
+
         logger.info(
             "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{target}</> via <b>{exploit}</>.",
-            icon="✅" if data["enqueued"] else "❗",
-            enqueued=data["enqueued"],
+            icon="✅" if flag_enqueue_response.enqueued else "❗",
+            enqueued=flag_enqueue_response.enqueued,
             total=len(flags),
             target=colorize(target),
             exploit=colorize(exploit_alias),
         )
 
-    def wait_for_attack_data(self) -> UnscopedAttackData:
+    def wait_for_flag_ids(self) -> UnscopedFlagIds:
         """
-        Fetches and waits for the latest attack data from the server by long polling.
-        Useful for starting the attacks using the latest up-to-date attack data.
+        Waits for the latest flag ids from the server by long polling. Useful for starting
+        the attacks using the latest up-to-date flag ids.
 
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
-        :return: Unscoped attack data covering flag IDs from all services, targets and ticks.
-        :rtype: UnscopedAttackData
+        :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
+        :rtype: UnscopedFlagIds
         """
         try:
             response = self.client.get("/attack-data/subscribe")
             response.raise_for_status()
 
             if response.status_code == 200:
-                self._cache_attack_data(response.json())
+                self._cache_flag_ids(response.json())
 
-            return UnscopedAttackData(response.json())
-        except Exception:
-            return self._get_cached_attack_data()
+            return UnscopedFlagIds(response.json())
+        except Exception as e:
+            logger.error("Failed to fetch flag ids: {error}", error=e)
+            return self._get_cached_flag_ids()
 
-    def get_attack_data(self) -> UnscopedAttackData:
+    def get_flag_ids(self) -> UnscopedFlagIds:
         """
-        Fetches the current available attack data from the server.
-        Useful for starting the attacks immediately using the currently available attack data.
+        Fetches the current available flag IDs from the server.
+        Useful for starting the attacks immediately using the currently available flag
+        IDs.
 
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
-        :return: Unscoped attack data covering flag IDs from all services, targets and ticks.
-        :rtype: UnscopedAttackData
+        :return: Flag ids for all targets across all services, covering the last N ticks
+        as provided by the game server.
+        :rtype: UnscopedFlagIds
         """
         try:
             response = self.client.get("/attack-data/current")
             response.raise_for_status()
 
             if response.status_code == 200:
-                self._cache_attack_data(response.json())
+                self._cache_flag_ids(response.json())
 
-            return UnscopedAttackData(response.json())
-        except Exception:
-            return self._get_cached_attack_data()
+            return UnscopedFlagIds(response.json())
+        except Exception as e:
+            logger.error("Failed to fetch flag ids: {error}", error=e)
+            return self._get_cached_flag_ids()
 
     def _setup_http_client(self) -> httpx.Client:
         """
@@ -173,11 +185,7 @@ class APIClient:
         :return: HTTP client configured for interacting with the server.
         :rtype: httpx.Client
         """
-        auth = (
-            httpx.BasicAuth(self.connection.username, self.connection.password)
-            if self.connection.password
-            else None
-        )
+        auth = httpx.BasicAuth(self.connection.username, self.connection.password) if self.connection.password else None
 
         client = httpx.Client(
             auth=auth,
@@ -200,40 +208,40 @@ class APIClient:
 
     def _fetch_schedule_settings(self) -> ScheduleConfig:
         try:
-            return ScheduleConfig.model_validate(
-                self.client.get("/connect/schedule").json()
-            )
+            return ScheduleConfig.model_validate(self.client.get("/connect/schedule").json())
         except Exception as e:
             logger.error("Failed to fetch scheduling information: {error}", error=e)
             raise
 
-    def _cache_attack_data(self, response_json: dict) -> None:
+    def _cache_flag_ids(self, response_json: dict) -> None:
         """
-        Caches the fetched attack data to a JSON file as a temporary fallback in case of
+        Caches the fetched flag IDs to a JSON file as a temporary fallback in case of
         connection loss or server downtime.
 
-        :param response_json: Dictionary containing the fetched attack data.
+        :param response_json: Dictionary containing the fetched flag IDs.
         :type response_json: dict
         """
-        with open(DOT_DIR_PATH / "cached_attack_data.json", "w") as file:
+        with open(DOT_DIR_PATH / "cached_flag_ids.json", "w") as file:
             json.dump(response_json, file)
 
-    def _get_cached_attack_data(self) -> UnscopedAttackData:
+    def _get_cached_flag_ids(self) -> UnscopedFlagIds:
         """
-        Uses the cached attack data as a fallback in case of connection loss or server downtime.
+        Uses the cached flag IDs as a fallback in case of connection loss or server
+        downtime.
 
-        :raises FileNotFoundError: Attack data was never fetched.
-        :raises RuntimeError: Attack data is corrupted or was never fetched.
-        :return: Unscoped attack data covering flag IDs from all services, targets and ticks.
-        :rtype: UnscopedAttackData
+        :raises FileNotFoundError: Flag IDs were never fetched.
+        :raises RuntimeError: Flag IDs are corrupted or were never fetched.
+        :return: Unscoped flag IDs covering flag IDs from all services, targets and
+        ticks.
+        :rtype: UnscopedFlagIds
         """
-        logger.warning("Failed to fetch attack data. Using cached attack data instead.")
+        logger.warning("Using cached flag IDs instead.")
 
-        if not (DOT_DIR_PATH / "cached_attack_data.json").exists():
-            raise FileNotFoundError("Attack data was never fetched.")
+        if not (DOT_DIR_PATH / "cached_flag_ids.json").exists():
+            raise FileNotFoundError("Flag IDs were never fetched.")
 
-        with open(DOT_DIR_PATH / "cached_attack_data.json") as file:
+        with open(DOT_DIR_PATH / "cached_flag_ids.json") as file:
             try:
-                return UnscopedAttackData(json.load(file))
-            except Exception:
-                raise RuntimeError("Attack data is corrupted or was never fetched.")
+                return UnscopedFlagIds(json.load(file))
+            except Exception as e:
+                raise RuntimeError("Flag IDs are corrupted or were never fetched.") from e

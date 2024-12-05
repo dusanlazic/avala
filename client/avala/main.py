@@ -2,17 +2,18 @@ import concurrent.futures
 import importlib.util
 import re
 from concurrent.futures import Future
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, overload
 
 import tzlocal
-from apscheduler import BlockingScheduler
+from apscheduler.schedulers.background import BlockingScheduler
 from pydantic import AwareDatetime
 from sqlalchemy import func
 
-from .api_client import APIClient, ConnectionConfig, UnscopedAttackData
+from .api_client import APIClient, ConnectionConfig, UnscopedFlagIds
 from .database import create_tables, get_db, test_connection
+from .decorator import Batching
 from .exploit import Exploit
 from .logging import logger
 from .models import PendingFlag
@@ -28,7 +29,8 @@ class Avala:
         password: str | None = None,
     ):
         """
-        Initialize the Avala client. The client is used for scheduling and running attacks, extracting flags, and forwarding flags to the Avala server.
+        Initialize the Avala client. The client is used for scheduling and running attacks, extracting flags, and
+        forwarding flags to the Avala server.
 
         :param protocol: Can be "http" or "https", defaults to "http".
         :type protocol: str, optional
@@ -57,8 +59,10 @@ class Avala:
 
     def run(self):
         """
-        Runs the Avala client in production mode. The client will start scheduling and running exploit functions decorated with `@exploit` in the registered directories.
-        Call this method after initializing the client and registering the exploit directories.
+        Runs the Avala client in production mode. The client will start scheduling and
+        running exploit functions decorated with `@exploit` in the registered
+        directories. Call this method after initializing the client and registering the
+        exploit directories.
         """
         self._show_banner()
         self._setup_database()
@@ -68,21 +72,14 @@ class Avala:
         self._client = APIClient(self._connection)
         self._client.cache_settings()
 
-        next_tick_start = self._get_next_tick_start(
-            self._client.schedule.first_tick_start,
-            self._client.schedule.tick_duration,
-        )
-
-        # Schedule job that schedules exploits every tick.
         self._scheduler.add_job(
             func=self._schedule_exploits,
             trigger="interval",
             seconds=self._client.schedule.tick_duration,
             id="schedule_exploits",
-            next_run_time=next_tick_start,
+            next_run_time=self._get_next_tick_start(),
         )
 
-        # Schedule job that enqueues flags from the fallback store every 15 seconds.
         self._scheduler.add_job(
             func=self._enqueue_pending_flags,
             trigger="interval",
@@ -99,8 +96,10 @@ class Avala:
 
     def workshop(self):
         """
-        Runs draft exploits (development mode). This method runs exploit functions with `draft = True` in the registered directories, helping with the exploit development.
-        This function can be called in a separate process while the client is already running in production mode. Call this method after initializing the client and registering exploit directories.
+        Runs draft exploits (development mode). This method runs exploit functions with `draft = True` in the registered
+        directories, helping with the exploit development. This function can be called in a separate process while the
+        client is already running in production mode. Call this method after initializing the client and registering
+        exploit directories.
         """
         self._setup_database()
         self._validate_directories()
@@ -108,23 +107,25 @@ class Avala:
         self._client = APIClient.reuse_first(self._connection)
 
         try:
-            attack_data = self._client.get_attack_data()
+            flag_ids = self._client.get_flag_ids()
         except (RuntimeError, FileNotFoundError) as e:
             logger.error("{error} aa", error=e)
             exit(1)
 
         self._run_hook(self._before_all_hook)
 
-        exploits = self._reload_exploits(attack_data)
+        exploits = self._reload_exploits(mode="draft")
         for exploit in exploits:
-            exploit.setup() and exploit.run()
+            exploit.batching = Batching(count=1)
+            exploit.setup(client=self._client, flag_ids=flag_ids) and exploit.run()
 
         self._run_hook(self._after_all_hook)
 
     def fire(self, selected_exploits: list[str]):
         """
-        Runs selected exploits immediately, in given order. This function can be called in a separate process while the client is already running in production mode.
-        Call this method after initializing the client and registering exploit directories.
+        Runs selected exploits immediately, in given order. This function can be called in a separate process while the
+        client is already running in production mode. Call this method after initializing the client and registering
+        exploit directories.
 
         :param selected_exploits: Aliases of the exploits to run.
         :type selected_exploits: list[str]
@@ -135,26 +136,24 @@ class Avala:
         self._client = APIClient.reuse_first(self._connection)
 
         try:
-            attack_data = self._client.get_attack_data()
+            flag_ids = self._client.get_flag_ids()
         except (RuntimeError, FileNotFoundError) as e:
             logger.error("{error} aa", error=e)
             exit(1)
 
         self._run_hook(self._before_all_hook)
 
-        exploits = [
-            exploit
-            for exploit in self._reload_exploits(attack_data, load_all=True)
-            if exploit.alias in selected_exploits
-        ]
+        exploits = (e for e in self._reload_exploits(mode="force") if e.alias in selected_exploits)
         for exploit in exploits:
-            exploit.setup() and exploit.run()
+            exploit.batching = Batching(count=1)
+            exploit.setup(client=self._client, flag_ids=flag_ids) and exploit.run()
 
         self._run_hook(self._after_all_hook)
 
     def register_directory(self, dir_path: str):
         """
-        Register a directory containing exploits. The directory path could be either absolute, or relative to your **current working directory when running the client**.
+        Register a directory containing exploits. The directory path could be either absolute, or relative to your
+        **current working directory when running the client**.
 
         :param dir_path: Path to the directory containing exploits.
         :type dir_path: str
@@ -165,9 +164,11 @@ class Avala:
 
     def before_all(self):
         """
-        Decorator for a function that will be executed before reloading and scheduling attacks, or at the beginning of each tick.
+        Decorator for a function that will be executed before reloading and scheduling attacks, or at the beginning of
+        each tick.
 
-        This hook can be used to perform any setup or initialization before running attacks, such as pulling exploits from a git repository.
+        This hook can be used to perform any setup or initialization before running attacks, such as pulling exploits
+        from a git repository.
         """
 
         def decorator(func):
@@ -180,7 +181,8 @@ class Avala:
         """
         Decorator for a function that will be executed after all attacks are completed.
 
-        This hook can be used to perform any cleanup or finalization after running attacks, such as cleaning up temporary files, sending a notification, etc.
+        This hook can be used to perform any cleanup or finalization after running attacks, such as cleaning up
+        temporary files, sending a notification, etc.
         """
 
         def decorator(func):
@@ -189,23 +191,23 @@ class Avala:
 
         return decorator
 
-    def get_attack_data(self) -> UnscopedAttackData:
+    def get_flag_ids(self) -> UnscopedFlagIds:
         """
-        Fetches the current available attack data fetched by the Avala server.
+        Fetches the current available flag ids fetched by the Avala server.
 
-        :return: Unscoped attack data covering flag IDs from all services, targets and ticks.
-        :rtype: UnscopedAttackData
+        :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
+        :rtype: UnscopedFlagIds
         """
-        return APIClient(self._connection).get_attack_data()
+        return APIClient(self._connection).get_flag_ids()
 
     def get_services(self) -> list[str]:
         """
-        Fetches the list of services available in the attack data.
+        Fetches the list of services available in the flag ids.
 
         :return: List of service names.
         :rtype: list[str]
         """
-        return APIClient(self._connection).get_attack_data().get_services()
+        return APIClient(self._connection).get_flag_ids().get_service_names()
 
     def submit_flags(
         self,
@@ -265,30 +267,28 @@ class Avala:
 
         self._exploit_directories = valid_directories
 
-    def _reload_exploits(
-        self,
-        attack_data: UnscopedAttackData | None = None,
-        attack_data_future: Future[UnscopedAttackData] | None = None,
-        load_all: bool = False,
-    ) -> list[Exploit]:
+    def _reload_exploits(self, mode: Literal["prod", "draft", "force"]) -> list[Exploit]:
         """
         Reloads exploits, collects their configuration and constructs a list of runnable `Exploit` objects.
 
-        :param attack_data: `UnscopedAttackData` fetched immediately from the Avala server, used for running exploits in drafts mode.
-        :type attack_data: UnscopedAttackData | Future[UnscopedAttackData]
-        :param attack_data_future: Future object that will return `UnscopedAttackData` when the Avala server responds, used for running exploits.
-        :type attack_data_future: Future[UnscopedAttackData] | None
-        :param load_all: Whether to load all exploits, regardless of their draft setting. Used when running `fire` command. Defaults to False.
-        :type load_all: bool, optional
-        :return: List of `Exploit` objects that can be setup and scheduled.
+        TODO: Update this docstring to reflect the new behavior of the function.
+
+        :param mode: Mode of operation. Can be "prod", "draft", or "force". "Draft" loads only draft exploits, "prod"
+        loads only non-draft exploits, and "force" loads all exploits.
+        :type mode: Literal[&quot;prod&quot;, &quot;draft&quot;, &quot;force&quot;]
+        :param flag_ids: Flag IDs fetched immediately from Avala server. Applicible only with mode "draft" or "force",
+        defaults to None.
+        :type flag_ids: UnscopedFlagIds | None, optional
+        :param flag_ids_future: Future object that results in latest flag IDs when Avala server responds. Applicible
+        only with mode "prod", defaults to None.
+        :type flag_ids_future: Future[UnscopedFlagIds] | None, optional
+        :return: List of `Exploit` objects that can be set up and scheduled.
         :rtype: list[Exploit]
         """
-        # Ready and available attack data indicates that exploit is a draft.
-        should_be_draft = attack_data is not None
 
         def patch_pwntools(file_path: Path) -> str:
             """
-            Comments out `from pwn import *` to prevent "signal only works in main thread of the main interpreter" error.
+            Comments out `from pwn import *` to prevent "signal only works in main thread of the main interpreter" error
 
             :param code: Path to the Python file containing the exploit code.
             :type code: str
@@ -296,99 +296,69 @@ class Avala:
             :rtype: str
             """
             with file_path.open() as file:
-                return file.read().replace(
-                    "from pwn import *\n", "# from pwn import *\n"
-                )
+                return file.read().replace("from pwn import *\n", "# from pwn import *\n")
 
         exploits: list[Exploit] = []
-        for directory in self._exploit_directories:
-            for python_file in directory.glob("*.py"):
-                try:
-                    python_module_name = python_file.stem
-                    spec = importlib.util.spec_from_file_location(
-                        python_module_name, python_file.absolute()
-                    )
+        exploit_filepaths = (file for directory in self._exploit_directories for file in directory.glob("*.py"))
 
-                    if spec is None:
-                        raise Exception("Failed to load module spec.")
+        load_all = mode == "force"
+        desired_draft_value = mode == "draft"
 
-                    module = importlib.util.module_from_spec(spec)
-                    patched_code = patch_pwntools(python_file)
-                    compiled_code = compile(
-                        patched_code, python_file.absolute(), "exec"
-                    )
-                    exec(compiled_code, module.__dict__)
-                    for _, func in module.__dict__.items():
-                        if (
-                            callable(func)
-                            and hasattr(func, "exploit_config")  # Has decorator
-                            and (
-                                load_all
-                                or func.exploit_config.is_draft == should_be_draft
-                            )
-                        ):
-                            e = Exploit(
-                                config=func.exploit_config,
-                                client=self._client,
-                                attack_data=attack_data,
-                                attack_data_future=attack_data_future,
-                            )
-                            exploits.append(e)
-                except Exception as e:
-                    logger.error(
-                        "Failed to load exploit from {file}: {error}",
-                        file=python_file,
-                        error=e,
-                    )
+        for exploit_filepath in exploit_filepaths:
+            try:
+                spec = importlib.util.spec_from_file_location(exploit_filepath.stem, exploit_filepath.absolute())
+                if spec is None:
+                    raise Exception("Failed to load module spec.")
+
+                module = importlib.util.module_from_spec(spec)
+                patched_code = patch_pwntools(exploit_filepath)
+                compiled_code = compile(patched_code, exploit_filepath.absolute(), "exec")
+                exec(compiled_code, module.__dict__)
+                for _, func in module.__dict__.items():
+                    if (
+                        callable(func)
+                        and hasattr(func, "exploit")
+                        and isinstance(func.exploit, Exploit)
+                        and (load_all or func.exploit.is_draft == desired_draft_value)
+                    ):
+                        exploits.append(func.exploit)
+            except Exception as e:
+                logger.error(
+                    "Failed to load exploit from {file}: {error}",
+                    file=exploit_filepath,
+                    error=e,
+                )
 
         logger.debug("Loaded {count} exploits.", count=len(exploits))
         return exploits
 
     def _schedule_exploits(self):
         """
-        Scheduled job that runs every tick to reload and schedule exploits. This job is also responsible for
-        fetching attack_data and running before_all and after_all hooks.
+        Scheduled job that runs every tick to reload and schedule exploits. This job is also responsible for fetching
+        flag_ids and running before_all and after_all
+        hooks.
         """
         executor = concurrent.futures.ThreadPoolExecutor()
-        attack_data_future = executor.submit(self._client.wait_for_attack_data)
+        flag_ids_future = executor.submit(self._client.wait_for_flag_ids)
 
         if self._before_all_hook:
             self._before_all_hook()
 
-        exploits = self._reload_exploits(attack_data_future)
-
-        exploits_not_requiring_flag_ids, exploits_requiring_flag_ids = (
-            [e for e in exploits if not e.func_takes_flag_ids],
-            [e for e in exploits if e.func_takes_flag_ids],
-        )
-
         now = datetime.now()
 
-        # Exploits that do not require attack data are scheduled first because
-        # they can be ran immediately, as opposed to the other exploits which
-        # need to wait for the latest attack data.
-
-        for exploit in exploits_not_requiring_flag_ids + exploits_requiring_flag_ids:
-            if not exploit.setup():
+        exploits = self._reload_exploits(mode="prod")
+        for exploit in exploits:
+            if not exploit.setup(client=self._client, flag_ids_future=flag_ids_future):
                 continue
-            if not exploit.batched_target_hosts:
+
+            for batch_idx in range(exploit.get_batch_count()):
                 self._scheduler.add_job(
-                    exploit.run,
-                    "date",
-                    run_date=now + exploit.delay,
+                    func=exploit.run,
+                    args=[batch_idx],
+                    trigger="date",
+                    run_date=now + exploit.delay + exploit.get_batch_interval() * batch_idx,
                     misfire_grace_time=None,
                 )
-            else:
-                for batch_idx in range(len(exploit.batched_target_hosts)):
-                    self._scheduler.add_job(
-                        exploit.run,
-                        "date",
-                        run_date=now
-                        + exploit.delay
-                        + exploit.batched_hosts.gap * batch_idx,
-                        args=[batch_idx],
-                        misfire_grace_time=None,
-                    )
 
         executor.shutdown(wait=True)
 
@@ -406,21 +376,20 @@ class Avala:
             try:
                 func()
             except Exception as e:
-                logger.error(
-                    "Error in {function}: {error}", function=func.__name__, error=e
-                )
+                logger.error("Error in {function}: {error}", function=func.__name__, error=e)
 
     def _enqueue_pending_flags(self):
         """
-        Job that periodically checks the connection with the server and tries to push the pending flags
-        collected during the server downtime.
+        Job that periodically checks the connection with the server and tries to push
+        the pending flags collected during the server downtime.
         """
         with get_db() as db:
             try:
                 self._client.heartbeat()
             except Exception:
                 logger.warning(
-                    "⚠️ Cannot establish connection with the server. <b>{pending_flags}</> flags are waiting to be submitted.",
+                    "⚠️ Cannot establish connection with the server. "
+                    + "<b>{pending_flags}</> flags are waiting to be submitted.",
                     pending_flags=db.query(func.count(PendingFlag.value))
                     .filter(PendingFlag.submitted == False)  # noqa E712
                     .scalar(),
@@ -448,35 +417,30 @@ class Avala:
                         PendingFlag.alias == row.alias,
                     ).update({PendingFlag.submitted: True})
 
-    @staticmethod
-    def _get_next_tick_start(
-        first_tick_start: AwareDatetime, tick_duration: timedelta
-    ) -> AwareDatetime:
+    def _get_next_tick_start(self) -> AwareDatetime:
         """
         Calculate the start time of the next tick.
-
-        :param first_tick_start: The starting time of the first tick.
-        :type first_tick_start: AwareDatetime
-        :param tick_duration: The duration of each tick.
-        :type tick_duration: timedelta
-        :return: The calculated start time of the next tick.
-        :rtype: AwareDatetime
         """
+        first_tick_start = self._client.schedule.first_tick_start
+        tick_duration = self._client.schedule.tick_duration
         now: AwareDatetime = datetime.now(tzlocal.get_localzone())
-        if now < first_tick_start:
+
+        game_has_started = first_tick_start > now
+
+        if not game_has_started:
             return first_tick_start
 
-        return now + tick_duration - ((now - first_tick_start) % tick_duration)
+        return now + tick_duration - (now - first_tick_start) % tick_duration
 
     def _show_banner(self):
         print(
             """\033[34;1m
-      db 
+      db
      ;MM:
-    ,V^MM. 7MM""Yq.  ,6"Yb.  `7M""MMF',6"Yb.  
-   ,M  `MM `MM   j8 8)   MM    M  MM 8)   MM  
-   AbmmmqMA MM""Yq.  ,pm9MM   ,P  MM  ,pm9MM  
-  A'     VML`M   j8 8M   MM . d'  MM 8M   MM  
+    ,V^MM. 7MM""Yq.  ,6"Yb.  `7M""MMF',6"Yb.
+   ,M  `MM `MM   j8 8)   MM    M  MM 8)   MM
+   AbmmmqMA MM""Yq.  ,pm9MM   ,P  MM  ,pm9MM
+  A'     VML`M   j8 8M   MM . d'  MM 8M   MM
 .AMA.   .AMMA.mmm9' `Moo9^Yo8M' .JMML`Moo9^Yo.
 \033[0m"""
         )
