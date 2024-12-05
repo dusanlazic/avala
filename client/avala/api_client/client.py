@@ -154,7 +154,7 @@ class APIClient:
             logger.error("Failed to fetch flag ids: {error}", error=e)
             return self._get_cached_flag_ids()
 
-    def get_flag_ids(self) -> UnscopedFlagIds:
+    def fetch_flag_ids(self) -> UnscopedFlagIds:
         """
         Fetches the current available flag IDs from the server.
         Useful for starting the attacks immediately using the currently available flag

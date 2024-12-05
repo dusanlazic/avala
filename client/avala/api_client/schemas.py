@@ -13,6 +13,7 @@ class GameConfig(BaseModel):
     flag_format: str
     own_team_hosts: set[str]
     nop_team_hosts: set[str]
+    opp_team_hosts: set[str]
 
 
 class ScheduleConfig(BaseModel):

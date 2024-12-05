@@ -1,10 +1,9 @@
 import concurrent.futures
 import importlib.util
 import re
-from concurrent.futures import Future
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Literal, overload
+from typing import Any, Callable, Literal
 
 import tzlocal
 from apscheduler.schedulers.background import BlockingScheduler
@@ -107,7 +106,7 @@ class Avala:
         self._client = APIClient.reuse_first(self._connection)
 
         try:
-            flag_ids = self._client.get_flag_ids()
+            flag_ids = self._client.fetch_flag_ids()
         except (RuntimeError, FileNotFoundError) as e:
             logger.error("{error} aa", error=e)
             exit(1)
@@ -117,18 +116,18 @@ class Avala:
         exploits = self._reload_exploits(mode="draft")
         for exploit in exploits:
             exploit.batching = Batching(count=1)
-            exploit.setup(client=self._client, flag_ids=flag_ids) and exploit.run()
+            exploit.setup(game=self._client.game, flag_ids=flag_ids) and exploit.run()
 
         self._run_hook(self._after_all_hook)
 
-    def fire(self, selected_exploits: list[str]):
+    def fire(self, exploits: list[str]):
         """
         Runs selected exploits immediately, in given order. This function can be called in a separate process while the
         client is already running in production mode. Call this method after initializing the client and registering
         exploit directories.
 
-        :param selected_exploits: Aliases of the exploits to run.
-        :type selected_exploits: list[str]
+        :param exploits: Aliases of the exploits to run.
+        :type exploits: list[str]
         """
         self._setup_database()
         self._validate_directories()
@@ -136,17 +135,17 @@ class Avala:
         self._client = APIClient.reuse_first(self._connection)
 
         try:
-            flag_ids = self._client.get_flag_ids()
+            flag_ids = self._client.fetch_flag_ids()
         except (RuntimeError, FileNotFoundError) as e:
             logger.error("{error} aa", error=e)
             exit(1)
 
         self._run_hook(self._before_all_hook)
 
-        exploits = (e for e in self._reload_exploits(mode="force") if e.alias in selected_exploits)
-        for exploit in exploits:
+        selected_exploits = (e for e in self._reload_exploits(mode="force") if e.alias in exploits)
+        for exploit in selected_exploits:
             exploit.batching = Batching(count=1)
-            exploit.setup(client=self._client, flag_ids=flag_ids) and exploit.run()
+            exploit.setup(game=self._client.game, flag_ids=flag_ids) and exploit.run()
 
         self._run_hook(self._after_all_hook)
 
@@ -198,7 +197,7 @@ class Avala:
         :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedFlagIds
         """
-        return APIClient(self._connection).get_flag_ids()
+        return APIClient(self._connection).fetch_flag_ids()
 
     def get_services(self) -> list[str]:
         """
@@ -207,7 +206,7 @@ class Avala:
         :return: List of service names.
         :rtype: list[str]
         """
-        return APIClient(self._connection).get_flag_ids().get_service_names()
+        return APIClient(self._connection).fetch_flag_ids().get_service_names()
 
     def submit_flags(
         self,
@@ -346,11 +345,17 @@ class Avala:
 
         now = datetime.now()
 
-        exploits = self._reload_exploits(mode="prod")
-        for exploit in exploits:
-            if not exploit.setup(client=self._client, flag_ids_future=flag_ids_future):
-                continue
+        # Sort exploits so that exploits that don't take flag IDs are scheduled first, followed by exploits that do.
+        # This way, fetching flag ids (resolving flag_ids_future) won't block scheduling of exploits that don't need
+        # flag ids.
 
+        exploits = self._reload_exploits(mode="prod")
+        ordered_exploits = [e for e in exploits if not e.takes_flag_ids] + [e for e in exploits if e.takes_flag_ids]
+
+        for exploit in ordered_exploits:
+            flag_ids = flag_ids_future.result() if exploit.takes_flag_ids else None
+            if not exploit.setup(game=self._client.game, flag_ids=flag_ids):
+                continue
             for batch_idx in range(exploit.get_batch_count()):
                 self._scheduler.add_job(
                     func=exploit.run,
