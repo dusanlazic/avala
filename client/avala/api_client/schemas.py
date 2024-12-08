@@ -55,18 +55,19 @@ class TickScopedFlagIds:
 
     def __init__(
         self,
-        service: str,
-        target: str,
+        service_name: str,
+        target_host: str,
         ticks_ago: int,
         flag_ids: Any,
     ):
-        self._validate(service, target, ticks_ago, flag_ids)
-        self.service: str = service
-        self.target: str = target
+        self._validate(service_name, target_host, ticks_ago)
+        self.service_name: str = service_name
+        self.target_host: str = target_host
         self.ticks_ago: int = ticks_ago
         self.flag_ids: Any = flag_ids
+        self.flag_obtained: bool = False
 
-    def hash_flag_ids(self, alias: str) -> str:
+    def compute_hash(self, alias: str) -> str:
         """
         Hashes the specific flag ID in order to track it to ensure that the same attack
         is not executed multiple times.
@@ -74,10 +75,10 @@ class TickScopedFlagIds:
         :return: Hash computed from the alias, target, and flag IDs.
         :rtype: str
         """
-        return hashlib.md5((alias + self.target + str(self.flag_ids)).encode()).hexdigest()
+        return hashlib.md5((alias + self.target_host + str(self.flag_ids)).encode()).hexdigest()
 
     @staticmethod
-    def _validate(service_name: Any, target_host: Any, ticks_ago: Any, flag_ids: Any) -> None:
+    def _validate(service_name: Any, target_host: Any, ticks_ago: Any) -> None:
         if not isinstance(service_name, str):
             raise ValueError(
                 "Service name must be a string." + f" Got {type(service_name).__name__} ('{service_name}')."
@@ -128,9 +129,9 @@ class TargetScopedFlagIds:
         ]
 
     def serialize(self) -> list[Any]:
-        return [tick.flag_ids for tick in self.ticks]
+        return [tick.flag_ids for tick in self.ticks if not tick.flag_obtained]
 
-    def get_flag_ids_for_tick(self, index: int) -> Any:
+    def get_flag_ids_for_tick(self, index: int) -> TickScopedFlagIds:
         """
         Returns the flag ids for a specific tick.
 
@@ -141,13 +142,22 @@ class TargetScopedFlagIds:
         :raises IndexError: If the tick index is out of range.
         """
         if 0 <= index < len(self.ticks):
-            return self.ticks[index].flag_ids
+            return self.ticks[index]
         else:
             raise IndexError(f"Tick index '{index}' out of range")
 
     def walk(self) -> Iterator[TickScopedFlagIds]:
         for tick in self.ticks:
             yield tick
+
+    def copy(self) -> "TargetScopedFlagIds":
+        """
+        Creates a deep copy of the flag IDs.
+
+        :return: A deep copy of the flag IDs.
+        :rtype: TargetScopedFlagIds
+        """
+        return TargetScopedFlagIds(self.service_name, self.target_host, self.serialize())
 
     @staticmethod
     def _validate(service_name: Any, target_host: Any, ticks_data: Any) -> None:
@@ -238,6 +248,15 @@ class ServiceScopedFlagIds:
         for target in self.targets:
             yield from target.walk()
 
+    def copy(self) -> "ServiceScopedFlagIds":
+        """
+        Creates a deep copy of the flag IDs.
+
+        :return: A deep copy of the flag IDs.
+        :rtype: ServiceScopedFlagIds
+        """
+        return ServiceScopedFlagIds(self.service_name, self.serialize())
+
     @staticmethod
     def _validate(service_name: Any, targets_data: Any) -> None:
         if not isinstance(service_name, str):
@@ -320,6 +339,15 @@ class UnscopedFlagIds:
     def walk(self) -> Iterator[TickScopedFlagIds]:
         for service in self.services:
             yield from service.walk()
+
+    def copy(self) -> "UnscopedFlagIds":
+        """
+        Creates a deep copy of the flag IDs.
+
+        :return: A deep copy of the flag IDs.
+        :rtype: UnscopedFlagIds
+        """
+        return UnscopedFlagIds(self.serialize())
 
     @staticmethod
     def _validate(data: Any) -> None:
