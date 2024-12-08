@@ -3,16 +3,16 @@ import difflib
 
 def suggest_closest_match(input_string: str, candidates: list[str]) -> str:
     """
-    Suggest the closest matching string from a list of candidates.
+    Suggests the most similar string from a list of possible strings.
 
-    :param input_string: The input string to find a match for.
+    :param input_string: Input string to find the closest match for.
     :type input_string: str
-    :param candidates: A list of candidate strings to compare against.
-    :type candidates: List[str]
-    :return: A suggestion message with the closest match, or an empty string if no match is found.
+    :param candidates: List of possible strings.
+    :type candidates: list[str]
+    :return: Suggested string.
     :rtype: str
     """
-    matches = difflib.get_close_matches(input_string, candidates)
+    matches = difflib.get_close_matches(input_string, candidates, n=1)
     if matches:
-        return f"Did you mean <b>{matches[0]}</>?"
+        return matches[0]
     return ""

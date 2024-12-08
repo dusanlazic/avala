@@ -1,7 +1,7 @@
 import hashlib
 import json
 from datetime import timedelta
-from typing import Any, Literal
+from typing import Any, Iterator, Literal
 
 from pydantic import AwareDatetime, BaseModel, Field, PositiveInt
 from pygments import highlight
@@ -50,8 +50,7 @@ class FlagEnqueueResponse(BaseModel):
 
 class TickScopedFlagIds:
     """
-    Flag ids for a specific tick of a target within a service, as provided by the game
-    server.
+    Flag IDs for a particular service, target and a tick as provided by the game server.
     """
 
     def __init__(
@@ -67,8 +66,7 @@ class TickScopedFlagIds:
         self.ticks_ago: int = ticks_ago
         self.flag_ids: Any = flag_ids
 
-    @classmethod
-    def hash_flag_ids(cls, alias: str, target: str, flag_ids: Any) -> str:
+    def hash_flag_ids(self, alias: str) -> str:
         """
         Hashes the specific flag ID in order to track it to ensure that the same attack
         is not executed multiple times.
@@ -76,53 +74,61 @@ class TickScopedFlagIds:
         :return: Hash computed from the alias, target, and flag IDs.
         :rtype: str
         """
-        return hashlib.md5((alias + target + str(flag_ids)).encode()).hexdigest()
-
-    def serialize(self) -> Any:
-        return self.flag_ids
+        return hashlib.md5((alias + self.target + str(self.flag_ids)).encode()).hexdigest()
 
     @staticmethod
-    def _validate(service: Any, target: Any, ticks_ago: Any, flag_ids: Any) -> None:
-        if not isinstance(service, str):
-            raise ValueError("Service name must be a string." + f" Got {type(service).__name__} ('{service}').")
-        if not isinstance(target, str):
-            raise ValueError("Target name must be a string." + f" Got {type(target).__name__} ('{target}').")
+    def _validate(service_name: Any, target_host: Any, ticks_ago: Any, flag_ids: Any) -> None:
+        if not isinstance(service_name, str):
+            raise ValueError(
+                "Service name must be a string." + f" Got {type(service_name).__name__} ('{service_name}')."
+            )
+        if not isinstance(target_host, str):
+            raise ValueError("Target host must be a string." + f" Got {type(target_host).__name__} ('{target_host}').")
         if not isinstance(ticks_ago, int):
             raise ValueError(
                 "Ticks ago value must be an integer." + f" Got {type(ticks_ago).__name__} ('{ticks_ago}')."
             )
-        if not isinstance(flag_ids, list):
-            raise ValueError(
-                f"Flag IDs for the service '{service}' and target '{target}' and tick {ticks_ago} must be a list."
-                + f" Got {type(flag_ids).__name__} ('{flag_ids}')."
-            )
 
     def __repr__(self) -> str:
-        json_string = json.dumps(self.serialize(), indent=4)
+        json_string = json.dumps(self.flag_ids, indent=4)  # TODO: Check if this is always json serializable
         return highlight(json_string, JsonLexer(), TerminalFormatter())
 
 
 class TargetScopedFlagIds:
     """
-    Flag ids for all ticks of a specific target within a service, as provided by the
-    game server.
+    Flag IDs for a particular service and target, and last N ticks provided by the game server. Allows traversing the
+    flag IDs structure in a intuitive way.
+
+    Example:
+        Using `/` operator you can reduce the scope of the flag IDs to a specific tick. The class hierarchy is as
+        follows:
+
+            `UnscopedFlagIds` -> `ServiceScopedFlagIds` -> `TargetScopedFlagIds` -> `TickScopedFlagIds` -> `Any`
+
+        The following example demonstrates how to access flag IDs for a specific service, target, and tick:
+
+        .. code-block:: python
+
+            foo_13_flag_ids: TargetScopedFlagIds  # Flag IDs for the service 'foo' and target '10.10.13.37'
+            flag_ids: Any = foo_13_flag_ids / 0   # Flag IDs of the latest tick
     """
 
     def __init__(
         self,
-        service: str,
-        target: str,
-        ticks: list[Any],
+        service_name: str,
+        target_host: str,
+        ticks_data: list[Any],
     ):
-        self._validate(service, target, ticks)
-        self.service: str = service
-        self.target: str = target
+        self._validate(service_name, target_host, ticks_data)
+        self.service_name: str = service_name
+        self.target_host: str = target_host
         self.ticks: list[TickScopedFlagIds] = [
-            TickScopedFlagIds(service, target, ticks_ago, flag_ids) for ticks_ago, flag_ids in enumerate(ticks)
+            TickScopedFlagIds(service_name, target_host, ticks_ago, flag_ids)
+            for ticks_ago, flag_ids in enumerate(ticks_data)
         ]
 
     def serialize(self) -> list[Any]:
-        return [tick.serialize() for tick in self.ticks]
+        return [tick.flag_ids for tick in self.ticks]
 
     def get_flag_ids_for_tick(self, index: int) -> Any:
         """
@@ -139,16 +145,22 @@ class TargetScopedFlagIds:
         else:
             raise IndexError(f"Tick index '{index}' out of range")
 
+    def walk(self) -> Iterator[TickScopedFlagIds]:
+        for tick in self.ticks:
+            yield tick
+
     @staticmethod
-    def _validate(service: Any, target: Any, ticks: Any) -> None:
-        if not isinstance(service, str):
-            raise ValueError("Service name must be a string." + f" Got {type(service).__name__} ('{service}').")
-        if not isinstance(target, str):
-            raise ValueError("Target name must be a string." + f" Got {type(target).__name__} ('{target}').")
-        if not isinstance(ticks, list):
+    def _validate(service_name: Any, target_host: Any, ticks_data: Any) -> None:
+        if not isinstance(service_name, str):
             raise ValueError(
-                f"Flag IDs for the service '{service}' and target '{target}' must be a list."
-                + f" Got {type(ticks).__name__} ('{ticks}')."
+                "Service name must be a string." + f" Got {type(service_name).__name__} ('{service_name}')."
+            )
+        if not isinstance(target_host, str):
+            raise ValueError("Target host must be a string." + f" Got {type(target_host).__name__} ('{target_host}').")
+        if not isinstance(ticks_data, list):
+            raise ValueError(
+                f"Flag IDs for the service '{service_name}' and target '{target_host}' must be a list."
+                + f" Got {type(ticks_data).__name__} ('{ticks_data}')."
             )
 
     def __truediv__(self, index: int) -> Any:
@@ -164,63 +176,85 @@ class TargetScopedFlagIds:
 
 class ServiceScopedFlagIds:
     """
-    Flag ids for all targets of a specific service, covering the last N ticks as
-    provided by the game server.
+    Flag IDs for a particular service, its targets, and last N ticks provided by the game server. Allows traversing the
+    flag IDs structure in a intuitive way.
+
+    Example:
+        Using `/` operator you can reduce the scope of the flag IDs to a specific target or tick. The class
+        hierarchy is as follows:
+
+            `UnscopedFlagIds` -> `ServiceScopedFlagIds` -> `TargetScopedFlagIds` -> `TickScopedFlagIds` -> `Any`
+
+        The following example demonstrates how to access flag IDs for a specific service, target, and tick:
+
+        .. code-block:: python
+
+            foo_flag_ids: ServiceScopedFlagIds
+            flag_ids: Any = foo_flag_ids / "10.10.13.37" / 0
     """
 
     def __init__(
         self,
-        service: str,
-        targets: dict[str, list[Any]],
+        service_name: str,
+        targets_data: dict[str, list[Any]],
     ):
-        self._validate(service, targets)
-        self.service: str = service
-        self.targets: dict[str, TargetScopedFlagIds] = {
-            target: TargetScopedFlagIds(service, target, ticks) for target, ticks in targets.items()
+        self._validate(service_name, targets_data)
+        self.service_name: str = service_name
+        self.targets: set[TargetScopedFlagIds] = {
+            TargetScopedFlagIds(service_name, target_host, ticks_data)
+            for target_host, ticks_data in targets_data.items()
         }
 
+        self._target_host_map: dict[str, TargetScopedFlagIds] = {target.target_host: target for target in self.targets}
+
     def serialize(self) -> dict[str, list[Any]]:
-        return {target: ticks.serialize() for target, ticks in self.targets.items()}
+        return {target.target_host: target.serialize() for target in self.targets}
 
     def get_target_hosts(self) -> set[str]:
         """
         Returns a set of all targets for which flag ids are available.
 
-        :return: Set of IP addresses or hostnames of the teams.
+        :return: Set of IP addresses or hostnames of the targets.
         :rtype: set[str]
         """
-        return set(self.targets.keys())
+        return set(self._target_host_map.keys())
 
-    def get_flag_ids_for_target(self, target: str) -> TargetScopedFlagIds:
+    def get_flag_ids_for_target(self, target_host: str) -> TargetScopedFlagIds:
         """
         Returns the flag ids for a specific target.
 
-        :param target: IP address or hostname of the target/victim team.
-        :type target: str
+        :param target_host: IP address or hostname of the target/victim team.
+        :type target_host: str
         :return: Flag ids for the specified target.
         :rtype: TargetScopedFlagIds
         :raises KeyError: If the target is not found.
         """
-        if target in self.targets:
-            return self.targets[target]
+        if target_host in self._target_host_map:
+            return self._target_host_map[target_host]
         else:
-            raise KeyError(f"Target '{target}' not found")
+            raise KeyError(f"Target '{target_host}' not found")
+
+    def walk(self) -> Iterator[TickScopedFlagIds]:
+        for target in self.targets:
+            yield from target.walk()
 
     @staticmethod
-    def _validate(service: Any, targets: Any) -> None:
-        if not isinstance(service, str):
-            raise ValueError("Service name must be a string." + f"Got {type(service).__name__} ('{service}').")
-        if not isinstance(targets, dict):
+    def _validate(service_name: Any, targets_data: Any) -> None:
+        if not isinstance(service_name, str):
             raise ValueError(
-                f"Flag IDs of the service '{service}' must be a dictionary."
-                + f" Got {type(targets).__name__} ('{targets}')."
+                "Service name must be a string." + f"Got {type(service_name).__name__} ('{service_name}')."
+            )
+        if not isinstance(targets_data, dict):
+            raise ValueError(
+                f"Flag IDs of the service '{service_name}' must be a dictionary."
+                + f" Got {type(targets_data).__name__} ('{targets_data}')."
             )
 
-    def __truediv__(self, target: str) -> TargetScopedFlagIds:
-        return self.get_flag_ids_for_target(target)
+    def __truediv__(self, target_host: str) -> TargetScopedFlagIds:
+        return self.get_flag_ids_for_target(target_host)
 
-    def __getitem__(self, target: str) -> TargetScopedFlagIds:
-        return self.get_flag_ids_for_target(target)
+    def __getitem__(self, target_host: str) -> TargetScopedFlagIds:
+        return self.get_flag_ids_for_target(target_host)
 
     def __repr__(self) -> str:
         json_string = json.dumps(self.serialize(), indent=4)
@@ -229,53 +263,74 @@ class ServiceScopedFlagIds:
 
 class UnscopedFlagIds:
     """
-    Flag ids for all targets across all services, covering the last N ticks as
-    provided by the game server.
+    Flag IDs for all services, targets, and last N ticks provided by the game server. Allows traversing the flag IDs
+    structure in a intuitive way.
+
+    Example:
+        Using `/` operator you can reduce the scope of the flag IDs to a specific service, target, or tick. The class
+        hierarchy is as follows:
+
+            `UnscopedFlagIds` -> `ServiceScopedFlagIds` -> `TargetScopedFlagIds` -> `TickScopedFlagIds` -> `Any`
+
+        The following example demonstrates how to access flag IDs for a specific service, target, and tick:
+
+        .. code-block:: python
+
+            all_flag_ids: UnscopedFlagIds
+            flag_ids: Any = all_flag_ids / "service_foo" / "10.10.13.37" / 0
     """
 
     def __init__(self, data: dict[str, dict[str, list[Any]]]):
         self._validate(data)
-        self.services: dict[str, ServiceScopedFlagIds] = {
-            service: ServiceScopedFlagIds(service, targets) for service, targets in data.items()
+        self.services: set[ServiceScopedFlagIds] = {
+            ServiceScopedFlagIds(service_name, targets_data) for service_name, targets_data in data.items()
+        }
+
+        self._service_name_map: dict[str, ServiceScopedFlagIds] = {
+            service.service_name: service for service in self.services
         }
 
     def serialize(self) -> dict[str, dict[str, list[Any]]]:
-        return {service: data.serialize() for service, data in self.services.items()}
+        return {service.service_name: service.serialize() for service in self.services}
 
-    def get_service_names(self) -> list[str]:
+    def get_service_names(self) -> set[str]:
         """
-        Returns a list of all service names for which flag ids are available.
+        Returns a set of all service names for which flag ids are available.
 
-        :return: List of service names.
-        :rtype: list[str]
+        :return: Set of service names.
+        :rtype: set[str]
         """
-        return list(self.services.keys())
+        return set(self._service_name_map.keys())
 
-    def get_flag_ids_for_service(self, service: str) -> ServiceScopedFlagIds:
+    def get_flag_ids_for_service(self, service_name: str) -> ServiceScopedFlagIds:
         """
         Returns the flag ids for a specific service and all its targets.
 
-        :param service: Name of the service.
-        :type service: str
+        :param service_name: Name of the service.
+        :type service_name: str
         :return: Flag ids for the specified service.
         :rtype: ServiceScopedFlagIds
         :raises KeyError: If the service is not found.
         """
-        if service in self.services:
-            return self.services[service]
+        if service_name in self._service_name_map:
+            return self._service_name_map[service_name]
         else:
-            raise KeyError(f"Service '{service}' not found")
+            raise KeyError(f"Service '{service_name}' not found")
+
+    def walk(self) -> Iterator[TickScopedFlagIds]:
+        for service in self.services:
+            yield from service.walk()
 
     @staticmethod
     def _validate(data: Any) -> None:
         if not isinstance(data, dict):
             raise ValueError("Flag IDs must be a dictionary.")
 
-    def __truediv__(self, service: str) -> ServiceScopedFlagIds:
-        return self.get_flag_ids_for_service(service)
+    def __truediv__(self, service_name: str) -> ServiceScopedFlagIds:
+        return self.get_flag_ids_for_service(service_name)
 
-    def __getitem__(self, service: str) -> ServiceScopedFlagIds:
-        return self.get_flag_ids_for_service(service)
+    def __getitem__(self, service_name: str) -> ServiceScopedFlagIds:
+        return self.get_flag_ids_for_service(service_name)
 
     def __repr__(self) -> str:
         json_string = json.dumps(self.serialize(), indent=4)

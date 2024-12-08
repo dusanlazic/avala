@@ -8,14 +8,11 @@ from typing import Any, Callable, Literal
 import tzlocal
 from apscheduler.schedulers.background import BlockingScheduler
 from pydantic import AwareDatetime
-from sqlalchemy import func
 
 from .api_client import APIClient, ConnectionConfig, UnscopedFlagIds
-from .database import create_tables, get_db, test_connection
 from .decorator import Batching
 from .exploit import Exploit
 from .logging import logger
-from .models import PendingFlag
 
 
 class Avala:
@@ -28,11 +25,11 @@ class Avala:
         password: str | None = None,
     ):
         """
-        Initialize the Avala client. The client is used for scheduling and running attacks, extracting flags, and
-        forwarding flags to the Avala server.
+        Initializes the Avala client. The client schedules and runs the attacks, extracts and forwards flags to the
+        Avala server, and keeps track of the flag IDs to reduce repetition of the same attacks.
 
-        :param protocol: Can be "http" or "https", defaults to "http".
-        :type protocol: str, optional
+        :param protocol: Protocol of the Avala server, defaults to "http"
+        :type protocol: Literal[&quot;http&quot;, &quot;https&quot;], optional
         :param host: Host of the Avala server, defaults to "localhost"
         :type host: str, optional
         :param port: Port of the Avala server, defaults to 2024
@@ -64,7 +61,6 @@ class Avala:
         exploit directories.
         """
         self._show_banner()
-        self._setup_database()
         self._validate_directories()
 
         self._scheduler = BlockingScheduler()
@@ -77,13 +73,6 @@ class Avala:
             seconds=self._client.schedule.tick_duration,
             id="schedule_exploits",
             next_run_time=self._get_next_tick_start(),
-        )
-
-        self._scheduler.add_job(
-            func=self._enqueue_pending_flags,
-            trigger="interval",
-            seconds=15,
-            id="enqueue_pending_flags",
         )
 
         try:
@@ -100,7 +89,6 @@ class Avala:
         client is already running in production mode. Call this method after initializing the client and registering
         exploit directories.
         """
-        self._setup_database()
         self._validate_directories()
 
         self._client = APIClient.reuse_first(self._connection)
@@ -129,7 +117,6 @@ class Avala:
         :param exploits: Aliases of the exploits to run.
         :type exploits: list[str]
         """
-        self._setup_database()
         self._validate_directories()
 
         self._client = APIClient.reuse_first(self._connection)
@@ -199,12 +186,12 @@ class Avala:
         """
         return APIClient(self._connection).fetch_flag_ids()
 
-    def get_services(self) -> list[str]:
+    def get_services(self) -> set[str]:
         """
-        Fetches the list of services available in the flag ids.
+        Fetches a set of names of the available services in flag ids.
 
-        :return: List of service names.
-        :rtype: list[str]
+        :return: Set of service names.
+        :rtype: set[str]
         """
         return APIClient(self._connection).fetch_flag_ids().get_service_names()
 
@@ -236,17 +223,6 @@ class Avala:
         :rtype: list[str]
         """
         return re.findall(self._client.game.flag_format, str(output))
-
-    def _setup_database(self):
-        """
-        Tests connection to the local SQLite database and creates required tables if they do not exist.
-        """
-        try:
-            test_connection()
-        except Exception:
-            exit(1)
-
-        create_tables()
 
     def _validate_directories(self):
         """
@@ -388,39 +364,26 @@ class Avala:
         Job that periodically checks the connection with the server and tries to push
         the pending flags collected during the server downtime.
         """
-        with get_db() as db:
-            try:
-                self._client.heartbeat()
-            except Exception:
-                logger.warning(
-                    "⚠️ Cannot establish connection with the server. "
-                    + "<b>{pending_flags}</> flags are waiting to be submitted.",
-                    pending_flags=db.query(func.count(PendingFlag.value))
-                    .filter(PendingFlag.submitted == False)  # noqa E712
-                    .scalar(),
-                )
-            else:
-                results = (
-                    db.query(
-                        PendingFlag.target,
-                        PendingFlag.alias,
-                        func.group_concat(PendingFlag.value).label("flags"),
-                    )
-                    .filter(PendingFlag.submitted == False)  # noqa E712
-                    .group_by(PendingFlag.target, PendingFlag.alias)
-                    .all()
-                )
+        try:
+            self._client.heartbeat()
+        except Exception:
+            logger.warning(
+                "⚠️ Cannot establish connection with the server. "
+                + "<b>{pending_flags}</> flags are waiting to be submitted.",
+                pending_flags=(
+                    123  # TODO: Get the number of pending flags
+                ),
+            )
+        else:
+            results = set()  # TODO: Get pending flags from redis and group them by target and alias
 
-                if results:
-                    logger.info("Server is back online! Submitting pending flags...")
+            if results:
+                logger.info("Server is back online! Submitting pending flags...")
 
-                for row in results:
-                    flags = row.flags.split(",")
-                    self._client.enqueue(flags, row.alias, row.target)
-                    db.query(PendingFlag).filter(
-                        PendingFlag.target == row.target,
-                        PendingFlag.alias == row.alias,
-                    ).update({PendingFlag.submitted: True})
+            for row in results:
+                flags = row.flags.split(",")
+                self._client.enqueue(flags, row.alias, row.target)
+                # TODO: Remove pending flags from redis
 
     def _get_next_tick_start(self) -> AwareDatetime:
         """

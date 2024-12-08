@@ -8,17 +8,9 @@ import sys
 from importlib import import_module
 from typing import Any, Callable
 
-from sqlalchemy.dialects.sqlite import insert
-from sqlalchemy.orm import Session
-
 from avala.api_client import APIClient, ServiceScopedFlagIds, TickScopedFlagIds
-from avala.database import get_db
 from avala.decorator import TickScope
 from avala.logging import colorize, logger
-from avala.models import (
-    FlagIdsHash,
-    PendingFlag,
-)
 
 
 def main(args) -> None:
@@ -117,7 +109,7 @@ def main(args) -> None:
                 )
 
             if flag_ids:
-                used_flag_id_hashes.append({"value": TickScopedFlagIds.hash_flag_ids(args.alias, target, flag_ids)})
+                used_flag_id_hashes.append({"v1alue": TickScopedFlagIds.hash_flag_ids(args.alias)})
 
         if used_flag_id_hashes:
             db.execute(insert(FlagIdsHash).values(used_flag_id_hashes).on_conflict_do_nothing(index_elements=["value"]))
