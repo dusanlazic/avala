@@ -1,9 +1,7 @@
 from datetime import timedelta
 
-from pydantic import BaseModel, Field, PositiveInt, model_validator
+from pydantic import BaseModel, PositiveInt, model_validator
 from typing_extensions import Self
-
-from .enums import TargetingStrategy, TickScope
 
 
 class Batching(BaseModel):
@@ -65,22 +63,3 @@ class ExploitFuncMeta(BaseModel):
     module: str
     directory: str
     arg_count: int
-
-
-class ExploitConfig(BaseModel):
-    meta: ExploitFuncMeta
-    service: str
-    is_draft: bool = False
-    alias: str = Field(default_factory=lambda data: data["meta"].module + "." + data["meta"].name)
-    target_hosts: list[str] | None = None
-    target_strategy: TargetingStrategy | None = None
-    tick_scope: TickScope = TickScope.SINGLE
-    skip: list[str] = Field(default_factory=list)
-    prepare: str | None = None
-    cleanup: str | None = None
-    command: str | None = None
-    env: dict[str, str] = Field(default_factory=dict)
-    delay: timedelta
-    batching: Batching | None = None
-    workers: PositiveInt = 128
-    timeout: PositiveInt = 15
