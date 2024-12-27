@@ -13,7 +13,7 @@ from .api_client import APIClient, ConnectionConfig, UnscopedFlagIds
 from .decorator import Batching
 from .exploit import Exploit
 from .logging import logger
-from .storage import BlobStorage
+from .storage import BlobStorage, StringStorage
 
 
 class Avala:
@@ -24,7 +24,7 @@ class Avala:
         port: int = 2024,
         username: str = "anon",
         password: str | None = None,
-        storage: BlobStorage | None = None,
+        redis_url: str | None = None,
     ):
         """
         Initializes the Avala client. The client schedules and runs the attacks, extracts and forwards flags to the
@@ -50,11 +50,16 @@ class Avala:
         )
         self._client: APIClient
         self._scheduler: BlockingScheduler
-        self._storage: BlobStorage | None = storage
+        self._blob_storage: BlobStorage | None = None
+        self._flag_storage: StringStorage | None = None
 
         self._exploit_directories: list[Path] = []
         self._before_all_hook: Callable | None = None
         self._after_all_hook: Callable | None = None
+
+        if redis_url:
+            self._blob_storage = BlobStorage(redis_url, "avala_blobs")
+            self._flag_storage = StringStorage(redis_url, "avala_flags")
 
     def run(self):
         """
