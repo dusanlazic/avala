@@ -1,20 +1,27 @@
+import base64
 import pickle
-from base64 import b64decode, b64encode
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import Any, Generic, TypeVar
 
-import redis
+from redis import Redis
+
+T = TypeVar("T")
 
 
-class BlobStorage:
+class BaseRedisStorage(ABC, Generic[T]):
     """
-    A simple key-value store for storing arbitrary objects in Redis.
-    Objects are pickled before storing and unpickled when retrieved.
-    All keys are tracked in a Redis hash named 'blobs'.
+    Abstract base class for Redis-based stores.
     """
 
-    def __init__(self, host: str = "localhost", port: int = 6379, password: str | None = None) -> None:
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 6379,
+        password: str | None = None,
+        hash_name: str = "storage",
+    ) -> None:
         """
-        Initializes the BlobStorage with a connection to Redis.
+        Initializes the storage with connection to a Redis instance.
 
         :param host: Host to Redis, defaults to "localhost"
         :type host: str, optional
@@ -22,111 +29,201 @@ class BlobStorage:
         :type port: int, optional
         :param password: Password to Redis, defaults to None
         :type password: str | None, optional
+        :param hash_name: Name of the Redis hash to use, defaults to "storage"
+        :type hash_name: str, optional
         """
-        self._redis = redis.Redis(host=host, port=port, password=password, decode_responses=False)
-        self._blob_hash = "blobs"
+        self._redis = Redis(host=host, port=port, password=password, decode_responses=False)
+        self._hash = hash_name
 
-    def __getitem__(self, key: str) -> Any:
+    @abstractmethod
+    def _encode(self, value: T) -> bytes:
+        """
+        Encodes a value for storage in Redis.
+
+        :param value: The value to encode.
+        :type value: T
+        :return: The encoded value.
+        :rtype: str
+        """
+        pass
+
+    @abstractmethod
+    def _decode(self, value: bytes) -> T:
+        """
+        Decodes a value retrieved from Redis.
+
+        :param value: The value to decode.
+        :type value: bytes
+        :return: The decoded value.
+        :rtype: T
+        """
+        pass
+
+    def __getitem__(self, key: str) -> T:
+        """
+        Retrieves a value associated with the given key.
+
+        :param key: The key to retrieve.
+        :type key: str
+        :return: The value associated with the key.
+        :rtype: T
+        """
         return self.get(key)
 
-    def __setitem__(self, key: str, value: Any) -> None:
+    def __setitem__(self, key: str, value: T) -> None:
+        """
+        Sets a value for the given key.
+
+        :param key: The key to set.
+        :type key: str
+        :param value: The value to set.
+        :type value: T
+        """
         self.put(key, value, overwrite=True)
 
     def __delitem__(self, key: str) -> None:
+        """
+        Deletes the value associated with the given key.
+
+        :param key: The key to delete.
+        :type key: str
+        """
         self.delete(key)
 
     def __contains__(self, key: str) -> bool:
+        """
+        Checks if the given key exists in the storage.
+
+        :param key: The key to check.
+        :type key: str
+        :return: True if the key exists, False otherwise.
+        :rtype: bool
+        """
         return self.contains(key)
 
-    def get(self, key: str) -> Any:
+    def put(self, key: str, value: T, overwrite: bool = True) -> None:
         """
-        Retrieves and unpickles the value associated with the given key from Redis.
+        Stores a key-value pair in Redis.
 
-        :param key: Key whose associated value is to be retrieved.
+        :param key: The key under which the value will be stored.
         :type key: str
-        :raises KeyError: If the key does not exist.
-        :return: The deserialized value associated with the key, or None if the key does not exist.
-        :rtype: Any
-        """
-        b64_obj_blob: str | None = self._redis.hget(self._blob_hash, key)  # type: ignore
-        if not b64_obj_blob:
-            raise KeyError(f"Key '{key}' not found.")
-
-        return self.decode_and_unpickle(b64_obj_blob)
-
-    def put(self, key: str, value: Any, overwrite: bool = True) -> Any:
-        """
-        Stores a key-value pair in the Redis hash. The value is pickled before storage.
-
-        If the `overwrite` flag is set to `False`, the method will not overwrite the existing object associated with the
-        given key and will raise a ValueError instead.
-
-        :param key: Key under which the value will be stored.
-        :type key: str
-        :param value: Value to store. Must be serializable.
-        :type value: Any
-        :param overwrite: If True, overwrites the existing value. If False and the key exists,
-                          the function does nothing and returns None. Defaults to True.
+        :param value: The value to store.
+        :type value: T
+        :param overwrite: Whether to overwrite the existing value. Defaults to True.
         :type overwrite: bool, optional
-        :raises ValueError: If the provided value is None, or if the key already exists and `overwrite` is False.
-        :return: Stored value, or None if the key already exists and `overwrite` is False.
-        :rtype: Any
+        :raises ValueError: If the value is None.
+        :raises KeyError: If the key exists and overwrite is set to False.
+        :return: The stored value.
+        :rtype: T
         """
         if value is None:
             raise ValueError("Cannot store None value.")
 
-        if not overwrite and self._redis.hget(self._blob_hash, key) is not None:
+        if not overwrite and self._redis.hget(self._hash, key) is not None:
             raise KeyError(f"Key '{key}' already exists and overwrite is set to False.")
 
-        b64_obj_blob = self.pickle_and_encode(value)
-        self._redis.hset(self._blob_hash, key, b64_obj_blob)
-        return value
+        encoded_value = self._encode(value)
+        self._redis.hset(self._hash, key, encoded_value)  # type: ignore
+
+    def get(self, key: str) -> T:
+        """
+        Retrieves a value associated with the given key from Redis.
+
+        :param key: The key to retrieve.
+        :type key: str
+        :raises KeyError: If the key does not exist.
+        :return: The value associated with the key.
+        :rtype: T
+        """
+        value: bytes | None = self._redis.hget(self._hash, key)  # type: ignore
+        if value is None:
+            raise KeyError(f"Key '{key}' not found.")
+
+        return self._decode(value)
 
     def delete(self, key: str) -> bool:
         """
-        Deletes the value associated with the given key from Redis and removes the key from the 'blobs' set.
+        Deletes the value associated with the given key from Redis.
 
-        :param key: Key whose associated entry is to be deleted.
+        :param key: The key to delete.
         :type key: str
         :raises KeyError: If the key does not exist.
-        :return: True if the entry was successfully deleted, False if the key was not found.
+        :return: True if the value was deleted, False otherwise.
         :rtype: bool
         """
-        if self._redis.hdel(self._blob_hash, key) == 1:
+        if self._redis.hdel(self._hash, key):
             return True
         raise KeyError(f"Key '{key}' not found.")
 
     def contains(self, key: str) -> bool:
         """
-        Checks if the key exists in the Redis hash.
+        Checks if the key exists in Redis.
 
-        :param key: Key to check.
+        :param key: The key to check.
         :type key: str
         :return: True if the key exists, False otherwise.
         :rtype: bool
         """
-        return self._redis.hexists(self._blob_hash, key)  # type: ignore
+        return self._redis.hexists(self._hash, key)  # type: ignore
 
-    @staticmethod
-    def pickle_and_encode(value: Any) -> str:
+
+class BlobStorage(BaseRedisStorage[Any]):
+    """
+    Simple key-value store for storing arbitrary objects in Redis.
+    Objects are pickled before storing and unpickled when retrieved.
+    """
+
+    def _encode(self, value: Any) -> bytes:
         """
-        Encodes a value using base64 encoding.
+        Encodes the value using pickle and base64 encoding.
 
-        :param value: Value to encode.
+        :param value: The value to encode.
         :type value: Any
-        :return: Encoded value.
-        :rtype: str
+        :return: The encoded value.
+        :rtype: bytes
         """
-        return b64encode(pickle.dumps(value)).decode("utf-8")
+        obj_blob = pickle.dumps(value)
+        return base64.b64encode(obj_blob)
 
-    @staticmethod
-    def decode_and_unpickle(value: str) -> Any:
+    def _decode(self, value: bytes) -> Any:
         """
-        Decodes a value using base64 encoding.
+        Decodes the value using base64 decoding and pickle.
 
-        :param value: Value to decode.
+        :param value: The value to decode.
         :type value: str
-        :return: Decoded value.
+        :return: The decoded value.
         :rtype: Any
         """
-        return pickle.loads(b64decode(value))
+        obj_blob = base64.b64decode(value)
+        return pickle.loads(obj_blob)
+
+
+class StringStorage(BaseRedisStorage[str]):
+    """
+    Simple key-value store for storing strings in Redis.
+    Strings are utf-8 encoded before storing and decoded when retrieved.
+    """
+
+    def _encode(self, value: str) -> bytes:
+        """
+        Encodes the string value.
+
+        :param value: The string to encode.
+        :type value: str
+        :return: The encoded string.
+        :rtype: bytes
+        """
+        if not isinstance(value, str):
+            raise TypeError("Value must be a string.")
+        return value.encode("utf-8")
+
+    def _decode(self, value: bytes) -> str:
+        """
+        Decodes the string value.
+
+        :param value: The string to decode.
+        :type value: bytes
+        :return: The decoded string.
+        :rtype: str
+        """
+        return value.decode("utf-8")
