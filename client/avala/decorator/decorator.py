@@ -1,11 +1,10 @@
-import os
 from datetime import timedelta
 from functools import wraps
 from typing import Iterable
 
 from ..exploit import Exploit
 from .enums import TargetingStrategy, TickScope
-from .schemas import Batching, ExploitFuncMeta
+from .schemas import Batching
 
 
 def exploit(
@@ -71,17 +70,10 @@ def exploit(
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        func_meta = ExploitFuncMeta(
-            name=func.__name__,
-            module=func.__module__,
-            directory=os.path.dirname(func.__code__.co_filename),
-            arg_count=func.__code__.co_argcount,
-        )
-
         wrapper.exploit = Exploit(
             service=service,
             is_draft=draft,
-            alias=alias or f"{func_meta.module}.{func_meta.name}",
+            alias=alias or f"{func.__module__}.{func.__name__}",
             targets_skip=set(skip) if skip else set(),
             targets_include=set(include) if include else set(),
             targets_explicit=set(targets) if isinstance(targets, Iterable) else set(),
@@ -95,7 +87,7 @@ def exploit(
             batching=batching,
             timeout=timedelta(seconds=timeout) if isinstance(timeout, (int, float)) else timeout,
             workers=workers,
-            func_meta=func_meta,
+            func=func,
         )
 
         return wrapper

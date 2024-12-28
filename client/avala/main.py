@@ -378,9 +378,7 @@ class Avala:
             logger.warning(
                 "⚠️ Cannot establish connection with the server. "
                 + "<b>{pending_flags}</> flags are waiting to be submitted.",
-                pending_flags=(
-                    123  # TODO: Get the number of pending flags
-                ),
+                pending_flags=(123),  # TODO: Get the number of pending flags
             )
         else:
             results = set()  # TODO: Get pending flags from redis and group them by target and alias

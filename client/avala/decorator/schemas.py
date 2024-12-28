@@ -43,23 +43,3 @@ class Batching(BaseModel):
         if self.size and self.count:
             raise ValueError("Only one of 'size' or 'count' can be set.")
         return self
-
-
-class ExploitFuncMeta(BaseModel):
-    """
-    Represents metadata for an exploit function.
-
-    :param name: Name of the exploit function.
-    :type name: str
-    :param module: Name of the module containing the exploit function.
-    :type module: str
-    :param directory: Directory containing the exploit module.
-    :type directory: str
-    :param arg_count: Number of arguments expected by the exploit function.
-    :type arg_count: int
-    """
-
-    name: str
-    module: str
-    directory: str
-    arg_count: int
