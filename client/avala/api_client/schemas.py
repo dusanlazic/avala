@@ -64,8 +64,7 @@ class TickScopedFlagIds:
         self.service_name: str = service_name
         self.target_host: str = target_host
         self.ticks_ago: int = ticks_ago
-        self.flag_ids: Any = flag_ids
-        self.flag_obtained: bool = False
+        self.value: Any = flag_ids
 
     def compute_hash(self, alias: str) -> str:
         """
@@ -75,7 +74,7 @@ class TickScopedFlagIds:
         :return: Hash computed from the alias, target, and flag IDs.
         :rtype: str
         """
-        return hashlib.md5((alias + self.target_host + str(self.flag_ids)).encode()).hexdigest()
+        return hashlib.md5((alias + self.target_host + str(self.value)).encode()).hexdigest()
 
     @staticmethod
     def _validate(service_name: Any, target_host: Any, ticks_ago: Any) -> None:
@@ -91,7 +90,7 @@ class TickScopedFlagIds:
             )
 
     def __repr__(self) -> str:
-        json_string = json.dumps(self.flag_ids, indent=4)  # TODO: Check if this is always json serializable
+        json_string = json.dumps(self.value, indent=4)  # TODO: Check if this is always json serializable
         return highlight(json_string, JsonLexer(), TerminalFormatter())
 
 
@@ -129,7 +128,7 @@ class TargetScopedFlagIds:
         ]
 
     def serialize(self) -> list[Any]:
-        return [tick.flag_ids for tick in self.ticks if not tick.flag_obtained]
+        return [tick.value for tick in self.ticks]
 
     def get_flag_ids_for_tick(self, index: int) -> TickScopedFlagIds:
         """

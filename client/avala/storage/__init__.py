@@ -1,3 +1,3 @@
-from .impl import BlobStorage, StringStorage
+from .impl import BlobStorage, FlagIdsHashStorage
 
-__all__ = ["BlobStorage", "StringStorage"]
+__all__ = ["BlobStorage", "FlagIdsHashStorage"]

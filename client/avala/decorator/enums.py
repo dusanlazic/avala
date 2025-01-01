@@ -24,7 +24,7 @@ class TargetingStrategy(Enum):
     OWN_TEAM = "own_team"
 
 
-class TickScope(Enum):
+class FlagIdScope(Enum):
     """
     Enumeration representing the scope of ticks for which flag IDs are provided to the exploit function.
 
@@ -36,5 +36,5 @@ class TickScope(Enum):
         Specifies that the `flag_ids` object will contain a list of all flag IDs provided by the game server for the last N ticks.
     """
 
-    SINGLE = "single"
-    LAST_N = "last_n"
+    SINGLE_TICK = "single"
+    LAST_N_TICKS = "last_n"

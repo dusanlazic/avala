@@ -1,3 +1,3 @@
 from .decorator import exploit
-from .enums import TargetingStrategy, TickScope
+from .enums import FlagIdScope, TargetingStrategy
 from .schemas import Batching

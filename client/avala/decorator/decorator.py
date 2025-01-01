@@ -3,7 +3,7 @@ from functools import wraps
 from typing import Iterable
 
 from ..exploit import Exploit
-from .enums import TargetingStrategy, TickScope
+from .enums import FlagIdScope, TargetingStrategy
 from .schemas import Batching
 
 
@@ -12,7 +12,7 @@ def exploit(
     draft: bool = False,
     alias: str | None = None,
     targets: Iterable[str] | TargetingStrategy = TargetingStrategy.AUTO,
-    tick_scope: TickScope = TickScope.SINGLE,
+    flag_id_scope: FlagIdScope = FlagIdScope.SINGLE_TICK,
     skip: Iterable[str] | None = None,
     include: Iterable[str] | None = None,
     prepare: str | None = None,
@@ -78,7 +78,7 @@ def exploit(
             targets_include=set(include) if include else set(),
             targets_explicit=set(targets) if isinstance(targets, Iterable) else set(),
             targets_strategy=targets if isinstance(targets, TargetingStrategy) else None,
-            tick_scope=tick_scope,
+            flag_id_scope=flag_id_scope,
             prepare=prepare,
             cleanup=cleanup,
             command=command,

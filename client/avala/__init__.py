@@ -1,4 +1,4 @@
-from .decorator import Batching, TargetingStrategy, TickScope, exploit
+from .decorator import Batching, FlagIdScope, TargetingStrategy, exploit
 from .main import Avala
 
-__all__ = ["Avala", "exploit", "TargetingStrategy", "TickScope", "Batching"]
+__all__ = ["Avala", "exploit", "TargetingStrategy", "FlagIdScope", "Batching"]

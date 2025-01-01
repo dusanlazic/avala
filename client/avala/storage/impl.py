@@ -20,10 +20,9 @@ class BlobStorage(HashRedisStorage[Any]):
         return pickle.loads(obj_blob)
 
 
-class StringStorage(SetRedisStorage[str]):
+class FlagIdsHashStorage(SetRedisStorage[str]):
     """
-    Simple key-value store for storing strings in Redis.
-    Strings are utf-8 encoded before storing and decoded when retrieved.
+    Simple hash store for storing obtained flag ID hashes in Redis.
     """
 
     def _encode(self, value: str) -> bytes:

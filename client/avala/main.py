@@ -2,7 +2,9 @@ import concurrent.futures
 import importlib.util
 import re
 from datetime import datetime
+from multiprocessing import Process
 from pathlib import Path
+from queue import Empty
 from typing import Any, Callable, Literal
 
 import tzlocal
@@ -12,8 +14,8 @@ from pydantic import AwareDatetime
 from .api_client import APIClient, ConnectionConfig, UnscopedFlagIds
 from .decorator import Batching
 from .exploit import Exploit
-from .logging import logger
-from .storage import BlobStorage, StringStorage
+from .logging import colorize, logger
+from .storage import BlobStorage, FlagIdsHashStorage
 
 
 class Avala:
@@ -51,7 +53,7 @@ class Avala:
         self._client: APIClient
         self._scheduler: BlockingScheduler
         self._blob_storage: BlobStorage | None = None
-        self._flag_storage: StringStorage | None = None
+        self._flag_ids_hash_storage: FlagIdsHashStorage | None = None
 
         self._exploit_directories: list[Path] = []
         self._before_all_hook: Callable | None = None
@@ -59,7 +61,7 @@ class Avala:
 
         if redis_url:
             self._blob_storage = BlobStorage(redis_url, "avala_blobs")
-            self._flag_storage = StringStorage(redis_url, "avala_flags")
+            self._flag_ids_hash_storage = FlagIdsHashStorage(redis_url, "avala_flag_hashes")
 
     def run(self):
         """
@@ -112,7 +114,12 @@ class Avala:
         exploits = self._reload_exploits(mode="draft")
         for exploit in exploits:
             exploit.batching = Batching(count=1)
-            exploit.setup(game=self._client.game, flag_ids=flag_ids) and exploit.run()
+            exploit.setup(
+                game=self._client.game,
+                flag_ids=flag_ids,
+                blob_storage=self._blob_storage,
+                flag_ids_hash_storage=self._flag_ids_hash_storage,
+            ) and exploit.run_attacks()
 
         self._run_hook(self._after_all_hook)
 
@@ -140,7 +147,12 @@ class Avala:
         selected_exploits = (e for e in self._reload_exploits(mode="force") if e.alias in exploits)
         for exploit in selected_exploits:
             exploit.batching = Batching(count=1)
-            exploit.setup(game=self._client.game, flag_ids=flag_ids) and exploit.run()
+            exploit.setup(
+                game=self._client.game,
+                flag_ids=flag_ids,
+                blob_storage=self._blob_storage,
+                flag_ids_hash_storage=self._flag_ids_hash_storage,
+            ) and exploit.run_attacks()
 
         self._run_hook(self._after_all_hook)
 
@@ -338,21 +350,69 @@ class Avala:
 
         for exploit in ordered_exploits:
             flag_ids = flag_ids_future.result() if exploit.takes_flag_ids else None
-            if not exploit.setup(game=self._client.game, flag_ids=flag_ids):
+            if not exploit.setup(
+                game=self._client.game,
+                flag_ids=flag_ids,
+                blob_storage=self._blob_storage,
+                flag_ids_hash_storage=self._flag_ids_hash_storage,
+            ):
                 continue
             for batch_idx in range(exploit.get_batch_count()):
+                run_time = now + exploit.delay + exploit.get_batch_interval() * batch_idx
                 self._scheduler.add_job(
-                    func=exploit.run,
-                    args=[batch_idx],
+                    func=self._launch_exploit_and_collect_flags,
+                    args=(exploit, batch_idx),
                     trigger="date",
-                    run_date=now + exploit.delay + exploit.get_batch_interval() * batch_idx,
+                    run_date=run_time,
                     misfire_grace_time=None,
+                )
+                logger.info(
+                    "Scheduled <b>{alias}</> (batch {batch_idx}/{total_batches}) for <b>{time}</>.",
+                    alias=exploit.alias,
+                    batch_idx=batch_idx + 1,
+                    total_batches=exploit.get_batch_count(),
+                    time=run_time.strftime("%H:%M:%S"),
                 )
 
         executor.shutdown(wait=True)
 
         if self._after_all_hook:
             self._after_all_hook()
+
+    def _launch_exploit_and_collect_flags(self, exploit: Exploit, batch_idx: int = 0) -> None:
+        runner = Process(target=exploit.run_attacks, args=(batch_idx,))
+        runner.start()
+
+        while runner.is_alive():
+            try:
+                host, result = exploit.results.get(timeout=0.1)
+                flags = self.match_flags(result)
+                if not flags:
+                    logger.warning(
+                        "No flags retrieved from attacking <b>{host}</> via <b>{alias}</>.",
+                        host=colorize(host),
+                        alias=colorize(exploit.alias),
+                    )
+                else:
+                    self._client.enqueue(flags, exploit.alias, host)
+            except Empty:
+                pass
+
+        runner.join(exploit.timeout.total_seconds())
+        if runner.is_alive():
+            logger.info(
+                "Terminating process for <b>{alias}</> due to timeout.",
+                alias=colorize(exploit.alias),
+            )
+            runner.terminate()
+            runner.join()
+
+        while True:
+            try:
+                result = exploit.results.get(block=False)
+                self._client.enqueue(flags, exploit.alias, host)
+            except Empty:
+                break
 
     def _run_hook(self, func: Callable | None):
         """
