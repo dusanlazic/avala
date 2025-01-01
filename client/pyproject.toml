@@ -33,4 +33,4 @@ line-length = 120
 select = ["I", "W", "E", "F", "C", "B9"]
 
 [tool.isort]
-known_first_party = ["avala", "avala_shared"]
+known_first_party = ["avala"]
