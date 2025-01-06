@@ -11,11 +11,12 @@ import tzlocal
 from apscheduler.schedulers.background import BlockingScheduler
 from pydantic import AwareDatetime
 
-from .api_client import APIClient, ConnectionConfig, UnscopedFlagIds
-from .decorator import Batching
+from .api_client.client import APIClient
+from .api_client.schemas import ConnectionConfig, UnscopedFlagIds
+from .decorator.schemas import Batching
 from .exploit import Exploit
 from .logging import colorize, logger
-from .storage import BlobStorage, FlagIdsHashStorage
+from .storage.impl import BlobStorage, FlagIdsHashStorage
 
 
 class Avala:
@@ -29,6 +30,7 @@ class Avala:
         redis_url: str | None = None,
     ):
         """
+        TODO: Docstring
         Initializes the Avala client. The client schedules and runs the attacks, extracts and forwards flags to the
         Avala server, and keeps track of the flag IDs to reduce repetition of the same attacks.
 
@@ -65,6 +67,7 @@ class Avala:
 
     def run(self):
         """
+        TODO: Docstring
         Runs the Avala client in production mode. The client will start scheduling and
         running exploit functions decorated with `@exploit` in the registered
         directories. Call this method after initializing the client and registering the
@@ -74,13 +77,13 @@ class Avala:
         self._validate_directories()
 
         self._scheduler = BlockingScheduler()
-        self._client = APIClient(self._connection)
-        self._client.cache_settings()
+        self._client = APIClient.connect_or_exit(self._connection)
 
+        # TODO: Remove scheduler logs
         self._scheduler.add_job(
             func=self._schedule_exploits,
             trigger="interval",
-            seconds=self._client.schedule.tick_duration,
+            seconds=self._client.schedule.tick_duration.total_seconds(),
             id="schedule_exploits",
             next_run_time=self._get_next_tick_start(),
         )
@@ -94,19 +97,19 @@ class Avala:
 
     def workshop(self):
         """
+        TODO: Docstring
         Runs draft exploits (development mode). This method runs exploit functions with `draft = True` in the registered
         directories, helping with the exploit development. This function can be called in a separate process while the
         client is already running in production mode. Call this method after initializing the client and registering
         exploit directories.
         """
         self._validate_directories()
-
-        self._client = APIClient.reuse_first(self._connection)
+        self._client = APIClient.connect_or_exit(self._connection)
 
         try:
             flag_ids = self._client.fetch_flag_ids()
         except (RuntimeError, FileNotFoundError) as e:
-            logger.error("{error} aa", error=e)
+            logger.error("{error} aa", error=e)  # TODO: Improve error handling
             exit(1)
 
         self._run_hook(self._before_all_hook)
@@ -125,6 +128,7 @@ class Avala:
 
     def fire(self, exploits: list[str]):
         """
+        TODO: Docstring
         Runs selected exploits immediately, in given order. This function can be called in a separate process while the
         client is already running in production mode. Call this method after initializing the client and registering
         exploit directories.
@@ -133,13 +137,12 @@ class Avala:
         :type exploits: list[str]
         """
         self._validate_directories()
-
-        self._client = APIClient.reuse_first(self._connection)
+        self._client = APIClient.connect_or_exit(self._connection)
 
         try:
             flag_ids = self._client.fetch_flag_ids()
         except (RuntimeError, FileNotFoundError) as e:
-            logger.error("{error} aa", error=e)
+            logger.error("{error} aa", error=e)  # TODO: Improve error handling
             exit(1)
 
         self._run_hook(self._before_all_hook)
@@ -166,7 +169,7 @@ class Avala:
         """
         path = Path(dir_path).resolve()
         if path not in self._exploit_directories:
-            self._exploit_directories.append(path)
+            self._exploit_directories.append(path)  # TODO: Exploit directories can be a set
 
     def before_all(self):
         """
@@ -204,7 +207,7 @@ class Avala:
         :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedFlagIds
         """
-        return APIClient(self._connection).fetch_flag_ids()
+        return self._client.fetch_flag_ids()
 
     def get_services(self) -> set[str]:
         """
@@ -213,7 +216,7 @@ class Avala:
         :return: Set of service names.
         :rtype: set[str]
         """
-        return APIClient(self._connection).fetch_flag_ids().get_service_names()
+        return self._client.fetch_flag_ids().get_service_names()
 
     def submit_flags(
         self,
@@ -231,7 +234,7 @@ class Avala:
         :param target: IP address or hostname of the target/victim team.
         :type target: str
         """
-        APIClient(self._connection).enqueue(flags, exploit_alias, target)
+        self._client.enqueue(flags, exploit_alias, target)
 
     def match_flags(self, output: Any) -> list[str]:
         """
@@ -307,6 +310,7 @@ class Avala:
 
                 module = importlib.util.module_from_spec(spec)
                 patched_code = patch_pwntools(exploit_filepath)
+                # TODO: Revisit this to see if we can avoid using exec and use just inspection instead
                 compiled_code = compile(patched_code, exploit_filepath.absolute(), "exec")
                 exec(compiled_code, module.__dict__)
                 for _, func in module.__dict__.items():
@@ -329,6 +333,7 @@ class Avala:
 
     def _schedule_exploits(self):
         """
+        TODO: Docstring
         Scheduled job that runs every tick to reload and schedule exploits. This job is also responsible for fetching
         flag_ids and running before_all and after_all
         hooks.
@@ -380,6 +385,7 @@ class Avala:
             self._after_all_hook()
 
     def _launch_exploit_and_collect_flags(self, exploit: Exploit, batch_idx: int = 0) -> None:
+        # TODO: Docstring
         runner = Process(target=exploit.run_attacks, args=(batch_idx,))
         runner.start()
 
@@ -432,6 +438,7 @@ class Avala:
         Job that periodically checks the connection with the server and tries to push
         the pending flags collected during the server downtime.
         """
+        # TODO: Reimplementation
         try:
             self._client.heartbeat()
         except Exception:

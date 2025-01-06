@@ -31,12 +31,6 @@ class ConnectionConfig(BaseModel):
     password: str | None = None
 
 
-class CachedConfig(BaseModel):
-    connection: ConnectionConfig
-    game: GameConfig
-    schedule: ScheduleConfig
-
-
 class EnqueueBody(BaseModel):
     values: list[str]
     exploit: str

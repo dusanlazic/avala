@@ -5,7 +5,6 @@ import httpx
 
 from ..logging import colorize, logger
 from .schemas import (
-    CachedConfig,
     ConnectionConfig,
     EnqueueBody,
     FlagEnqueueResponse,
@@ -26,77 +25,29 @@ class APIClient:
     def __init__(
         self,
         connection: ConnectionConfig,
-        *,
-        game: GameConfig | None = None,
-        schedule: ScheduleConfig | None = None,
     ) -> None:
         self.connection: ConnectionConfig = connection
         self.client: httpx.Client = self._setup_http_client()
-        self.game: GameConfig = game or self._fetch_game_settings()
-        self.schedule: ScheduleConfig = schedule or self._fetch_schedule_settings()
+        self.game: GameConfig = self._fetch_game_settings()
+        self.schedule: ScheduleConfig = self._fetch_schedule_settings()
 
     @classmethod
-    def connect(cls, connection: ConnectionConfig) -> "APIClient":
+    def connect_or_exit(cls, connection: ConnectionConfig) -> "APIClient":
         try:
             return cls(connection)
-        except Exception as e:
-            logger.error("Failed to connect to the server: {error}", error=e)
-            raise
-
-    @classmethod
-    def reuse(cls) -> "APIClient":
-        if not (DOT_DIR_PATH / "api_client.json").exists():
-            raise FileNotFoundError()
-
-        try:
-            with open(DOT_DIR_PATH / "api_client.json", "r") as file:
-                data = json.load(file)
-
-            cached_config = CachedConfig(**data)
-        except Exception as e:
-            logger.error("Failed to load cached settings: {error}", error=e)
-            raise
-
-        return cls(
-            connection=cached_config.connection,
-            game=cached_config.game,
-            schedule=cached_config.schedule,
-        )
-
-    @classmethod
-    def connect_first(cls, connection: ConnectionConfig) -> "APIClient":
-        try:
-            return cls.connect(connection)
         except Exception:
-            return cls.reuse()
-
-    @classmethod
-    def reuse_first(cls, connection: ConnectionConfig) -> "APIClient":
-        try:
-            return cls.reuse()
-        except Exception:
-            return cls.connect(connection)
-
-    def cache_settings(self):
-        """Exports settings fetched from the API to a local file so they can be reused
-        when instancing the APIClient using `APIClient.reuse()`."""
-        DOT_DIR_PATH.mkdir(exist_ok=True)
-
-        with open(DOT_DIR_PATH / "api_client.json", "w") as file:
-            json_data = CachedConfig(
-                connection=self.connection, game=self.game, schedule=self.schedule
-            ).model_dump_json()
-            file.write(json_data)
+            logger.info("Exiting...")
+            exit(1)
 
     def heartbeat(self) -> None:
         """
         Check if the client is still connected to the server.
 
         :raises RuntimeError: If the connection was never established.
-        :raises httpx.HTTPStatusError: If the server is unreachable within 10 seconds or
+        :raises httpx.HTTPStatusError: If the server is unreachable within 5 seconds or
         responds with an error status code.
         """
-        self.client.get("/connect/health", timeout=10).raise_for_status()
+        self.client.get("/connect/health", timeout=5).raise_for_status()
 
     def enqueue(self, flags: list[str], exploit_alias: str, target: str) -> None:
         """
@@ -151,7 +102,9 @@ class APIClient:
 
             return UnscopedFlagIds(response.json())
         except Exception as e:
-            logger.error("Failed to fetch flag ids: {error}", error=e)
+            logger.error(
+                "Failed to fetch flag IDs.\n\n<b>{error}</>\n{error_msg}\n", error=type(e).__name__, error_msg=e
+            )
             return self._get_cached_flag_ids()
 
     def fetch_flag_ids(self) -> UnscopedFlagIds:
@@ -192,9 +145,11 @@ class APIClient:
             base_url=f"{self.connection.protocol}://{self.connection.host}:{self.connection.port}",
         )
         try:
-            client.get("/connect/health", timeout=10).raise_for_status()
+            client.get("/connect/health", timeout=5).raise_for_status()
         except Exception as e:
-            logger.error("Failed to establish connection: {error}", error=e)
+            logger.error(
+                "Failed to establish connection.\n\n<b>{error}</>\n{error_msg}\n", error=type(e).__name__, error_msg=e
+            )
             raise
 
         return client
@@ -203,14 +158,20 @@ class APIClient:
         try:
             return GameConfig.model_validate(self.client.get("/connect/game").json())
         except Exception as e:
-            logger.error("Failed to fetch game information: {error}", error=e)
+            logger.error(
+                "Failed to fetch game information.\n\n<b>{error}</>\n{error_msg}\n", error=type(e).__name__, error_msg=e
+            )
             raise
 
     def _fetch_schedule_settings(self) -> ScheduleConfig:
         try:
             return ScheduleConfig.model_validate(self.client.get("/connect/schedule").json())
         except Exception as e:
-            logger.error("Failed to fetch scheduling information: {error}", error=e)
+            logger.error(
+                "Failed to fetch scheduling information.\n\n<b>{error}</>\n{error_msg}\n",
+                error=type(e).__name__,
+                error_msg=e,
+            )
             raise
 
     def _cache_flag_ids(self, response_json: dict) -> None:
@@ -237,6 +198,7 @@ class APIClient:
         """
         logger.warning("Using cached flag IDs instead.")
 
+        # TODO: Catch these exceptions
         if not (DOT_DIR_PATH / "cached_flag_ids.json").exists():
             raise FileNotFoundError("Flag IDs were never fetched.")
 
