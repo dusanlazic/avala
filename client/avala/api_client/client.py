@@ -31,11 +31,18 @@ class APIClient:
         self.game: GameConfig = self._fetch_game_settings()
         self.schedule: ScheduleConfig = self._fetch_schedule_settings()
 
+        DOT_DIR_PATH.mkdir(exist_ok=True)
+
     @classmethod
     def connect_or_exit(cls, connection: ConnectionConfig) -> "APIClient":
         try:
             return cls(connection)
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "Failed to connect to Avala server.\n\n<b>{error}</>\n{error_msg}\n",
+                error=type(e).__name__,
+                error_msg=e,
+            )
             logger.info("Exiting...")
             exit(1)
 
@@ -93,22 +100,17 @@ class APIClient:
         :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedFlagIds
         """
-        try:
-            response = self.client.get("/attack-data/subscribe")
-            response.raise_for_status()
+        response = self.client.get("/attack-data/subscribe")
+        response.raise_for_status()
 
-            if response.status_code == 200:
-                self._cache_flag_ids(response.json())
+        if response.status_code == 200:
+            self._cache_flag_ids(response.json())
 
-            return UnscopedFlagIds(response.json())
-        except Exception as e:
-            logger.error(
-                "Failed to fetch flag IDs.\n\n<b>{error}</>\n{error_msg}\n", error=type(e).__name__, error_msg=e
-            )
-            return self._get_cached_flag_ids()
+        return UnscopedFlagIds(response.json())
 
     def fetch_flag_ids(self) -> UnscopedFlagIds:
         """
+        TODO: Docstring
         Fetches the current available flag IDs from the server.
         Useful for starting the attacks immediately using the currently available flag
         IDs.
@@ -118,17 +120,32 @@ class APIClient:
         as provided by the game server.
         :rtype: UnscopedFlagIds
         """
-        try:
-            response = self.client.get("/attack-data/current")
-            response.raise_for_status()
+        response = self.client.get("/attack-data/current")
+        response.raise_for_status()
 
-            if response.status_code == 200:
-                self._cache_flag_ids(response.json())
+        if response.status_code == 200:
+            self._cache_flag_ids(response.json())
 
-            return UnscopedFlagIds(response.json())
-        except Exception as e:
-            logger.error("Failed to fetch flag ids: {error}", error=e)
-            return self._get_cached_flag_ids()
+        return UnscopedFlagIds(response.json())
+
+    def get_cached_flag_ids(self) -> UnscopedFlagIds:
+        """
+        Uses the cached flag IDs as a fallback in case of connection loss or server
+        downtime.
+
+        :raises FileNotFoundError: Flag IDs were never fetched.
+        :raises RuntimeError: Flag IDs are corrupted or were never fetched.
+        :return: Unscoped flag IDs covering flag IDs from all services, targets and
+        ticks.
+        :rtype: UnscopedFlagIds
+        """
+        logger.warning("Using cached flag IDs.")
+
+        if not (DOT_DIR_PATH / "cached_flag_ids.json").exists():
+            raise FileNotFoundError("Flag IDs were never fetched.")
+
+        with open(DOT_DIR_PATH / "cached_flag_ids.json") as file:
+            return UnscopedFlagIds(json.load(file))
 
     def _setup_http_client(self) -> httpx.Client:
         """
@@ -144,13 +161,7 @@ class APIClient:
             auth=auth,
             base_url=f"{self.connection.protocol}://{self.connection.host}:{self.connection.port}",
         )
-        try:
-            client.get("/connect/health", timeout=5).raise_for_status()
-        except Exception as e:
-            logger.error(
-                "Failed to establish connection.\n\n<b>{error}</>\n{error_msg}\n", error=type(e).__name__, error_msg=e
-            )
-            raise
+        client.get("/connect/health", timeout=5).raise_for_status()
 
         return client
 
@@ -159,7 +170,9 @@ class APIClient:
             return GameConfig.model_validate(self.client.get("/connect/game").json())
         except Exception as e:
             logger.error(
-                "Failed to fetch game information.\n\n<b>{error}</>\n{error_msg}\n", error=type(e).__name__, error_msg=e
+                "Failed to fetch game information.\n\n<b>{error}</>\n{error_msg}\n",
+                error=type(e).__name__,
+                error_msg=e,
             )
             raise
 
@@ -184,26 +197,3 @@ class APIClient:
         """
         with open(DOT_DIR_PATH / "cached_flag_ids.json", "w") as file:
             json.dump(response_json, file)
-
-    def _get_cached_flag_ids(self) -> UnscopedFlagIds:
-        """
-        Uses the cached flag IDs as a fallback in case of connection loss or server
-        downtime.
-
-        :raises FileNotFoundError: Flag IDs were never fetched.
-        :raises RuntimeError: Flag IDs are corrupted or were never fetched.
-        :return: Unscoped flag IDs covering flag IDs from all services, targets and
-        ticks.
-        :rtype: UnscopedFlagIds
-        """
-        logger.warning("Using cached flag IDs instead.")
-
-        # TODO: Catch these exceptions
-        if not (DOT_DIR_PATH / "cached_flag_ids.json").exists():
-            raise FileNotFoundError("Flag IDs were never fetched.")
-
-        with open(DOT_DIR_PATH / "cached_flag_ids.json") as file:
-            try:
-                return UnscopedFlagIds(json.load(file))
-            except Exception as e:
-                raise RuntimeError("Flag IDs are corrupted or were never fetched.") from e

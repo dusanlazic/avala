@@ -110,7 +110,7 @@ def colorize(s: str) -> str:
     :rtype: str
     """
     r, g, b = _hash_to_color(s)
-    colored_string = f"\033[38;2;{r};{g};{b}m{s}\033[0m"
+    colored_string = f"\033[38;2;{r};{g};{b}m{s}\033[0m"  # TODO: Support reverting to red color for errors
     return colored_string
 
 

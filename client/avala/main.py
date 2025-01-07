@@ -1,5 +1,6 @@
 import concurrent.futures
 import importlib.util
+import logging
 import re
 from datetime import datetime
 from multiprocessing import Process
@@ -9,7 +10,8 @@ from typing import Any, Callable, Literal
 
 import tzlocal
 from apscheduler.schedulers.background import BlockingScheduler
-from pydantic import AwareDatetime
+from httpx import HTTPStatusError, RequestError
+from pydantic import AwareDatetime, ValidationError
 
 from .api_client.client import APIClient
 from .api_client.schemas import ConnectionConfig, UnscopedFlagIds
@@ -79,7 +81,8 @@ class Avala:
         self._scheduler = BlockingScheduler()
         self._client = APIClient.connect_or_exit(self._connection)
 
-        # TODO: Remove scheduler logs
+        logging.getLogger("apscheduler.executors.default").setLevel(logging.CRITICAL)
+
         self._scheduler.add_job(
             func=self._schedule_exploits,
             trigger="interval",
@@ -106,10 +109,8 @@ class Avala:
         self._validate_directories()
         self._client = APIClient.connect_or_exit(self._connection)
 
-        try:
-            flag_ids = self._client.fetch_flag_ids()
-        except (RuntimeError, FileNotFoundError) as e:
-            logger.error("{error} aa", error=e)  # TODO: Improve error handling
+        flag_ids = self._fetch_or_load_flag_ids()
+        if not flag_ids:
             exit(1)
 
         self._run_hook(self._before_all_hook)
@@ -139,10 +140,8 @@ class Avala:
         self._validate_directories()
         self._client = APIClient.connect_or_exit(self._connection)
 
-        try:
-            flag_ids = self._client.fetch_flag_ids()
-        except (RuntimeError, FileNotFoundError) as e:
-            logger.error("{error} aa", error=e)  # TODO: Improve error handling
+        flag_ids = self._fetch_or_load_flag_ids()
+        if not flag_ids:
             exit(1)
 
         self._run_hook(self._before_all_hook)
@@ -265,6 +264,26 @@ class Avala:
 
         self._exploit_directories = valid_directories
 
+    def _fetch_or_load_flag_ids(self, wait: bool = False) -> UnscopedFlagIds | None:
+        # TODO: Docstirng
+        try:
+            return self._client.wait_for_flag_ids() if wait else self._client.fetch_flag_ids()
+        except (HTTPStatusError, RequestError, ValidationError, Exception) as e:
+            logger.error(
+                "Failed to fetch flag IDs.\n\n<b>{error}</>\n{error_msg}\n",
+                error=type(e).__name__,
+                error_msg=e,
+            )
+            try:
+                return self._client.get_cached_flag_ids()
+            except (ValidationError, FileNotFoundError) as e:
+                logger.error(
+                    "Failed to load cached flag IDs.\n\n<b>{error}</>\n{error_msg}\n",
+                    error=type(e).__name__,
+                    error_msg=e,
+                )
+                return None
+
     def _reload_exploits(self, mode: Literal["prod", "draft", "force"]) -> list[Exploit]:
         """
         Reloads exploits, collects their configuration and constructs a list of runnable `Exploit` objects.
@@ -339,7 +358,7 @@ class Avala:
         hooks.
         """
         executor = concurrent.futures.ThreadPoolExecutor()
-        flag_ids_future = executor.submit(self._client.wait_for_flag_ids)
+        flag_ids_future = executor.submit(self._fetch_or_load_flag_ids, wait=True)
 
         if self._before_all_hook:
             self._before_all_hook()
@@ -355,6 +374,14 @@ class Avala:
 
         for exploit in ordered_exploits:
             flag_ids = flag_ids_future.result() if exploit.takes_flag_ids else None
+
+            if exploit.takes_flag_ids and flag_ids is None:
+                logger.warning(
+                    "Skipping <b>{alias}</> as it requires flag IDs, but they are not available.",
+                    alias=colorize(exploit.alias),
+                )
+                continue
+
             if not exploit.setup(
                 game=self._client.game,
                 flag_ids=flag_ids,
