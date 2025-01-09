@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 
-from ..logging import colorize, logger
+from ..logging import colorize, logger, truncate
 from .schemas import (
     ConnectionConfig,
     EnqueueBody,
@@ -83,12 +83,13 @@ class APIClient:
         flag_enqueue_response = FlagEnqueueResponse(**response.json())
 
         logger.info(
-            "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{host}</> via <b>{exploit}</>.",
+            "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{host}</> via <b>{exploit}</>. <yellow>{flags}</>",
             icon="✅" if flag_enqueue_response.enqueued else "❗",
             enqueued=flag_enqueue_response.enqueued,
             total=len(flags),
             host=colorize(host),
             exploit=colorize(exploit_alias),
+            flags=truncate(", ".join(flags)),
         )
 
     def wait_for_flag_ids(self) -> UnscopedFlagIds:

@@ -60,7 +60,7 @@ class TickScopedFlagIds:
         self.ticks_ago: int = ticks_ago
         self.value: Any = flag_ids
 
-    def compute_hash(self, alias: str) -> str:
+    def compute_hash(self, exploit_alias: str) -> str:
         """
         Hashes the specific flag ID in order to track it to ensure that the same attack
         is not executed multiple times.
@@ -68,7 +68,7 @@ class TickScopedFlagIds:
         :return: Hash computed from the alias, target, and flag IDs.
         :rtype: str
         """
-        return hashlib.md5((alias + self.target_host + str(self.value)).encode()).hexdigest()
+        return hashlib.md5((exploit_alias + self.target_host + str(self.value)).encode()).hexdigest()
 
     @staticmethod
     def _validate(service_name: Any, target_host: Any, ticks_ago: Any) -> None:

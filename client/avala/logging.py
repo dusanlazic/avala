@@ -117,6 +117,7 @@ def colorize(text: str, reset: str = "white") -> str:
     reset_color_map = {
         "white": "\033[0m",
         "red": "\033[0;31m",
+        "dim": "\033[0;2m",
     }
 
     colored_string = f"\033[38;2;{r};{g};{b}m{text}{reset_color_map.get(reset, reset)}"
@@ -138,3 +139,17 @@ def suggest_closest_match(input_string: str, candidates: Iterable[str]) -> str:
     if matches:
         return matches[0]
     return ""
+
+
+def truncate(input_string: str, length: int = 50) -> str:
+    """
+    Truncates a string to a specified length and appends an ellipsis if the string is longer.
+
+    :param input_string: Input string to truncate.
+    :type input_string: str
+    :param length: Maximum length of the string.
+    :type length: int
+    :return: Truncated string.
+    :rtype: str
+    """
+    return (input_string[:length] + "...") if len(input_string) > length else input_string
