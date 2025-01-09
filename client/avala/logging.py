@@ -99,18 +99,27 @@ def _hash_to_color(s: str) -> tuple[int, int, int]:
     return COLORS[hash_dec % len(COLORS)]
 
 
-def colorize(s: str) -> str:
+def colorize(text: str, reset: str = "white") -> str:
     """
     Colorizes a string deterministically based on its hash. The same string will always
     have the same color.
 
-    :param s: Input string
-    :type s: str
-    :return: Colorized string
+    :param text: Input text to colorize
+    :type text: str
+    :param reset: Name or sequence to reset text color, defaults to `white`. Use `red` for error messages and ANSI
+    escape codes for custom colors.
+    :type reset: str, optional
+    :return: _description_
     :rtype: str
     """
-    r, g, b = _hash_to_color(s)
-    colored_string = f"\033[38;2;{r};{g};{b}m{s}\033[0m"  # TODO: Support reverting to red color for errors
+    r, g, b = _hash_to_color(text)
+
+    reset_color_map = {
+        "white": "\033[0m",
+        "red": "\033[0;31m",
+    }
+
+    colored_string = f"\033[38;2;{r};{g};{b}m{text}{reset_color_map.get(reset, reset)}"
     return colored_string
 
 

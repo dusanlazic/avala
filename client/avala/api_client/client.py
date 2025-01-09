@@ -56,7 +56,7 @@ class APIClient:
         """
         self.client.get("/connect/health", timeout=5).raise_for_status()
 
-    def enqueue(self, flags: list[str], exploit_alias: str, target: str) -> None:
+    def enqueue(self, flags: list[str], exploit_alias: str, host: str) -> None:
         """
         Sends flags to the server for enqueuing and duplicate filtering.
 
@@ -71,7 +71,7 @@ class APIClient:
         enqueue_body = EnqueueBody(
             values=flags,
             exploit=exploit_alias,
-            target=target,
+            host=host,
         )
 
         response = self.client.post(
@@ -83,11 +83,11 @@ class APIClient:
         flag_enqueue_response = FlagEnqueueResponse(**response.json())
 
         logger.info(
-            "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{target}</> via <b>{exploit}</>.",
+            "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{host}</> via <b>{exploit}</>.",
             icon="✅" if flag_enqueue_response.enqueued else "❗",
             enqueued=flag_enqueue_response.enqueued,
             total=len(flags),
-            target=colorize(target),
+            host=colorize(host),
             exploit=colorize(exploit_alias),
         )
 
@@ -100,7 +100,7 @@ class APIClient:
         :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedFlagIds
         """
-        response = self.client.get("/attack-data/subscribe")
+        response = self.client.get("/attack-data/subscribe", timeout=15)  # TODO: Configurable timeout
         response.raise_for_status()
 
         if response.status_code == 200:

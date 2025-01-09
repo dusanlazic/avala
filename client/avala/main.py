@@ -83,6 +83,7 @@ class Avala:
 
         logging.getLogger("apscheduler.executors.default").setLevel(logging.CRITICAL)
 
+        # TODO: Fix "skipped: maximum number of running instances reached"
         self._scheduler.add_job(
             func=self._schedule_exploits,
             trigger="interval",
@@ -264,10 +265,10 @@ class Avala:
 
         self._exploit_directories = valid_directories
 
-    def _fetch_or_load_flag_ids(self, wait: bool = False) -> UnscopedFlagIds | None:
+    def _fetch_or_load_flag_ids(self, long_poll: bool = False) -> UnscopedFlagIds | None:
         # TODO: Docstirng
         try:
-            return self._client.wait_for_flag_ids() if wait else self._client.fetch_flag_ids()
+            return self._client.wait_for_flag_ids() if long_poll else self._client.fetch_flag_ids()
         except (HTTPStatusError, RequestError, ValidationError, Exception) as e:
             logger.error(
                 "Failed to fetch flag IDs.\n\n<b>{error}</>\n{error_msg}\n",
@@ -358,7 +359,7 @@ class Avala:
         hooks.
         """
         executor = concurrent.futures.ThreadPoolExecutor()
-        flag_ids_future = executor.submit(self._fetch_or_load_flag_ids, wait=True)
+        flag_ids_future = executor.submit(self._fetch_or_load_flag_ids, long_poll=True)
 
         if self._before_all_hook:
             self._before_all_hook()
@@ -392,15 +393,15 @@ class Avala:
             for batch_idx in range(exploit.get_batch_count()):
                 run_time = now + exploit.delay + exploit.get_batch_interval() * batch_idx
                 self._scheduler.add_job(
-                    func=self._launch_exploit_and_collect_flags,
+                    func=self._launch_exploit,
                     args=(exploit, batch_idx),
                     trigger="date",
                     run_date=run_time,
                     misfire_grace_time=None,
                 )
-                logger.info(
-                    "Scheduled <b>{alias}</> (batch {batch_idx}/{total_batches}) for <b>{time}</>.",
-                    alias=exploit.alias,
+                logger.debug(
+                    "⏰ Exploit <b>{alias}</> (batch {batch_idx}/{total_batches}) will run at <b>{time}</>.",
+                    alias=colorize(exploit.alias),
                     batch_idx=batch_idx + 1,
                     total_batches=exploit.get_batch_count(),
                     time=run_time.strftime("%H:%M:%S"),
@@ -411,41 +412,60 @@ class Avala:
         if self._after_all_hook:
             self._after_all_hook()
 
-    def _launch_exploit_and_collect_flags(self, exploit: Exploit, batch_idx: int = 0) -> None:
-        # TODO: Docstring
+    def _launch_exploit(self, exploit: Exploit, batch_idx: int = 0) -> None:
+        logger.debug(
+            "🚀 Launching exploit <b>{alias}</> (batch {batch_idx}/{total_batches})...",
+            alias=colorize(exploit.alias),
+            batch_idx=batch_idx + 1,
+            total_batches=exploit.get_batch_count(),
+        )
+
         runner = Process(target=exploit.run_attacks, args=(batch_idx,))
         runner.start()
 
         while runner.is_alive():
-            try:
-                host, result = exploit.results.get(timeout=0.1)
-                flags = self.match_flags(result)
-                if not flags:
-                    logger.warning(
-                        "No flags retrieved from attacking <b>{host}</> via <b>{alias}</>.",
-                        host=colorize(host),
-                        alias=colorize(exploit.alias),
-                    )
-                else:
-                    self._client.enqueue(flags, exploit.alias, host)
-            except Empty:
-                pass
+            self._collect_and_enqueue(exploit)
 
         runner.join(exploit.timeout.total_seconds())
         if runner.is_alive():
             logger.info(
-                "Terminating process for <b>{alias}</> due to timeout.",
+                "⌛ Terminating process for <b>{alias}</> (batch {batch_idx}/{total_batches}) due to timeout.",
                 alias=colorize(exploit.alias),
+                batch_idx=batch_idx + 1,
+                total_batches=exploit.get_batch_count(),
             )
             runner.terminate()
             runner.join()
+        else:
+            logger.debug(
+                "🎉 Finished running <b>{alias}</> (batch {batch_idx}/{total_batches}) in time.",
+                alias=colorize(exploit.alias),
+                batch_idx=batch_idx + 1,
+                total_batches=exploit.get_batch_count(),
+            )
 
         while True:
-            try:
-                result = exploit.results.get(block=False)
+            self._collect_and_enqueue(exploit, drain=True)
+
+    def _collect_and_enqueue(self, exploit: Exploit, drain: bool = False) -> bool:
+        try:
+            host, result = exploit.results.get(
+                timeout=None if drain else 0.1,
+                block=False if drain else True,
+            )
+            flags = self.match_flags(result)
+            if not flags:
+                logger.warning(
+                    "No flags retrieved from attacking <b>{host}</> via <b>{alias}</>.",
+                    host=colorize(host),
+                    alias=colorize(exploit.alias),
+                )
+            else:
                 self._client.enqueue(flags, exploit.alias, host)
-            except Empty:
-                break
+        except Empty:
+            return False
+        else:
+            return True
 
     def _run_hook(self, func: Callable | None):
         """

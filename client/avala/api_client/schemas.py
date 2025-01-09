@@ -34,7 +34,7 @@ class ConnectionConfig(BaseModel):
 class EnqueueBody(BaseModel):
     values: list[str]
     exploit: str
-    target: str
+    host: str
 
 
 class FlagEnqueueResponse(BaseModel):
