@@ -83,7 +83,6 @@ class Avala:
 
         logging.getLogger("apscheduler.executors.default").setLevel(logging.CRITICAL)
 
-        # TODO: Fix "skipped: maximum number of running instances reached"
         self._scheduler.add_job(
             func=self._schedule_exploits,
             trigger="interval",
@@ -444,8 +443,8 @@ class Avala:
                 total_batches=exploit.get_batch_count(),
             )
 
-        while True:
-            self._collect_and_enqueue(exploit, drain=True)
+        while self._collect_and_enqueue(exploit, drain=True):
+            pass
 
     def _collect_and_enqueue(self, exploit: Exploit, drain: bool = False) -> bool:
         try:

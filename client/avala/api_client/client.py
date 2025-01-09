@@ -100,7 +100,7 @@ class APIClient:
         :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedFlagIds
         """
-        response = self.client.get("/attack-data/subscribe", timeout=15)  # TODO: Configurable timeout
+        response = self.client.get("/flag-ids/subscribe", timeout=15)  # TODO: Configurable timeout
         response.raise_for_status()
 
         if response.status_code == 200:
@@ -120,7 +120,7 @@ class APIClient:
         as provided by the game server.
         :rtype: UnscopedFlagIds
         """
-        response = self.client.get("/attack-data/current")
+        response = self.client.get("/flag-ids/current")
         response.raise_for_status()
 
         if response.status_code == 200:
