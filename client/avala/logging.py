@@ -109,7 +109,7 @@ def colorize(text: str, reset: str = "white") -> str:
     :param reset: Name or sequence to reset text color, defaults to `white`. Use `red` for error messages and ANSI
     escape codes for custom colors.
     :type reset: str, optional
-    :return: _description_
+    :return: Colored text
     :rtype: str
     """
     r, g, b = _hash_to_color(text)

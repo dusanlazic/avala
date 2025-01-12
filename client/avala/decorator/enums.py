@@ -3,20 +3,16 @@ from enum import Enum
 
 class TargetingStrategy(Enum):
     """
-    Targeting strategy that can be used as an alternative to specifying a list of targets in the exploit configuration.
-
-    When using `TargetingStrategy.AUTO`, the exploit function **MUST** take the `flag_ids` argument, and the targeted service
-    **MUST** be defined in the `attacks.json` or `teams.json` provided by the game server. This is essential because
-    automatic targeting relies on fetching the list of targets from these files.
+    Targeting strategy that can be used as an alternative to specifying a collection of targets in the exploit
+    configuration.
 
     :cvar AUTO:
-        Selects the available targets based on `attacks.json` or `teams.json` files provided by the game server.
-        The exploit function **MUST** take the `flag_ids` argument, and the targeted service **MUST** be defined in
-        the `attacks.json` or `teams.json` provided by the game server.
+        Selects the available targets based on flag IDs provided by the game server if the exploit function takes
+        `flag_ids` argument. Otherwise, selects all targets provided in the server configuration.
     :cvar NOP_TEAM:
-        Selects the IP or hostname of the NOP team.
+        Selects the hosts of the NOP team.
     :cvar OWN_TEAM:
-        Selects the IP or hostname of your own team.
+        Selects the hosts of your own team.
     """
 
     AUTO = "auto"
@@ -28,12 +24,14 @@ class FlagIdScope(Enum):
     """
     Enumeration representing the scope of ticks for which flag IDs are provided to the exploit function.
 
-    :cvar SINGLE:
-        Specifies that the `flag_ids` object will contain only the flag IDs relevant to a single service, target, and tick.
-        When using `SINGLE`, each flag ID that successfully returns a flag will be tracked and skipped in subsequent attempts,
-        reducing the total number of attacks. This is the recommended approach.
-    :cvar LAST_N:
-        Specifies that the `flag_ids` object will contain a list of all flag IDs provided by the game server for the last N ticks.
+    :cvar SINGLE_TICK:
+        `flag_ids` object will represent flag IDs relevant to a single service, target, and tick.
+        When using `SINGLE_TICK`, each flag ID that successfully returns a flag will be tracked, allowing Avala client
+        to skip the attacks that are using the same flag ID (based on exploit alias, target host and flag id value).
+        This is the recommended and optimized approach.
+    :cvar LAST_N_TICKS:
+        `flag_ids` object will contain a list of flag IDs relevant to a single service, target, and the last N ticks.
+        In most cases, not necessary and is inefficient due to performing redundant attacks.
     """
 
     SINGLE_TICK = "single"

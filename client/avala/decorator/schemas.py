@@ -6,10 +6,12 @@ from typing_extensions import Self
 
 class Batching(BaseModel):
     """
-    Specifies the batching configuration for splitting a large number of attacks into smaller chunks, distributed over time.
+    Specifies the batching configuration for splitting a large number of attacks into smaller chunks, distributed over
+    time.
 
-    Batching provides a way of distributing the load over time with the goal of mitigating CPU, memory, and network usage spikes.
-    Setting up batching allows you to divide the list of targets into smaller, equally-sized, and more manageable batches.
+    Batching provides a way of distributing the load over time with the goal of mitigating CPU, memory, and network
+    usage spikes. Setting up batching allows you to divide the list of targets into smaller, equally-sized, and more
+    manageable batches.
 
     Examples:
         In case of **28** targets, the sizes of batches will be: **6, 6, 6, 6, 4**.
@@ -24,11 +26,11 @@ class Batching(BaseModel):
 
             Batching(size=5, interval=2)
 
-    :param size: Specifies the size of each batch.
+    :param size: Size of each batch.
     :type size: int | None
-    :param count: Specifies the total number of equal-sized batches.
+    :param count: Total number of equal-sized batches.
     :type count: int | None
-    :param interval: Specifies the time gap in seconds between processing two consecutive batches.
+    :param interval: Interval in seconds between processing two consecutive batches.
     :type interval: int | float | timedelta
     """
 

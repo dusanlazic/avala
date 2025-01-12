@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Iterable
 
 import httpx
 
@@ -56,16 +57,16 @@ class APIClient:
         """
         self.client.get("/connect/health", timeout=5).raise_for_status()
 
-    def enqueue(self, flags: list[str], exploit_alias: str, host: str) -> None:
+    def enqueue(self, flags: Iterable[str], exploit_alias: str, host: str) -> None:
         """
-        Sends flags to the server for enqueuing and duplicate filtering.
+        Sends flags to the server for submission.
 
-        :param flags: List of flags to enqueue.
-        :type flags: list[str]
+        :param flags: Flags to enqueue.
+        :type flags: Iterable[str]
         :param exploit_alias: Alias of the exploit that retrieved the flags.
         :type exploit_alias: str
-        :param target: IP address or hostname of the target/victim team.
-        :type target: str
+        :param host: Host of the target/victim team.
+        :type host: str
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
         """
         enqueue_body = EnqueueBody(

@@ -7,7 +7,7 @@ from .base import HashRedisStorage, SetRedisStorage
 
 class BlobStorage(HashRedisStorage[Any]):
     """
-    Simple key-value store for storing arbitrary objects in Redis.
+    Simple Redis key-value store for storing arbitrary objects.
     Objects are pickled before storing and unpickled when retrieved.
     """
 
@@ -22,7 +22,7 @@ class BlobStorage(HashRedisStorage[Any]):
 
 class FlagIdsHashStorage(SetRedisStorage[str]):
     """
-    Simple hash store for storing obtained flag ID hashes in Redis.
+    Simple Redis set store for storing obtained flag ID hashes.
     """
 
     def _encode(self, value: str) -> bytes:
