@@ -2,6 +2,7 @@ import concurrent.futures
 import importlib.util
 import logging
 import re
+import time
 from datetime import datetime
 from multiprocessing import Process
 from pathlib import Path
@@ -12,6 +13,8 @@ import tzlocal
 from apscheduler.schedulers.background import BlockingScheduler
 from httpx import HTTPStatusError, RequestError
 from pydantic import AwareDatetime, ValidationError
+from watchdog.events import FileModifiedEvent
+from watchdog.observers import Observer
 
 from .api_client.client import APIClient
 from .api_client.schemas import ConnectionConfig, UnscopedFlagIds
@@ -19,6 +22,7 @@ from .decorator.schemas import Batching
 from .exploit import Exploit
 from .logging import colorize, logger
 from .storage.impl import BlobStorage, FlagIdsHashStorage
+from .watcher import FileEventHandler
 
 
 class Avala:
@@ -71,10 +75,13 @@ class Avala:
 
     def start(self) -> None:
         """
-        Runs the Avala client in production mode. At the start of each tick, the client scans for functions decorated
-        with the `@exploit` decorator inside the registered directories, and schedules the attacks based on their
-        configuration. Flags obtained from the attacks are submitted to the Avala server, and the client keeps track of
-        used flag IDs to avoid running the same attacks multiple times. The client runs indefinitely until interrupted.
+        Runs the Avala client in production mode. This mode operates on a schedule, scanning registered directories for
+        functions decorated with the `@exploit` decorator and scheduling attacks based on their configuration,
+        including delay and batching settings. Exploits marked as `draft=True` in the decorator are ignored.
+
+        Flags obtained from the executed exploits are submitted to the Avala server. The client keeps tracks of the
+        successful attacks by used flag IDs in order to avoid running the same attacks multiple times. This mode runs
+        indefinitely until interrupted.
         """
         self._show_banner()
         self._validate_directories()
@@ -97,78 +104,41 @@ class Avala:
         except (KeyboardInterrupt, SystemExit):
             print()  # Add a newline after the ^C
             self._scheduler.shutdown()
+        finally:
             logger.info("Thanks for using Avala!")
 
-    def debug(self) -> None:
+    def watch(self) -> None:
         """
-        Scans for functions decorated with the `@exploit` decorator inside the registered directories, checks if
-        their `draft` setting is set to `True`, and runs the attacks immediately.  The purpose of this mode is to aid
-        development of the exploits and allow running them independently of the tick schedule. Flags obtained from the
-        attacks are submitted to the Avala server, but the client will not keep track of used flag IDs nor skip attacks
-        that are using known flag IDs.
+        Runs the Avala client in development mode. This mode monitors registered directories for file changes and scans
+        modified files for functions decorated with the `@exploit` decorator. Detected exploits are executed immediately
+        , ignoring delay and batching configurations.
 
-        This mode also ignores `batching` and `delay` settings of the exploits, as it runs all attacks immediately.
+        Exploits marked with `reload=False` in the decorator are ignored. Flags obtained from the executed exploits are
+        submitted to the Avala server. The client keeps tracks of the successful attacks by used flag IDs in order to
+        avoid running the same attacks multiple times. However, if an exploit is marked as `draft=True`, flag IDs are
+        tracked but the attacks are not skipped, for increased verbosity during development.
         """
-        self._validate_directories()
+        event_handler = FileEventHandler(callback=self._launch_modified_exploits)
+        observer = Observer()
 
-        flag_ids = self._fetch_or_load_flag_ids()
+        for directory in self._exploit_directories:
+            observer.schedule(event_handler, directory.as_posix(), recursive=False, event_filter=[FileModifiedEvent])
 
-        exploits = self._reload_exploits(mode="debug")
-        for exploit in exploits:
-            if exploit.takes_flag_ids and flag_ids is None:
-                logger.warning(
-                    "Skipping <b>{alias}</> as it requires flag IDs, but they are not available.",
-                    alias=colorize(exploit.alias),
-                )
-                continue
+        logger.info(
+            "Watching for changes in registered directories: <green>{directories}</>...",
+            directories=", ".join([d.name for d in self._exploit_directories]),
+        )
+        observer.start()
 
-            if not exploit.setup(
-                game=self._client.game,
-                flag_ids=flag_ids,
-                blob_storage=self._blob_storage,
-                flag_ids_hash_storage=self._flag_ids_hash_storage,
-            ):
-                continue
-
-            exploit.batching = Batching(count=1)
-            self._launch_exploit(exploit)
-
-    def exec(self, exploit_aliases: Iterable[str]) -> None:
-        """
-        Scans for functions decorated with the `@exploit` decorator inside the registered directories, checks if
-        their alias matches any alias in `exploit_aliases` parameter, and runs the attacks immediately. The purpose of
-        this mode is to run specific exploits independently of the tick schedule (i.e. running a new exploit as soon
-        as possible without having to wait for the next tick). Flags obtained from the attacks are submitted to the
-        Avala server, and the client keeps track of used flag IDs to avoid running the same attacks multiple times.
-
-        This mode also ignores `batching` and `delay` settings of the exploits, as it runs all attacks immediately.
-
-        :param exploit_aliases: Aliases of the exploits to run.
-        :type exploit_aliases: Iterable[str]
-        """
-        self._validate_directories()
-
-        flag_ids = self._fetch_or_load_flag_ids()
-
-        exploits = (e for e in self._reload_exploits(mode="exec") if e.alias in exploit_aliases)
-        for exploit in exploits:
-            if exploit.takes_flag_ids and flag_ids is None:
-                logger.warning(
-                    "Skipping <b>{alias}</> as it requires flag IDs, but they are not available.",
-                    alias=colorize(exploit.alias),
-                )
-                continue
-
-            if not exploit.setup(
-                game=self._client.game,
-                flag_ids=flag_ids,
-                blob_storage=self._blob_storage,
-                flag_ids_hash_storage=self._flag_ids_hash_storage,
-            ):
-                continue
-
-            exploit.batching = Batching(count=1)
-            self._launch_exploit(exploit)
+        try:
+            while True:
+                time.sleep(1)
+        except (KeyboardInterrupt, SystemExit):
+            print()  # Add a newline after the ^C
+            observer.stop()
+        finally:
+            observer.join()
+            logger.info("Thanks for using Avala!")
 
     def register_directory(self, dir_path: str) -> None:
         """
@@ -310,22 +280,17 @@ class Avala:
                 )
                 return None
 
-    def _reload_exploits(self, mode: Literal["start", "debug", "exec"] = "start") -> list[Exploit]:
+    def _reload_exploits(
+        self,
+        watched_file_path: Path | None = None,
+    ) -> list[Exploit]:
         """
         Scans the registered directories for Python scripts containing exploits, executes them to compute
         configurations in `@exploit` decorators, and returns a list of exploits that need to be set up, scheduled,
         and run.
 
-        Supports three modes: `start`, `debug`, and `exec`.
-
-            In `start` mode, only exploits that are not drafts are loaded (`draft` is set to False, default).
-
-            In `debug` mode, only exploits that are drafts are loaded (`draft` is set to True).
-
-            In `exec` mode, all exploits are loaded.
-
-        :param mode: Mode of operation, defaults to "start"
-        :type mode: Literal[&quot;start&quot;, &quot;debug&quot;, &quot;exec&quot;]
+        :param watched_file_path: Path to the file that has been recently modified.
+        :type watched_file_path: Path, optional
         :return: List of exploits to be set up, scheduled, and run afterwards.
         :rtype: list[Exploit]
         """
@@ -342,11 +307,15 @@ class Avala:
             with file_path.open() as file:
                 return file.read().replace("from pwn import *\n", "# from pwn import *\n")
 
-        exploits: list[Exploit] = []
-        exploit_filepaths = (file for directory in self._exploit_directories for file in directory.glob("*.py"))
+        should_execute: Callable[[Exploit], bool]
 
-        load_all = mode == "exec"
-        desired_draft_value = mode == "debug"
+        exploits: list[Exploit] = []
+        if watched_file_path is None:
+            exploit_filepaths = (file for directory in self._exploit_directories for file in directory.glob("*.py"))
+            should_execute = lambda e: not e.is_draft  # noqa: E731
+        else:
+            exploit_filepaths = [watched_file_path]
+            should_execute = lambda e: e.is_reload_enabled  # noqa: E731
 
         for exploit_filepath in exploit_filepaths:
             try:
@@ -364,7 +333,7 @@ class Avala:
                         callable(func)
                         and hasattr(func, "exploit")
                         and isinstance(func.exploit, Exploit)
-                        and (load_all or func.exploit.is_draft == desired_draft_value)
+                        and should_execute(func.exploit)
                     ):
                         exploits.append(func.exploit)
             except Exception as e:
@@ -376,6 +345,40 @@ class Avala:
 
         logger.debug("Loaded {count} exploits.", count=len(exploits))
         return exploits
+
+    def _launch_modified_exploits(self, watched_file_path: Path) -> None:
+        """
+        Scans for functions decorated with the `@exploit` decorator inside the given file that has been modified, checks
+        if it's `reload` is not set to false, and runs the attacks immediately. The purpose of this mode is to run
+        recently modified exploits independently of the tick schedule (i.e. running a new exploit as soon as possible
+        without having to wait for the next tick) and to allow rapid exploit development. Flags obtained from the
+        attacks are submitted to the Avala server. The client keeps track of used flag IDs to avoid running the
+        same attacks multiple times, unless exploit's `draft` option is set to True.
+
+        :param watched_file_path: Path to the file that has been recently modified.
+        :type watched_file_path: Path
+        """
+        flag_ids = self._fetch_or_load_flag_ids()
+
+        exploits = (e for e in self._reload_exploits(watched_file_path=watched_file_path))
+        for exploit in exploits:
+            if exploit.takes_flag_ids and flag_ids is None:
+                logger.warning(
+                    "Skipping <b>{alias}</> as it requires flag IDs, but they are not available.",
+                    alias=colorize(exploit.alias),
+                )
+                continue
+
+            if not exploit.setup(
+                game=self._client.game,
+                flag_ids=flag_ids,
+                blob_storage=self._blob_storage,
+                flag_ids_hash_storage=self._flag_ids_hash_storage,
+                batching=Batching(count=1),
+            ):
+                continue
+
+            self._launch_exploit(exploit)
 
     def _schedule_exploits(self) -> None:
         """

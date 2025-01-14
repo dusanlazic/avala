@@ -10,6 +10,7 @@ from .schemas import Batching
 def exploit(
     service: str,
     draft: bool = False,
+    reload: bool = True,
     alias: str | None = None,
     targets: Iterable[str] | TargetingStrategy = TargetingStrategy.AUTO,
     flag_id_scope: FlagIdScope = FlagIdScope.SINGLE_TICK,
@@ -73,6 +74,7 @@ def exploit(
         wrapper.exploit = Exploit(
             service=service,
             is_draft=draft,
+            is_reload_enabled=reload,
             alias=alias or f"{func.__module__}.{func.__name__}",
             targets_skip=set(skip) if skip else set(),
             targets_include=set(include) if include else set(),
