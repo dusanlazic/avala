@@ -23,50 +23,64 @@ def exploit(
     delay: int | float | timedelta = timedelta(seconds=0),
     batching: Batching = Batching(count=1),
     timeout: int | float | timedelta = timedelta(seconds=15),
-    workers: int = 128,
 ):
     """
-    TODO: Update docstirng
+    Decorator for defining and configuring an exploit.
 
-    A decorator to mark a function as an exploit and configure it.
-
-    :param service: Name of the service attacked by the exploit. To see all services, you can use `get_services()` method of `Avala` instance.
+    :param service: Name of the service attacked by the exploit. To see the names of available services, you can use
+    `get_services()` method of `Avala` instance.
     :type service: str
-    :param draft: Whether the exploit is a draft or not. Draft exploits are not executed when running client by calling `run()` method, but are executed by calling `workshop()`. Enabling this options ignores `delay` and `batching` options. Defaults to False.
+    :param draft: Exclude the exploit when running Avala in production mode. Useful for testing and debugging exploits
+    in watch mode. Defaults to False.
     :type draft: bool
-    :param targets: IP addresses or hostnames of the targeted teams, or a targeting strategy (`AUTO`, `OWN_TEAM`, `NOP_TEAM`).
-    Manually specify targets or use one of targeting strategies: `TargetingStrategy.AUTO` to target all currently available teams if your exploit is accepting `flag_ids` parameter; `TargetingStrategy.OWN_TEAM` to target your own team; `TargetingStrategy.NOP_TEAM` to target the NOP team.
-    :type targets: list[str] | TargetingStrategy
-    :param alias: Alias used for exploit identification, analytics and as a key for tracking repeated flag IDs.
-    If not provided, it will be set to `<module_name>.<function_name>`.
-    :type alias: str | None, optional
-    :param tick_scope: Scope of the `flag_ids` dictionary, defaults to TickScope.SINGLE.
-    Read more about tick scopes in :class:`avala.models.TickScope`.
-    :type tick_scope: TickScope, optional
-    :param skip: IP addresses or hostnames to skip while attacking. Defaults to the addresses belonging to the NOP team and own team, **unless the targeting strategy is set to `NOP_TEAM` or `OWN_TEAM`**.
-    :type skip: list[str] | None, optional
-    :param prepare: Optional shell command to run before starting the first attack, defaults to None. Useful for setting up the environment, files, etc.
+    :param reload: Reload the exploit on save when running Avala in watch mode. Defaults to True.
+    :type reload: bool
+    :param alias: Alias used for exploit identification, logging and as a key for tracking repeated flag IDs.
+    :type alias: str | None
+    :param targets: IP addresses or hostnames of the targeted teams, or a targeting strategy (`AUTO`, `OWN_TEAM`,
+    `NOP_TEAM`). Specify targets manually or use one of targeting strategies: `TargetingStrategy.AUTO` to target all
+    currently available teams; `TargetingStrategy.OWN_TEAM` to target your own team; `TargetingStrategy.NOP_TEAM` to
+    target the NOP team. Defaults to `TargetingStrategy.AUTO`.
+    :type targets: Iterable[str] | TargetingStrategy
+    :param flag_id_scope: Tick scope of the flag IDs provided to the exploit function, defaults to
+    FlagIdScope.SINGLE_TICK.
+    :type flag_id_scope: FlagIdScope
+    :param skip: IP addresses or hostnames to skip when attacking. Hosts of the NOP team and own team are skipped by
+    default.
+    :type skip: Iterable[str] | None
+    :param include: Additional IP addresses or hostnames to include when attacking. Can be used to include hosts that
+    are skipped by default (NOP team and own team).
+    :type include: Iterable[str] | None
+    up the environment, files, etc.
+    :param prepare: Optional shell command to run before starting the first attack, defaults to None. Useful for setting
+    up the environment, files, etc. before running the attacks.
     :type prepare: str | None, optional
-    :param cleanup: Optional shell command to run after completing the last attack, defaults to None. Useful for cleaning up any changes or artifacts created during the attacks.
+    :param cleanup: Optional shell command to run after completing the last attack, defaults to None. Useful for
+    cleaning up any artifacts created during the attacks.
     :type cleanup: str | None, optional
-    :param command: Command for running a non-Python exploit. Must be a string with placeholders for the target IP (`{target}`) address and path to the exported flag IDs dictionary (`{flag_ids_path}`).
-    Example: `./rust_exploit {target} {flag_ids_path}`. Defaults to None.
-    :type command: str | None, optional
-    :param env: Environment variables to be passed into the exploit's execution environment. Any passed environment variables will be merged with the current environment variables. Defaults to an empty dictionary.
+    :param env: Environment variables to be passed into the exploit's execution environment. Any passed environment
+    variables will be merged with the current environment variables. Defaults to an empty dictionary.
     :type env: dict[str, str], optional
-    :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. This is helpful when running multiple exploits to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage.
-    Note: Delay is **ignored in draft exploits** and is listed for easier switching between draft and non-draft exploits.
-    :type delay: int, optional
-    :param timeout: Timeout in seconds after which the exploit will be terminated if it's stuck or takes too long to complete, defaults to 15. Note that the timeout is applied to the exploit execution itself and not each individual attack: timeout is applied on batches of exploits, and your exploit will likely timeout if the number of `workers` is too low.
-    :type timeout: int, optional
-    :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes.
-    Read more about batching in :class:`avala.models.Batching`. Note: Batching is **ignored in draft exploits** and is listed for easier switching between draft and non-draft exploits.
+    :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. This is helpful when running
+    multiple exploits to prevent them from running at the same time, which could lead to excessive CPU, memory or
+    network usage. Delay is **ignored in watch mode**.
+    :type delay: int | float | timedelta, optional
+    :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the
+    load over time with the goal of mitigating CPU, memory and network usage spikes. Batching is **ignored in watch
+    mode**.
     :type batching: Batching | None, optional
-    :param workers: Number of concurrent workers **per exploit** to be used for executing the attacks, defaults to 128.
-    :type workers: int, optional
+    :param timeout: Timeout in seconds after which the exploit will be terminated if it hangs or takes too long to
+    complete, defaults to 15.
+    :type timeout: int, optional
     """
 
-    def decorator_exploit(func):
+    def exploit_decorator(func):
+        """
+        Creates a runnable `Exploit` object based on the user-defined configuration and associates it with the decorated
+        function. Makes the decorated function discoverable by Avala and allows it to setup and run the exploit
+        afterwards.
+        """
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
@@ -88,10 +102,9 @@ def exploit(
             delay=timedelta(seconds=delay) if isinstance(delay, (int, float)) else delay,
             batching=batching,
             timeout=timedelta(seconds=timeout) if isinstance(timeout, (int, float)) else timeout,
-            workers=workers,
             func=func,
         )
 
         return wrapper
 
-    return decorator_exploit
+    return exploit_decorator

@@ -84,7 +84,7 @@ class TickScopedFlagIds:
             )
 
     def __repr__(self) -> str:
-        json_string = json.dumps(self.value, indent=4)  # TODO: Check if this is always json serializable
+        json_string = json.dumps(self.value, indent=4)
         return highlight(json_string, JsonLexer(), TerminalFormatter())
 
 

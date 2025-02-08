@@ -7,8 +7,8 @@ class TargetingStrategy(Enum):
     configuration.
 
     :cvar AUTO:
-        Selects the available targets based on flag IDs provided by the game server if the exploit function takes
-        `flag_ids` argument. Otherwise, selects all targets provided in the server configuration.
+        Selects the available targets based on flag IDs provided by the game server, or all targets provided in the
+        server configuration if the function does not take `flag_ids` argument.
     :cvar NOP_TEAM:
         Selects the hosts of the NOP team.
     :cvar OWN_TEAM:

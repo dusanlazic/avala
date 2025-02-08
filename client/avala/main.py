@@ -21,7 +21,7 @@ from .api_client.schemas import ConnectionConfig, UnscopedFlagIds
 from .decorator.schemas import Batching
 from .exploit import Exploit
 from .logging import colorize, logger
-from .storage.impl import BlobStorage, FlagIdsHashStorage
+from .storage.impl import BlobStorage, FlagIdsHashStorage, UnsentFlagStorage
 from .watcher import FileEventHandler
 
 
@@ -68,6 +68,9 @@ class Avala:
         self._flag_ids_hash_storage: FlagIdsHashStorage | None = (
             FlagIdsHashStorage(redis_url, "avala_flag_hashes") if redis_url else None
         )
+        self._unsent_flag_storage: UnsentFlagStorage | None = (
+            UnsentFlagStorage(redis_url, "avala_unsent_flags") if redis_url else None
+        )
 
         self._exploit_directories: set[Path] = set()
         self._before_all_hook: Callable | None = None
@@ -79,9 +82,9 @@ class Avala:
         functions decorated with the `@exploit` decorator and scheduling attacks based on their configuration,
         including delay and batching settings. Exploits marked as `draft=True` in the decorator are ignored.
 
-        Flags obtained from the executed exploits are submitted to the Avala server. The client keeps tracks of the
-        successful attacks by used flag IDs in order to avoid running the same attacks multiple times. This mode runs
-        indefinitely until interrupted.
+        Flags obtained from the executed exploits are submitted to the Avala server. The client keeps track of the
+        successful attacks by storing hashes of used flag IDs to skip running the same attacks multiple times. This mode
+        runs indefinitely until interrupted.
         """
         self._show_banner()
         self._validate_directories()
@@ -111,12 +114,12 @@ class Avala:
         """
         Runs the Avala client in development mode. This mode monitors registered directories for file changes and scans
         modified files for functions decorated with the `@exploit` decorator. Detected exploits are executed immediately
-        , ignoring delay and batching configurations.
+        , ignoring delay and batching settings.
 
-        Exploits marked with `reload=False` in the decorator are ignored. Flags obtained from the executed exploits are
-        submitted to the Avala server. The client keeps tracks of the successful attacks by used flag IDs in order to
-        avoid running the same attacks multiple times. However, if an exploit is marked as `draft=True`, flag IDs are
-        tracked but the attacks are not skipped, for increased verbosity during development.
+        Exploits marked with `reload=False` in the decorator are ignored. Flags obtained from the attacks are submitted
+        to the Avala server. The client keeps track of the successful attacks by storing hashes of used flag IDs to skip
+        running the same attacks multiple times. However, if an exploit is marked as `draft=True`, flag IDs are tracked
+        but the attacks are not skipped, for easier testing and debugging during development.
         """
         event_handler = FileEventHandler(callback=self._launch_modified_exploits)
         observer = Observer()
@@ -295,18 +298,6 @@ class Avala:
         :rtype: list[Exploit]
         """
 
-        def patch_pwntools(file_path: Path) -> str:
-            """
-            Comments out `from pwn import *` to prevent "signal only works in main thread of the main interpreter" error
-
-            :param code: Path to the Python file containing the exploit code.
-            :type code: str
-            :return: Exploit code without `from pwn import *`
-            :rtype: str
-            """
-            with file_path.open() as file:
-                return file.read().replace("from pwn import *\n", "# from pwn import *\n")
-
         should_execute: Callable[[Exploit], bool]
 
         exploits: list[Exploit] = []
@@ -324,8 +315,7 @@ class Avala:
                     raise Exception("Failed to load module spec.")
 
                 module = importlib.util.module_from_spec(spec)
-                patched_code = patch_pwntools(exploit_filepath)
-                # TODO: Revisit this to see if we can avoid using exec and use just inspection instead
+                patched_code = self._patch_pwntools(exploit_filepath)
                 compiled_code = compile(patched_code, exploit_filepath.absolute(), "exec")
                 exec(compiled_code, module.__dict__)
                 for _, func in module.__dict__.items():
@@ -516,7 +506,7 @@ class Avala:
         Job that periodically checks the connection with the server and tries to push
         the pending flags collected during the server downtime.
         """
-        # TODO: Reimplementation
+        # TODO: Requires reimplementation
         raise NotImplementedError("This method is not implemented yet.")
 
         try:
@@ -525,10 +515,10 @@ class Avala:
             logger.warning(
                 "⚠️ Cannot establish connection with the server. "
                 + "<b>{pending_flags}</> flags are waiting to be submitted.",
-                pending_flags=(123),  # TODO: Get the number of pending flags
+                pending_flags=(123),  # Get the number of pending flags
             )
         else:
-            results = set()  # TODO: Get pending flags from redis and group them by target and alias
+            results = set()  # Get pending flags from redis and group them by target and alias
 
             if results:
                 logger.info("Server is back online! Submitting pending flags...")
@@ -536,7 +526,7 @@ class Avala:
             for row in results:
                 flags = row.flags.split(",")
                 self._client.enqueue(flags, row.alias, row.target)
-                # TODO: Remove pending flags from redis
+                # Remove pending flags from redis
 
     def _get_next_tick_start(self) -> AwareDatetime:
         """
@@ -555,6 +545,17 @@ class Avala:
             return first_tick_start
 
         return now + tick_duration - (now - first_tick_start) % tick_duration
+
+    def _patch_pwntools(file_path: Path) -> str:
+        """
+        Comments out `from pwn import *` to prevent "signal only works in main thread of the main interpreter" error
+
+        :param code: Path to the Python file containing the exploit code.
+        :type code: str
+        :return: Exploit code without `from pwn import *`
+        :rtype: str
+        """
+        return file_path.read_text().replace("from pwn import *\n", "# from pwn import *\n")
 
     def _show_banner(self) -> None:
         """

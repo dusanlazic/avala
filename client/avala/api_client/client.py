@@ -102,7 +102,7 @@ class APIClient:
         :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedFlagIds
         """
-        response = self.client.get("/flag-ids/subscribe", timeout=15)  # TODO: Configurable timeout
+        response = self.client.get("/flag-ids/subscribe", timeout=self.schedule.tick_duration.total_seconds())
         response.raise_for_status()
 
         if response.status_code == 200:
@@ -112,10 +112,8 @@ class APIClient:
 
     def fetch_flag_ids(self) -> UnscopedFlagIds:
         """
-        TODO: Docstring
-        Fetches the current available flag IDs from the server.
-        Useful for starting the attacks immediately using the currently available flag
-        IDs.
+        Fetches the current available flag IDs from the server. Useful for starting the attacks immediately using the
+        currently available flag IDs.
 
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
         :return: Flag ids for all targets across all services, covering the last N ticks
@@ -132,8 +130,7 @@ class APIClient:
 
     def get_cached_flag_ids(self) -> UnscopedFlagIds:
         """
-        Uses the cached flag IDs as a fallback in case of connection loss or server
-        downtime.
+        Uses the cached flag IDs as a fallback in case of connection loss or server downtime.
 
         :raises FileNotFoundError: Flag IDs were never fetched.
         :raises RuntimeError: Flag IDs are corrupted or were never fetched.

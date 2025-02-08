@@ -32,3 +32,17 @@ class FlagIdsHashStorage(SetRedisStorage[str]):
 
     def _decode(self, value: bytes) -> str:
         return value.decode("utf-8")
+
+
+class UnsentFlagStorage(SetRedisStorage[str]):
+    """
+    Simple Redis set store for storing unsent flags.
+    """
+
+    def _encode(self, value: str) -> bytes:
+        if not isinstance(value, str):
+            raise TypeError("Value must be a string.")
+        return value.encode("utf-8")
+
+    def _decode(self, value: bytes) -> str:
+        return value.decode("utf-8")
