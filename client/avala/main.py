@@ -17,10 +17,10 @@ from watchdog.events import FileModifiedEvent
 from watchdog.observers import Observer
 
 from .api_client.client import APIClient
-from .api_client.schemas import ConnectionConfig, UnscopedFlagIds
+from .api_client.schemas import ConnectionConfig, FlagsEnqueueBody, UnscopedFlagIds
 from .decorator.schemas import Batching
 from .exploit import Exploit
-from .logging import colorize, logger
+from .logging import colorize, logger, truncate
 from .storage.impl import BlobStorage, FlagIdsHashStorage, UnsentFlagStorage
 from .watcher import FileEventHandler
 
@@ -102,13 +102,22 @@ class Avala:
             next_run_time=self._get_next_tick_start(),
         )
 
+        if self._unsent_flag_storage is not None:
+            self._scheduler.add_job(
+                func=self._enqueue_pending_flags,
+                trigger="interval",
+                seconds=15,
+                id="enqueue_pending_flags",
+                next_run_time=datetime.now(),
+            )
+
         try:
             self._scheduler.start()
         except (KeyboardInterrupt, SystemExit):
             print()  # Add a newline after the ^C
             self._scheduler.shutdown()
         finally:
-            logger.info("Thanks for using Avala!")
+            logger.info("🙌 Thanks for using Avala!")
 
     def watch(self) -> None:
         """
@@ -128,7 +137,7 @@ class Avala:
             observer.schedule(event_handler, directory.as_posix(), recursive=False, event_filter=[FileModifiedEvent])
 
         logger.info(
-            "Watching for changes in registered directories: <green>{directories}</>...",
+            "👀 Watching for changes in registered directories: <green>{directories}</>...",
             directories=", ".join([d.name for d in self._exploit_directories]),
         )
         observer.start()
@@ -141,7 +150,7 @@ class Avala:
             observer.stop()
         finally:
             observer.join()
-            logger.info("Thanks for using Avala!")
+            logger.info("🙌 Thanks for using Avala!")
 
     def register_directory(self, dir_path: str) -> None:
         """
@@ -242,12 +251,12 @@ class Avala:
         valid_directories = set()
         for path in self._exploit_directories:
             if not path.exists() or not path.is_dir():
-                logger.warning("Directory not found: {path}", path=path)
+                logger.error("❌ Directory not found: {path}", path=path)
             else:
                 valid_directories.add(path)
 
         logger.info(
-            "Registered exploit directories: <green>{directories}</>",
+            "📂 Registered exploit directories: <green>{directories}</>",
             directories=", ".join([d.name for d in valid_directories]),
         )
 
@@ -333,7 +342,11 @@ class Avala:
                     error=e,
                 )
 
-        logger.debug("Loaded {count} exploits.", count=len(exploits))
+        logger.info(
+            "📥 Loaded <b>{count}</> exploits: {exploits}.",
+            count=len(exploits),
+            exploits=", ".join(colorize(exploit.alias) for exploit in exploits),
+        )
         return exploits
 
     def _launch_modified_exploits(self, watched_file_path: Path) -> None:
@@ -354,7 +367,7 @@ class Avala:
         for exploit in exploits:
             if exploit.takes_flag_ids and flag_ids is None:
                 logger.warning(
-                    "Skipping <b>{alias}</> as it requires flag IDs, but they are not available.",
+                    "⚠️  Skipping <b>{alias}</> as it requires flag IDs, but they are not available.",
                     alias=colorize(exploit.alias),
                 )
                 continue
@@ -391,10 +404,9 @@ class Avala:
 
         for exploit in ordered_exploits:
             flag_ids = flag_ids_future.result() if exploit.takes_flag_ids else None
-
             if exploit.takes_flag_ids and flag_ids is None:
                 logger.warning(
-                    "Skipping <b>{alias}</> as it requires flag IDs, but they are not available.",
+                    "⚠️  Skipping <b>{alias}</> as it requires flag IDs, but they are not available.",
                     alias=colorize(exploit.alias),
                 )
                 continue
@@ -415,7 +427,7 @@ class Avala:
                     run_date=run_time,
                     misfire_grace_time=None,
                 )
-                logger.debug(
+                logger.info(
                     "⏰ Exploit <b>{alias}</> (batch {batch_idx}/{total_batches}) will run at <b>{time}</>.",
                     alias=colorize(exploit.alias),
                     batch_idx=batch_idx + 1,
@@ -436,7 +448,7 @@ class Avala:
         :param batch_idx: Index of the batch of hosts to attack, defaults to 0
         :type batch_idx: int, optional
         """
-        logger.debug(
+        logger.info(
             "🚀 Launching exploit <b>{alias}</> (batch {batch_idx}/{total_batches})...",
             alias=colorize(exploit.alias),
             batch_idx=batch_idx + 1,
@@ -460,8 +472,8 @@ class Avala:
             runner.terminate()
             runner.join()
         else:
-            logger.debug(
-                "🎉 Finished running <b>{alias}</> (batch {batch_idx}/{total_batches}) in time.",
+            logger.info(
+                "✅ Finished running <b>{alias}</> (batch {batch_idx}/{total_batches}) in time.",
                 alias=colorize(exploit.alias),
                 batch_idx=batch_idx + 1,
                 total_batches=exploit.get_batch_count(),
@@ -487,46 +499,74 @@ class Avala:
                 timeout=None if drain else 0.1,
                 block=False if drain else True,
             )
-            flags = self.match_flags(result)
-            if not flags:
-                logger.warning(
-                    "No flags retrieved from attacking <b>{host}</> via <b>{alias}</>.",
-                    host=colorize(host),
-                    alias=colorize(exploit.alias),
-                )
-            else:
-                self._client.enqueue(flags, exploit.alias, host)
         except Empty:
             return False
-        else:
+
+        flags = self.match_flags(result)
+        if not flags:
+            logger.warning(
+                "⚠️  No flags retrieved from attacking <b>{host}</> via <b>{alias}</>.",
+                host=colorize(host),
+                alias=colorize(exploit.alias),
+            )
+            return True
+
+        try:
+            self._client.enqueue(flags, exploit.alias, host)
+        except Exception:
+            logger.error(
+                "🚨 Failed to submit flags from attacking <b>{host}</> via <b>{alias}</>. <d>{flags}</>",
+                host=colorize(host),
+                alias=colorize(exploit.alias),
+                flags=truncate(", ".join(flags)),
+            )
+            if self._unsent_flag_storage:
+                for flag in flags:
+                    self._unsent_flag_storage.add(FlagsEnqueueBody(values=[flag], exploit=exploit.alias, host=host))
+        finally:
             return True
 
     def _enqueue_pending_flags(self) -> None:
         """
-        Job that periodically checks the connection with the server and tries to push
-        the pending flags collected during the server downtime.
+        Job that periodically checks the connection with the server and tries to enqueue the pending flags collected
+        during the server downtime.
         """
-        # TODO: Requires reimplementation
-        raise NotImplementedError("This method is not implemented yet.")
+        if self._unsent_flag_storage.size():
+            logger.warning(
+                "🔄 <b>{count}</> flags are waiting to be submitted! Checking connection with the server...",
+                count=self._unsent_flag_storage.size(),
+            )
+        else:
+            logger.info("👌 No pending flags to submit.")
+            return
 
         try:
             self._client.heartbeat()
         except Exception:
-            logger.warning(
-                "⚠️ Cannot establish connection with the server. "
-                + "<b>{pending_flags}</> flags are waiting to be submitted.",
-                pending_flags=(123),  # Get the number of pending flags
+            logger.error(
+                "🚨 Cannot establish connection with the server. <b>{count}</> flags are waiting to be submitted!",
+                count=self._unsent_flag_storage.size(),
             )
+            return
         else:
-            results = set()  # Get pending flags from redis and group them by target and alias
+            logger.info(
+                "🔌 Server is back online! Submitting pending <b>{count}</> flags...",
+                count=self._unsent_flag_storage.size(),
+            )
 
-            if results:
-                logger.info("Server is back online! Submitting pending flags...")
-
-            for row in results:
-                flags = row.flags.split(",")
-                self._client.enqueue(flags, row.alias, row.target)
-                # Remove pending flags from redis
+        flag = self._unsent_flag_storage.pop()
+        while flag:
+            try:
+                self._client.enqueue(flag.values, flag.exploit, flag.host)
+            except Exception:
+                self._unsent_flag_storage.add(flag)
+                logger.error(
+                    "🚨 Cannot establish connection with the server. <b>{count}</> flags are waiting to be submitted!",
+                    count=self._unsent_flag_storage.size(),
+                )
+                break
+            else:
+                flag = self._unsent_flag_storage.pop()
 
     def _get_next_tick_start(self) -> AwareDatetime:
         """

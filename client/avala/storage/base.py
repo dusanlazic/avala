@@ -120,6 +120,15 @@ class HashRedisStorage(BaseRedisStorage[T]):
         """
         return self._redis.hexists(self._name, key)  # type: ignore
 
+    def size(self) -> int:
+        """
+        Returns the size of the Redis hash.
+
+        :return: Size of the hash.
+        :rtype: int
+        """
+        return self._redis.hlen(self._name)
+
     def __getitem__(self, key: str) -> T:
         return self.get(key)
 
@@ -158,6 +167,16 @@ class SetRedisStorage(BaseRedisStorage[T]):
         encoded_values = [self._encode(value) for value in values]
         self._redis.srem(self._name, *encoded_values)
 
+    def pop(self) -> T:
+        """
+        Retrieves and removes a random value from the Redis set.
+
+        :return: Popped value.
+        :rtype: T
+        """
+        raw_value: bytes | None = self._redis.spop(self._name)  # type: ignore
+        return self._decode(raw_value) if raw_value is not None else None
+
     def contains(self, value: T) -> bool:
         """
         Checks if a value exists in the Redis set.
@@ -169,6 +188,15 @@ class SetRedisStorage(BaseRedisStorage[T]):
         """
         encoded_value = self._encode(value)
         return self._redis.sismember(self._name, encoded_value) == 1  # type: ignore
+
+    def size(self) -> int:
+        """
+        Returns the size of the Redis set.
+
+        :return: Size of the set.
+        :rtype: int
+        """
+        return self._redis.scard(self._name)
 
     def __contains__(self, value: T) -> bool:
         return self.contains(value)

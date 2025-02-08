@@ -31,13 +31,13 @@ class ConnectionConfig(BaseModel):
     password: str | None = None
 
 
-class EnqueueBody(BaseModel):
+class FlagsEnqueueBody(BaseModel):
     values: list[str]
     exploit: str
     host: str
 
 
-class FlagEnqueueResponse(BaseModel):
+class FlagsEnqueueResponse(BaseModel):
     enqueued: int
     discarded: int
 

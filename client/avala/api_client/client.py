@@ -7,8 +7,8 @@ import httpx
 from ..logging import colorize, logger, truncate
 from .schemas import (
     ConnectionConfig,
-    EnqueueBody,
-    FlagEnqueueResponse,
+    FlagsEnqueueBody,
+    FlagsEnqueueResponse,
     GameConfig,
     ScheduleConfig,
     UnscopedFlagIds,
@@ -44,7 +44,7 @@ class APIClient:
                 error=type(e).__name__,
                 error_msg=e,
             )
-            logger.info("Exiting...")
+            logger.info("❌ Exiting...")
             exit(1)
 
     def heartbeat(self) -> None:
@@ -69,7 +69,7 @@ class APIClient:
         :type host: str
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
         """
-        enqueue_body = EnqueueBody(
+        enqueue_body = FlagsEnqueueBody(
             values=flags,
             exploit=exploit_alias,
             host=host,
@@ -81,11 +81,11 @@ class APIClient:
         )
         response.raise_for_status()
 
-        flag_enqueue_response = FlagEnqueueResponse(**response.json())
+        flag_enqueue_response = FlagsEnqueueResponse(**response.json())
 
         logger.info(
-            "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{host}</> via <b>{exploit}</>. <yellow>{flags}</>",
-            icon="✅" if flag_enqueue_response.enqueued else "❗",
+            "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{host}</> via <b>{exploit}</>. <d>{flags}</>",
+            icon="🚩" if flag_enqueue_response.enqueued else "❗",
             enqueued=flag_enqueue_response.enqueued,
             total=len(flags),
             host=colorize(host),
@@ -138,7 +138,7 @@ class APIClient:
         ticks.
         :rtype: UnscopedFlagIds
         """
-        logger.warning("Using cached flag IDs.")
+        logger.warning("⚠️  Using cached flag IDs.")
 
         if not (DOT_DIR_PATH / "cached_flag_ids.json").exists():
             raise FileNotFoundError("Flag IDs were never fetched.")
