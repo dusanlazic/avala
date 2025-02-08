@@ -546,6 +546,7 @@ class Avala:
 
         return now + tick_duration - (now - first_tick_start) % tick_duration
 
+    @staticmethod
     def _patch_pwntools(file_path: Path) -> str:
         """
         Comments out `from pwn import *` to prevent "signal only works in main thread of the main interpreter" error
