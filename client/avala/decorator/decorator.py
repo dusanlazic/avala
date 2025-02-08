@@ -37,10 +37,7 @@ def exploit(
     :type reload: bool
     :param alias: Alias used for exploit identification, logging and as a key for tracking repeated flag IDs.
     :type alias: str | None
-    :param targets: IP addresses or hostnames of the targeted teams, or a targeting strategy (`AUTO`, `OWN_TEAM`,
-    `NOP_TEAM`). Specify targets manually or use one of targeting strategies: `TargetingStrategy.AUTO` to target all
-    currently available teams; `TargetingStrategy.OWN_TEAM` to target your own team; `TargetingStrategy.NOP_TEAM` to
-    target the NOP team. Defaults to `TargetingStrategy.AUTO`.
+    :param targets: IP addresses or hostnames of the targeted teams, or a targeting strategy. Defaults to `TargetingStrategy.AUTO`.
     :type targets: Iterable[str] | TargetingStrategy
     :param flag_id_scope: Tick scope of the flag IDs provided to the exploit function, defaults to
     FlagIdScope.SINGLE_TICK.
@@ -51,7 +48,6 @@ def exploit(
     :param include: Additional IP addresses or hostnames to include when attacking. Can be used to include hosts that
     are skipped by default (NOP team and own team).
     :type include: Iterable[str] | None
-    up the environment, files, etc.
     :param prepare: Optional shell command to run before starting the first attack, defaults to None. Useful for setting
     up the environment, files, etc. before running the attacks.
     :type prepare: str | None, optional
@@ -61,18 +57,14 @@ def exploit(
     :param env: Environment variables to be passed into the exploit's execution environment. Any passed environment
     variables will be merged with the current environment variables. Defaults to an empty dictionary.
     :type env: dict[str, str], optional
-    :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. This is helpful when running
-    multiple exploits to prevent them from running at the same time, which could lead to excessive CPU, memory or
-    network usage. Delay is **ignored in watch mode**.
+    :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. Useful when running
+    multiple exploits and need a way to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage. **Ignored in watch mode**.
     :type delay: int | float | timedelta, optional
-    :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the
-    load over time with the goal of mitigating CPU, memory and network usage spikes. Batching is **ignored in watch
-    mode**.
+    :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes. **Ignored in watch mode**.
     :type batching: Batching | None, optional
-    :param timeout: Timeout in seconds after which the exploit will be terminated if it hangs or takes too long to
-    complete, defaults to 15.
+    :param timeout: Timeout in seconds after which the exploit will be terminated if it hangs or takes too long to complete, defaults to 15.
     :type timeout: int, optional
-    """
+    """  # noqa: E501
 
     def exploit_decorator(func):
         """
