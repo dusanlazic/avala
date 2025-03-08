@@ -2,6 +2,7 @@ import inspect
 import os
 import sys
 import time
+import threading
 from collections import Counter
 from datetime import datetime, timedelta
 from importlib import import_module, reload
@@ -148,15 +149,107 @@ def calculate_next_submit_time() -> timedelta:
         return (config.game.game_starts_at + interval) - now
 
 
+def start_interval_consumer(channel, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
+    """
+    Starts a loop that pulls flags from the 'flag.submission' queue in fixed intervals and processes them
+    using the user-defined submit function.
+    """
+    queue_cleared = True
+    while True:
+        if queue_cleared:
+            sleep_for = calculate_next_submit_time().total_seconds()
+            logger.info(
+                "Next submission scheduled at <b>"
+                + (datetime.now() + timedelta(seconds=sleep_for)).strftime("%H:%M:%S")
+                + "</>."
+            )
+            time.sleep(sleep_for)
+            queue_cleared = False
+
+        flag_tag_map: dict[str, int] = {}
+        flag_attempt_map: dict[str, int] = {}
+
+        for _ in range(config.submitter.batch_size):  # type: ignore
+            method_frame, header_frame, body = channel.basic_get(queue="flag.submission", auto_ack=False)
+
+            if method_frame:
+                tag: int = method_frame.delivery_tag
+                flag: str = body.decode().strip()
+                attempt: int = header_frame.headers.get("x-delivery-count", 0) if header_frame.headers else 0
+
+                flag_tag_map[flag] = tag
+                flag_attempt_map[flag] = attempt
+            else:
+                queue_cleared = True
+                break
+
+        if not flag_tag_map:
+            logger.info("No flags to submit.")
+            continue
+
+        logger.info("Submitting <b>{count}</> flags...", count=len(flag_tag_map))
+
+        try:
+            flags = list(flag_tag_map.keys())
+            results = submit_flags(flags)
+        except Exception as e:
+            channel.basic_nack(delivery_tag=max(flag_tag_map.values()), multiple=True, requeue=True)
+            logger.error(
+                "Failed to submit <b>{count}</> flags. Exception: {exception}. Message: {exception_msg}",
+                count=len(flags),
+                exception=type(e).__name__,
+                exception_msg=e,
+            )
+
+            for flag in flags:
+                attempt = flag_attempt_map[flag]
+                channel.basic_publish(
+                    exchange="",
+                    routing_key="flag.persistence",
+                    body=FlagPersistMessage(
+                        value=flag,
+                        status="requeued" if attempt < config.submitter.retries else "failed",
+                        attempts=attempt,
+                    ).model_dump_json(),
+                    properties=pika.BasicProperties(delivery_mode=2),
+                )
+        else:
+            stats = Counter(status for status, _, _ in results)
+            logger.info(
+                "<b>{accepted}</> accepted, <b>{rejected}</> rejected, <b>{requeued}</> requeued.",
+                accepted=stats.get("accepted", 0),
+                rejected=stats.get("rejected", 0),
+                requeued=stats.get("requeued", 0),
+            )
+
+            for status, response, flag in results:
+                if status != "requeued":
+                    channel.basic_ack(flag_tag_map[flag])
+                else:
+                    channel.basic_reject(flag_tag_map[flag], requeue=True)
+
+                channel.basic_publish(
+                    exchange="",
+                    routing_key="flag.persistence",
+                    body=FlagPersistMessage(
+                        value=flag,
+                        status=status,
+                        response=response,
+                        attempts=flag_attempt_map[flag],
+                    ).model_dump_json(),
+                    properties=pika.BasicProperties(delivery_mode=2),
+                )
+
+
 def start_stream_consumer(channel, submit_flag: StreamSubmitFunction) -> None:
     """
     Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
-    using the user-defined submit function.
+    one by one using the user-defined submit function.
     """
 
     def callback(ch, method, properties, body) -> None:
-        flag = body.decode().strip()
-        attempt = properties.headers.get("x-delivery-count", 0) if properties.headers else 0
+        flag: str = body.decode().strip()
+        attempt: int = properties.headers.get("x-delivery-count", 0) if properties.headers else 0
 
         if attempt:
             logger.info(
@@ -217,38 +310,43 @@ def start_stream_consumer(channel, submit_flag: StreamSubmitFunction) -> None:
             properties=pika.BasicProperties(delivery_mode=2),
         )
 
+    logger.info("Waiting for flags...")
     channel.basic_consume(queue="flag.submission", on_message_callback=callback)
     channel.start_consuming()
 
 
-def start_interval_consumer(channel, submit_flags: BatchSubmitFunction):  # noqa: C901
-    queue_cleared = True
-    while True:
-        if queue_cleared:
-            sleep_for = calculate_next_submit_time().total_seconds()
-            time.sleep(sleep_for)
-            queue_cleared = False
+def start_batch_consumer(channel, submit_flags: BatchSubmitFunction) -> None:
+    """
+    Starts the batch consumer that listens to the 'flag.submission' queue and processes incoming flags
+    in batches using the user-defined submit function.
+    """
+    flag_tag_map: dict[str, int] = {}
+    flag_attempt_map: dict[str, int] = {}
 
-        flag_tag_map: dict[str, int] = {}
-        flag_attempt_map: dict[str, int] = {}
+    last_submission_time = time.time()
+    is_queue_idle = lambda: time.time() - last_submission_time > config.game.tick_duration.total_seconds()
 
-        for _ in range(config.submitter.batch_size):  # type: ignore
-            method_frame, header_frame, body = channel.basic_get(queue="flag.submission", auto_ack=False)
+    def callback(ch, method, properties, body) -> None:
+        tag: int = method.delivery_tag
+        flag: str = body.decode().strip()
+        attempt: int = properties.headers.get("x-delivery-count", 0) if properties.headers else 0
 
-            if method_frame:
-                tag: int = method_frame.delivery_tag
-                flag: str = body.decode().strip()
-                attempt: int = header_frame.headers.get("x-delivery-count", 0) if header_frame.headers else 0
+        flag_tag_map[flag] = tag
+        flag_attempt_map[flag] = attempt
 
-                flag_tag_map[flag] = tag
-                flag_attempt_map[flag] = attempt
-            else:
-                queue_cleared = True
-                break
+        logger.info(
+            "<b>{flag}</> received. {count}/{max} flags in buffer.",
+            flag=flag,
+            count=len(flag_tag_map),
+            max=config.submitter.batch_size,
+        )
 
-        if not flag_tag_map:
-            logger.info("No flags to submit.")
-            continue
+        if len(flag_tag_map) >= config.submitter.batch_size or is_queue_idle():  # type: ignore
+            process_batch()
+
+    def process_batch():
+        nonlocal last_submission_time
+        last_submission_time = time.time()
 
         logger.info("Submitting <b>{count}</> flags...", count=len(flag_tag_map))
 
@@ -272,6 +370,7 @@ def start_interval_consumer(channel, submit_flags: BatchSubmitFunction):  # noqa
                     body=FlagPersistMessage(
                         value=flag,
                         status="requeued" if attempt < config.submitter.retries else "failed",
+                        attempts=attempt,
                     ).model_dump_json(),
                     properties=pika.BasicProperties(delivery_mode=2),
                 )
@@ -293,13 +392,48 @@ def start_interval_consumer(channel, submit_flags: BatchSubmitFunction):  # noqa
                 channel.basic_publish(
                     exchange="",
                     routing_key="flag.persistence",
-                    body=FlagPersistMessage(value=flag, status=status, response=response).model_dump_json(),
+                    body=FlagPersistMessage(
+                        value=flag,
+                        status=status,
+                        response=response,
+                        attempts=flag_attempt_map[flag],
+                    ).model_dump_json(),
                     properties=pika.BasicProperties(delivery_mode=2),
                 )
 
+            flag_tag_map.clear()
+            flag_attempt_map.clear()
 
-def start_batch_consumer(channel):
-    pass
+    def push_idle_queue():
+        while True:
+            if flag_tag_map and is_queue_idle():
+                logger.info("Idle timeout reached with {count} flags in the queue.", count=len(flag_tag_map))
+                connection, channel = connect_to_rabbitmq()
+                channel.basic_publish(exchange="", routing_key="flag.submission", body="AVALA_PUSH")
+                connection.close()
+            time.sleep(1)
+
+    logger.info("Waiting for flags...")
+    threading.Thread(target=push_idle_queue, daemon=True).start()
+    channel.basic_consume(queue="flag.submission", on_message_callback=callback)
+    channel.start_consuming()
+
+
+def shutdown(*, connection, channel, teardown) -> None:
+    """
+    Shuts down the submitter by closing the connection, stopping the channel, and tearing down the context using
+    the user-defined teardown function.
+    """
+    logger.info("Shutting down...")
+    if teardown:
+        logger.info("Tearing down context...")
+        teardown()
+        logger.info("Teardown complete.")
+    if channel:
+        channel.stop_consuming()
+    if connection:
+        connection.close()
+    logger.info("Shutdown complete.")
 
 
 def main() -> None:
@@ -315,46 +449,22 @@ def main() -> None:
             "x-dead-letter-routing-key": "flag.submission.dlq",
         },
     )
-
     channel.queue_declare(queue="flag.persistence", passive=True)
 
-    # Import user-defined functions
     context = prepare_context()
-    teardown = prepare_teardown_function(context)
-    submit = prepare_submit_function(context)
+    teardown_func = prepare_teardown_function(context)
+    submit_func = prepare_submit_function(context)
 
-    match determine_strategy():
-        case "STREAM":
-            try:
-                logger.info("Waiting for flags...")
-                start_stream_consumer(channel, submit)
-            except (KeyboardInterrupt, SystemExit):
-                logger.info("Shutting down...")
-
-                if teardown:
-                    logger.info("Tearing down context...")
-                    teardown()
-                    logger.info("Teardown complete.")
-
-                channel.stop_consuming()
-                connection.close()
-
-                logger.info("Shutdown complete.")
-        case "INTERVAL":
-            try:
-                start_interval_consumer(channel, submit)
-            except (KeyboardInterrupt, SystemExit):
-                logger.info("Shutting down...")
-
-                if teardown:
-                    logger.info("Tearing down context...")
-                    teardown()
-                    logger.info("Teardown complete.")
-
-                connection.close()
-                logger.info("Shutdown complete.")
-        case "BATCH":
-            start_batch_consumer(channel)
+    try:
+        match determine_strategy():
+            case "STREAM":
+                start_stream_consumer(channel, submit_func)
+            case "INTERVAL":
+                start_interval_consumer(channel, submit_func)
+            case "BATCH":
+                start_batch_consumer(channel, submit_func)
+    except (KeyboardInterrupt, SystemExit):
+        shutdown(connection=connection, channel=channel, teardown=teardown_func)
 
 
 if __name__ == "__main__":
