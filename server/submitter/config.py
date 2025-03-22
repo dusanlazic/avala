@@ -29,6 +29,7 @@ class SubmitterConfig(BaseModel):
     module: str = Field(default="submitter")
     retries: PositiveInt = Field(default=5)
     interval: timedelta | None = Field(default=None)
+    batch_idle_timeout: timedelta = Field(default_factory=lambda: timedelta(seconds=15))
     per_tick: PositiveInt | None = Field(default=None)
     batch_size: PositiveInt | None = Field(default=None)
     workers: PositiveInt | None = Field(default=None)

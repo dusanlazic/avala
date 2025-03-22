@@ -1,8 +1,8 @@
 import inspect
 import os
 import sys
-import time
 import threading
+import time
 from collections import Counter
 from datetime import datetime, timedelta
 from importlib import import_module, reload
@@ -68,11 +68,6 @@ def determine_strategy() -> Literal["INTERVAL", "STREAM", "BATCH"]:
 def import_user_function(func_name: str) -> Callable | None:
     """
     Dynamically imports a function written by the user from the submitter module.
-
-    :param func_name: _description_
-    :type func_name: str
-    :return: _description_
-    :rtype: Callable | None
     """
     cwd = os.getcwd()
     if cwd not in sys.path:
@@ -315,7 +310,7 @@ def start_stream_consumer(channel, submit_flag: StreamSubmitFunction) -> None:
     channel.start_consuming()
 
 
-def start_batch_consumer(channel, submit_flags: BatchSubmitFunction) -> None:
+def start_batch_consumer(channel, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
     """
     Starts the batch consumer that listens to the 'flag.submission' queue and processes incoming flags
     in batches using the user-defined submit function.
@@ -324,7 +319,12 @@ def start_batch_consumer(channel, submit_flags: BatchSubmitFunction) -> None:
     flag_attempt_map: dict[str, int] = {}
 
     last_submission_time = time.time()
-    is_queue_idle = lambda: time.time() - last_submission_time > config.game.tick_duration.total_seconds()
+
+    def is_queue_idle():
+        """
+        Provides an alternative trigger for processing batches to prevent flags from staying in the queue for too long.
+        """
+        return time.time() - last_submission_time > config.submitter.batch_idle_timeout.total_seconds()
 
     def callback(ch, method, properties, body) -> None:
         tag: int = method.delivery_tag
@@ -404,7 +404,12 @@ def start_batch_consumer(channel, submit_flags: BatchSubmitFunction) -> None:
             flag_tag_map.clear()
             flag_attempt_map.clear()
 
-    def push_idle_queue():
+    def trigger_batch_flushing():
+        """
+        Opens up a temporary connection to RabbitMQ and pushes a dummy message to the 'flag.submission' queue
+        to trigger the consumer if it's idle for too long.
+        """
+        # TODO: Find a way to ignore dummy flags when submitting
         while True:
             if flag_tag_map and is_queue_idle():
                 logger.info("Idle timeout reached with {count} flags in the queue.", count=len(flag_tag_map))
@@ -414,7 +419,7 @@ def start_batch_consumer(channel, submit_flags: BatchSubmitFunction) -> None:
             time.sleep(1)
 
     logger.info("Waiting for flags...")
-    threading.Thread(target=push_idle_queue, daemon=True).start()
+    threading.Thread(target=trigger_batch_flushing, daemon=True).start()
     channel.basic_consume(queue="flag.submission", on_message_callback=callback)
     channel.start_consuming()
 
@@ -449,7 +454,7 @@ def main() -> None:
             "x-dead-letter-routing-key": "flag.submission.dlq",
         },
     )
-    channel.queue_declare(queue="flag.persistence", passive=True)
+    channel.queue_declare(queue="flag.persistence")
 
     context = prepare_context()
     teardown_func = prepare_teardown_function(context)
