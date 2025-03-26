@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from config import config
+from avala.common.config import config
 
 
 def get_networks_open_at() -> datetime:

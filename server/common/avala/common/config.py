@@ -4,7 +4,7 @@ from typing import Any, Type
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict, YamlConfigSettingsSource
 
-from logger import logger
+from avala.common.logger import logger
 
 
 class GameConfig(BaseModel):

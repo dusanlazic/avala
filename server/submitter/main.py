@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import os
 import sys
@@ -6,47 +7,22 @@ import time
 from collections import Counter
 from datetime import datetime, timedelta
 from importlib import import_module, reload
-from typing import Any, Callable, Literal, TypeAlias
+from typing import Any, Awaitable, Callable, Literal, TypeAlias, cast
 
+import aio_pika
 import pika
-import pika.adapters.blocking_connection
-import pika.channel
+from avala.common.clock import game_has_started, get_tick_elapsed
+from avala.common.config import config
+from avala.common.logger import logger
 
-from config import config
-from logger import logger
-from scheduler import game_has_started, get_tick_elapsed
-from schemas import FlagPersistMessage
-
-StreamSubmitFunction: TypeAlias = Callable[[str], tuple[Literal["accepted", "rejected", "requeued"], str]]
-BatchSubmitFunction: TypeAlias = Callable[
-    [list[str]], list[tuple[Literal["accepted", "rejected", "requeued"], str, str]]
+StreamSubmitFunction: TypeAlias = Callable[
+    [str],
+    Awaitable[tuple[Literal["accepted", "rejected", "requeued"], str]],
 ]
-
-
-def connect_to_rabbitmq():
-    """
-    Connects to RabbitMQ using the configuration settings and returns the connection and channel objects.
-    If the connection fails, the program exits with an error message.
-    """
-    credentials = pika.PlainCredentials(config.rabbitmq.user, config.rabbitmq.password)
-    parameters = pika.ConnectionParameters(
-        host=config.rabbitmq.host,
-        port=config.rabbitmq.port,
-        credentials=credentials,
-    )
-
-    try:
-        connection = pika.BlockingConnection(parameters)
-        channel = connection.channel()
-        logger.success("Connected to RabbitMQ.")
-        return connection, channel
-    except Exception as e:
-        logger.error(
-            "Failed to connect to RabbitMQ. <b>{error}</>: {error_msg}",
-            error=type(e).__name__,
-            error_msg=e,
-        )
-        exit(1)
+BatchSubmitFunction: TypeAlias = Callable[
+    [list[str]],
+    Awaitable[list[tuple[Literal["accepted", "rejected", "requeued"], str, str]]],
+]
 
 
 def determine_strategy() -> Literal["INTERVAL", "STREAM", "BATCH"]:
@@ -77,15 +53,7 @@ def import_user_function(func_name: str) -> Callable | None:
     return getattr(imported_module, func_name, None)
 
 
-def prepare_context() -> Any:
-    """
-    Imports and executes the user-definted setup function from the submitter module, if present.
-    """
-    setup_func = import_user_function("setup")
-    return setup_func() if setup_func else None
-
-
-def prepare_submit_function(submitter_context: Any) -> Callable:
+def prepare_submit_function(submitter_context: Any) -> StreamSubmitFunction | BatchSubmitFunction:
     """
     Imports the user-defined submit function from the submitter module and fixes context argument
     if required by the function.
@@ -95,17 +63,28 @@ def prepare_submit_function(submitter_context: Any) -> Callable:
         logger.error("Submit function not found in user script.")
         exit(1)
 
-    match len(inspect.signature(submit_func).parameters):
-        case 1:
-            return submit_func
-        case 2:
-            return lambda f: submit_func(f, submitter_context)  # noqa: E731
-        case _:
-            logger.error("Teardown function should not have more than two arguments.")
-            exit(1)
+    num_params = len(inspect.signature(submit_func).parameters)
+    if num_params not in (1, 2):
+        logger.error("Submit function should have exactly one or two arguments.")
+        exit(1)
+
+    async def wrapper(f: str | list[str]) -> Any:
+        if inspect.iscoroutinefunction(submit_func):
+            if num_params == 2:
+                return await submit_func(f, submitter_context)
+            else:
+                return await submit_func(f)
+        else:
+            # TODO: Consider user-defined function thread safety carefully
+            if num_params == 2:
+                return await asyncio.to_thread(submit_func, f, submitter_context)
+            else:
+                return await asyncio.to_thread(submit_func, f)
+
+    return wrapper
 
 
-def prepare_teardown_function(submitter_context: Any) -> Callable | None:
+def prepare_teardown_function(submitter_context: Any) -> Callable[[], Awaitable[None]] | None:
     """
     Imports the user-defined teardown function from the submitter module if exists, and fixes context argument
     if required by the function.
@@ -114,14 +93,24 @@ def prepare_teardown_function(submitter_context: Any) -> Callable | None:
     if not teardown_func:
         return None
 
-    match len(inspect.signature(teardown_func).parameters):
-        case 0:
-            return teardown_func
-        case 1:
-            return lambda: teardown_func(submitter_context)  # noqa: E731
-        case _:
-            logger.error("Teardown function should not have more than one argument.")
-            exit(1)
+    num_params = len(inspect.signature(teardown_func).parameters)
+    if num_params > 1:
+        logger.error("Teardown function should not have more than one argument.")
+        exit(1)
+
+    async def wrapper():
+        if inspect.iscoroutinefunction(teardown_func):
+            if num_params == 1:
+                await teardown_func(submitter_context)
+            else:
+                await teardown_func()
+        else:
+            if num_params == 1:
+                teardown_func(submitter_context)
+            else:
+                teardown_func()
+
+    return wrapper
 
 
 def calculate_next_submit_time() -> timedelta:
@@ -144,7 +133,47 @@ def calculate_next_submit_time() -> timedelta:
         return (config.game.game_starts_at + interval) - now
 
 
-def start_interval_consumer(channel, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
+async def connect_to_rabbitmq() -> tuple[
+    aio_pika.abc.AbstractRobustConnection | None, aio_pika.abc.AbstractChannel | None
+]:
+    """
+    Connects to RabbitMQ using the configuration settings and returns the connection and channel objects.
+    """
+    try:
+        connection = await aio_pika.connect_robust(
+            host=config.rabbitmq.host,
+            port=config.rabbitmq.port,
+            login=config.rabbitmq.user,
+            password=config.rabbitmq.password,
+        )
+        channel = await connection.channel()
+        logger.success("Connected to RabbitMQ.")
+        return connection, channel
+    except Exception as e:
+        logger.error(
+            "Failed to connect to RabbitMQ. <b>{error}</>: {error_msg}",
+            error=type(e).__name__,
+            error_msg=e,
+        )
+
+    return None, None
+
+
+async def prepare_context() -> Any:
+    """
+    Imports and executes the user-definted setup function from the submitter module, if present.
+    """
+    setup_func = import_user_function("setup")
+    if not setup_func:
+        return None
+
+    if inspect.iscoroutinefunction(setup_func):
+        return await setup_func()
+    else:
+        return setup_func()
+
+
+async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
     """
     Starts a loop that pulls flags from the 'flag.submission' queue in fixed intervals and processes them
     using the user-defined submit function.
@@ -158,37 +187,37 @@ def start_interval_consumer(channel, submit_flags: BatchSubmitFunction) -> None:
                 + (datetime.now() + timedelta(seconds=sleep_for)).strftime("%H:%M:%S")
                 + "</>."
             )
-            time.sleep(sleep_for)
+            await asyncio.sleep(sleep_for)
             queue_cleared = False
 
-        flag_tag_map: dict[str, int] = {}
-        flag_attempt_map: dict[str, int] = {}
+        buffer: dict[str, aio_pika.abc.AbstractIncomingMessage] = {}
 
         for _ in range(config.submitter.batch_size):  # type: ignore
-            method_frame, header_frame, body = channel.basic_get(queue="flag.submission", auto_ack=False)
+            try:
+                message = await queue.get(fail=False)
+            except Exception:
+                message = None
 
-            if method_frame:
-                tag: int = method_frame.delivery_tag
-                flag: str = body.decode().strip()
-                attempt: int = header_frame.headers.get("x-delivery-count", 0) if header_frame.headers else 0
-
-                flag_tag_map[flag] = tag
-                flag_attempt_map[flag] = attempt
+            if message:
+                flag: str = message.body.decode().strip()
+                buffer[flag] = message
             else:
                 queue_cleared = True
                 break
 
-        if not flag_tag_map:
+        if not buffer:
             logger.info("No flags to submit.")
             continue
 
-        logger.info("Submitting <b>{count}</> flags...", count=len(flag_tag_map))
+        logger.info("Submitting <b>{count}</> flags...", count=len(buffer))
 
         try:
-            flags = list(flag_tag_map.keys())
-            results = submit_flags(flags)
+            flags = list(buffer.keys())
+            results = await submit_flags(flags)
         except Exception as e:
-            channel.basic_nack(delivery_tag=max(flag_tag_map.values()), multiple=True, requeue=True)
+            for message in buffer.values():
+                await message.reject(requeue=True)
+
             logger.error(
                 "Failed to submit <b>{count}</> flags. Exception: {exception}. Message: {exception_msg}",
                 count=len(flags),
@@ -197,17 +226,10 @@ def start_interval_consumer(channel, submit_flags: BatchSubmitFunction) -> None:
             )
 
             for flag in flags:
-                attempt = flag_attempt_map[flag]
-                channel.basic_publish(
-                    exchange="",
-                    routing_key="flag.persistence",
-                    body=FlagPersistMessage(
-                        value=flag,
-                        status="requeued" if attempt < config.submitter.retries else "failed",
-                        attempts=attempt,
-                    ).model_dump_json(),
-                    properties=pika.BasicProperties(delivery_mode=2),
-                )
+                message = buffer[flag]
+                attempt = message.headers.get("x-delivery-count", 0) if message.headers else 0
+                status = "requeued" if attempt < config.submitter.retries else "failed"
+                # PERISTENCE HAPPENS HERE
         else:
             stats = Counter(status for status, _, _ in results)
             logger.info(
@@ -219,32 +241,21 @@ def start_interval_consumer(channel, submit_flags: BatchSubmitFunction) -> None:
 
             for status, response, flag in results:
                 if status != "requeued":
-                    channel.basic_ack(flag_tag_map[flag])
+                    await buffer[flag].ack()
                 else:
-                    channel.basic_reject(flag_tag_map[flag], requeue=True)
-
-                channel.basic_publish(
-                    exchange="",
-                    routing_key="flag.persistence",
-                    body=FlagPersistMessage(
-                        value=flag,
-                        status=status,
-                        response=response,
-                        attempts=flag_attempt_map[flag],
-                    ).model_dump_json(),
-                    properties=pika.BasicProperties(delivery_mode=2),
-                )
+                    await buffer[flag].reject(requeue=True)
+                # PERISTENCE HAPPENS HERE
 
 
-def start_stream_consumer(channel, submit_flag: StreamSubmitFunction) -> None:
+async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: StreamSubmitFunction) -> None:
     """
     Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
     one by one using the user-defined submit function.
     """
 
-    def callback(ch, method, properties, body) -> None:
-        flag: str = body.decode().strip()
-        attempt: int = properties.headers.get("x-delivery-count", 0) if properties.headers else 0
+    async def process_message(message: aio_pika.abc.AbstractIncomingMessage) -> None:
+        flag: str = message.body.decode().strip()
+        attempt = message.headers.get("x-delivery-count", 0) if message.headers else 0
 
         if attempt:
             logger.info(
@@ -257,19 +268,19 @@ def start_stream_consumer(channel, submit_flag: StreamSubmitFunction) -> None:
         status: Literal["accepted", "rejected", "requeued", "failed"]
 
         try:
-            status, response, exception = *submit_flag(flag), None
+            status, response, exception = *(await submit_flag(flag)), None
         except Exception as e:
             status, response, exception = "requeued", None, e
 
         match status:
             case "accepted":
-                ch.basic_ack(delivery_tag=method.delivery_tag)
+                await message.ack()
                 logger.success("<b>{flag}</> accepted. Response: {response}", flag=flag, response=response)
             case "rejected":
-                ch.basic_ack(delivery_tag=method.delivery_tag)
+                await message.ack()
                 logger.warning("<b>{flag}</> rejected. Response: {response}", flag=flag, response=response)
             case "requeued":
-                ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
+                await message.reject(requeue=True)
 
                 if attempt >= config.submitter.retries:
                     log_msg = "<b>{flag}</> failed to submit, max retries reached."
@@ -289,32 +300,25 @@ def start_stream_consumer(channel, submit_flag: StreamSubmitFunction) -> None:
                 else:
                     logger.error(log_msg, flag=flag)
             case _:
-                ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
+                await message.reject(requeue=False)
                 logger.error("<b>{flag}</> got unknown status '{status}'.", flag=flag, status=status)
                 status = "failed"
 
-        ch.basic_publish(
-            exchange="",
-            routing_key="flag.persistence",
-            body=FlagPersistMessage(
-                value=flag,
-                status=status,
-                response=response,
-                attempts=attempt,
-            ).model_dump_json(),
-            properties=pika.BasicProperties(delivery_mode=2),
-        )
+        # PERISTENCE HAPPENS HERE
 
     logger.info("Waiting for flags...")
-    channel.basic_consume(queue="flag.submission", on_message_callback=callback)
-    channel.start_consuming()
+    await queue.consume(process_message)
 
 
-def start_batch_consumer(channel, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
+async def start_batch_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
     """
     Starts the batch consumer that listens to the 'flag.submission' queue and processes incoming flags
     in batches using the user-defined submit function.
+
+    TODO: Reimplement as async
     """
+    raise NotImplementedError
+
     flag_tag_map: dict[str, int] = {}
     flag_attempt_map: dict[str, int] = {}
 
@@ -424,28 +428,39 @@ def start_batch_consumer(channel, submit_flags: BatchSubmitFunction) -> None:  #
     channel.start_consuming()
 
 
-def shutdown(*, connection, channel, teardown) -> None:
+async def shutdown(
+    *,
+    connection: aio_pika.abc.AbstractConnection,
+    channel: aio_pika.abc.AbstractChannel,
+    teardown: Callable | None,
+) -> None:
     """
     Shuts down the submitter by closing the connection, stopping the channel, and tearing down the context using
     the user-defined teardown function.
     """
     logger.info("Shutting down...")
+
     if teardown:
         logger.info("Tearing down context...")
-        teardown()
+        await teardown()
         logger.info("Teardown complete.")
+
     if channel:
-        channel.stop_consuming()
+        await channel.close()
+
     if connection:
-        connection.close()
+        await connection.close()
+
     logger.info("Shutdown complete.")
 
 
-def main() -> None:
-    connection, channel = connect_to_rabbitmq()
+async def main() -> None:
+    connection, channel = await connect_to_rabbitmq()
+    if not connection or not channel:
+        exit(1)
 
-    channel.queue_declare(
-        queue="flag.submission",
+    queue = await channel.declare_queue(
+        "flag.submission",
         durable=True,
         arguments={
             "x-queue-type": "quorum",
@@ -454,23 +469,22 @@ def main() -> None:
             "x-dead-letter-routing-key": "flag.submission.dlq",
         },
     )
-    channel.queue_declare(queue="flag.persistence")
 
-    context = prepare_context()
+    context = await prepare_context()
     teardown_func = prepare_teardown_function(context)
     submit_func = prepare_submit_function(context)
 
     try:
         match determine_strategy():
             case "STREAM":
-                start_stream_consumer(channel, submit_func)
+                await start_stream_consumer(queue, cast(StreamSubmitFunction, submit_func))
             case "INTERVAL":
-                start_interval_consumer(channel, submit_func)
+                await start_interval_consumer(queue, cast(BatchSubmitFunction, submit_func))
             case "BATCH":
-                start_batch_consumer(channel, submit_func)
+                await start_batch_consumer(queue, cast(BatchSubmitFunction, submit_func))
     except (KeyboardInterrupt, SystemExit):
-        shutdown(connection=connection, channel=channel, teardown=teardown_func)
+        await shutdown(connection=connection, channel=channel, teardown=teardown_func)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
