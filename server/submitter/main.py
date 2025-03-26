@@ -2,15 +2,12 @@ import asyncio
 import inspect
 import os
 import sys
-import threading
-import time
 from collections import Counter
 from datetime import datetime, timedelta
 from importlib import import_module, reload
 from typing import Any, Awaitable, Callable, Literal, TypeAlias, cast
 
 import aio_pika
-import pika
 from avala.common.clock import game_has_started, get_tick_elapsed
 from avala.common.config import config
 from avala.common.logger import logger
@@ -25,14 +22,13 @@ BatchSubmitFunction: TypeAlias = Callable[
 ]
 
 
-def determine_strategy() -> Literal["INTERVAL", "STREAM", "BATCH"]:
+def determine_strategy() -> Literal["INTERVAL", "STREAM"]:
     """
     Determines the submission strategy based on the fields present in the submitter configuration.
     """
     field_strategy_map = {
         frozenset(["interval", "batch_size"]): "INTERVAL",
         frozenset(["per_tick", "batch_size"]): "INTERVAL",
-        frozenset(["batch_size"]): "BATCH",
         frozenset(["workers"]): "STREAM",
     }
     allowed_fields = set().union(*field_strategy_map.keys())
@@ -69,17 +65,14 @@ def prepare_submit_function(submitter_context: Any) -> StreamSubmitFunction | Ba
         exit(1)
 
     async def wrapper(f: str | list[str]) -> Any:
+        args = (f, submitter_context) if num_params == 2 else (f,)
+
         if inspect.iscoroutinefunction(submit_func):
-            if num_params == 2:
-                return await submit_func(f, submitter_context)
-            else:
-                return await submit_func(f)
+            return await submit_func(*args)
+        elif config.submitter.threading:
+            return await asyncio.to_thread(submit_func, *args)
         else:
-            # TODO: Consider user-defined function thread safety carefully
-            if num_params == 2:
-                return await asyncio.to_thread(submit_func, f, submitter_context)
-            else:
-                return await asyncio.to_thread(submit_func, f)
+            return submit_func(*args)
 
     return wrapper
 
@@ -99,16 +92,12 @@ def prepare_teardown_function(submitter_context: Any) -> Callable[[], Awaitable[
         exit(1)
 
     async def wrapper():
+        args = (submitter_context,) if num_params == 1 else ()
+
         if inspect.iscoroutinefunction(teardown_func):
-            if num_params == 1:
-                await teardown_func(submitter_context)
-            else:
-                await teardown_func()
+            await teardown_func(*args)
         else:
-            if num_params == 1:
-                teardown_func(submitter_context)
-            else:
-                teardown_func()
+            teardown_func(*args)
 
     return wrapper
 
@@ -125,6 +114,8 @@ def calculate_next_submit_time() -> timedelta:
         interval = config.submitter.interval
     elif config.submitter.per_tick:
         interval = config.game.tick_duration / config.submitter.per_tick
+    else:
+        interval = config.game.tick_duration
 
     if game_has_started(now):
         elapsed = get_tick_elapsed(now)
@@ -176,7 +167,7 @@ async def prepare_context() -> Any:
 async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
     """
     Starts a loop that pulls flags from the 'flag.submission' queue in fixed intervals and processes them
-    using the user-defined submit function.
+    in batches using the user-defined submit function.
     """
     queue_cleared = True
     while True:
@@ -192,12 +183,8 @@ async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag
 
         buffer: dict[str, aio_pika.abc.AbstractIncomingMessage] = {}
 
-        for _ in range(config.submitter.batch_size):  # type: ignore
-            try:
-                message = await queue.get(fail=False)
-            except Exception:
-                message = None
-
+        for _ in range(config.submitter.batch_size):
+            message = await queue.get(fail=False)
             if message:
                 flag: str = message.body.decode().strip()
                 buffer[flag] = message
@@ -309,123 +296,10 @@ async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: 
     logger.info("Waiting for flags...")
     await queue.consume(process_message)
 
-
-async def start_batch_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
-    """
-    Starts the batch consumer that listens to the 'flag.submission' queue and processes incoming flags
-    in batches using the user-defined submit function.
-
-    TODO: Reimplement as async
-    """
-    raise NotImplementedError
-
-    flag_tag_map: dict[str, int] = {}
-    flag_attempt_map: dict[str, int] = {}
-
-    last_submission_time = time.time()
-
-    def is_queue_idle():
-        """
-        Provides an alternative trigger for processing batches to prevent flags from staying in the queue for too long.
-        """
-        return time.time() - last_submission_time > config.submitter.batch_idle_timeout.total_seconds()
-
-    def callback(ch, method, properties, body) -> None:
-        tag: int = method.delivery_tag
-        flag: str = body.decode().strip()
-        attempt: int = properties.headers.get("x-delivery-count", 0) if properties.headers else 0
-
-        flag_tag_map[flag] = tag
-        flag_attempt_map[flag] = attempt
-
-        logger.info(
-            "<b>{flag}</> received. {count}/{max} flags in buffer.",
-            flag=flag,
-            count=len(flag_tag_map),
-            max=config.submitter.batch_size,
-        )
-
-        if len(flag_tag_map) >= config.submitter.batch_size or is_queue_idle():  # type: ignore
-            process_batch()
-
-    def process_batch():
-        nonlocal last_submission_time
-        last_submission_time = time.time()
-
-        logger.info("Submitting <b>{count}</> flags...", count=len(flag_tag_map))
-
-        try:
-            flags = list(flag_tag_map.keys())
-            results = submit_flags(flags)
-        except Exception as e:
-            channel.basic_nack(delivery_tag=max(flag_tag_map.values()), multiple=True, requeue=True)
-            logger.error(
-                "Failed to submit <b>{count}</> flags. Exception: {exception}. Message: {exception_msg}",
-                count=len(flags),
-                exception=type(e).__name__,
-                exception_msg=e,
-            )
-
-            for flag in flags:
-                attempt = flag_attempt_map[flag]
-                channel.basic_publish(
-                    exchange="",
-                    routing_key="flag.persistence",
-                    body=FlagPersistMessage(
-                        value=flag,
-                        status="requeued" if attempt < config.submitter.retries else "failed",
-                        attempts=attempt,
-                    ).model_dump_json(),
-                    properties=pika.BasicProperties(delivery_mode=2),
-                )
-        else:
-            stats = Counter(status for status, _, _ in results)
-            logger.info(
-                "<b>{accepted}</> accepted, <b>{rejected}</> rejected, <b>{requeued}</> requeued.",
-                accepted=stats.get("accepted", 0),
-                rejected=stats.get("rejected", 0),
-                requeued=stats.get("requeued", 0),
-            )
-
-            for status, response, flag in results:
-                if status != "requeued":
-                    channel.basic_ack(flag_tag_map[flag])
-                else:
-                    channel.basic_reject(flag_tag_map[flag], requeue=True)
-
-                channel.basic_publish(
-                    exchange="",
-                    routing_key="flag.persistence",
-                    body=FlagPersistMessage(
-                        value=flag,
-                        status=status,
-                        response=response,
-                        attempts=flag_attempt_map[flag],
-                    ).model_dump_json(),
-                    properties=pika.BasicProperties(delivery_mode=2),
-                )
-
-            flag_tag_map.clear()
-            flag_attempt_map.clear()
-
-    def trigger_batch_flushing():
-        """
-        Opens up a temporary connection to RabbitMQ and pushes a dummy message to the 'flag.submission' queue
-        to trigger the consumer if it's idle for too long.
-        """
-        # TODO: Find a way to ignore dummy flags when submitting
-        while True:
-            if flag_tag_map and is_queue_idle():
-                logger.info("Idle timeout reached with {count} flags in the queue.", count=len(flag_tag_map))
-                connection, channel = connect_to_rabbitmq()
-                channel.basic_publish(exchange="", routing_key="flag.submission", body="AVALA_PUSH")
-                connection.close()
-            time.sleep(1)
-
-    logger.info("Waiting for flags...")
-    threading.Thread(target=trigger_batch_flushing, daemon=True).start()
-    channel.basic_consume(queue="flag.submission", on_message_callback=callback)
-    channel.start_consuming()
+    try:
+        await asyncio.Future()  # Wait forever
+    finally:
+        logger.info("Consumer stopped.")
 
 
 async def shutdown(
@@ -480,9 +354,7 @@ async def main() -> None:
                 await start_stream_consumer(queue, cast(StreamSubmitFunction, submit_func))
             case "INTERVAL":
                 await start_interval_consumer(queue, cast(BatchSubmitFunction, submit_func))
-            case "BATCH":
-                await start_batch_consumer(queue, cast(BatchSubmitFunction, submit_func))
-    except (KeyboardInterrupt, SystemExit):
+    except (KeyboardInterrupt, SystemExit, asyncio.CancelledError):
         await shutdown(connection=connection, channel=channel, teardown=teardown_func)
 
 

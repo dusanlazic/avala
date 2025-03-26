@@ -33,13 +33,13 @@ class SubmitterConfig(BaseModel):
     per_tick: PositiveInt | None = Field(default=None)
     batch_size: PositiveInt | None = Field(default=None)
     workers: PositiveInt | None = Field(default=None)
+    threading: bool = Field(default=False)
 
     @model_validator(mode="before")
     def check_required_fields(cls, values):
         allowed_field_sets = [
             {"interval", "batch_size"},
             {"per_tick", "batch_size"},
-            {"batch_size"},
             {"workers"},
         ]
         all_fields = set().union(*allowed_field_sets)

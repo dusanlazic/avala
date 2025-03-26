@@ -5,13 +5,16 @@ description = "Flag submitter component of Avala server"
 authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "aio-pika>=9.5.5",
-    "avala-common",
-]
+dependencies = ["aio-pika>=9.5.5", "avala-common"]
 
 [dependency-groups]
-dev = ["ipython>=9.0.2", "mypy>=1.15.0", "pika-stubs>=0.1.3", "ruff>=0.11.2"]
+dev = [
+    "ipython>=9.0.2",
+    "mypy>=1.15.0",
+    "pika>=1.3.2",
+    "pika-stubs>=0.1.3",
+    "ruff>=0.11.2",
+]
 
 [tool.mypy]
 ignore_missing_imports = true
