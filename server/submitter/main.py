@@ -164,45 +164,18 @@ async def prepare_context() -> Any:
         return setup_func()
 
 
-async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction) -> None:  # noqa: C901
+async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction):  # noqa: C901
     """
-    Starts a loop that pulls flags from the 'flag.submission' queue in fixed intervals and processes them
-    in batches using the user-defined submit function.
+    Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
+    one by one using the user-defined submit function.
     """
-    queue_cleared = True
-    while True:
-        if queue_cleared:
-            sleep_for = calculate_next_submit_time().total_seconds()
-            logger.info(
-                "Next submission scheduled at <b>"
-                + (datetime.now() + timedelta(seconds=sleep_for)).strftime("%H:%M:%S")
-                + "</>."
-            )
-            await asyncio.sleep(sleep_for)
-            queue_cleared = False
 
-        buffer: dict[str, aio_pika.abc.AbstractIncomingMessage] = {}
-
-        for _ in range(config.submitter.batch_size):
-            message = await queue.get(fail=False)
-            if message:
-                flag: str = message.body.decode().strip()
-                buffer[flag] = message
-            else:
-                queue_cleared = True
-                break
-
-        if not buffer:
-            logger.info("No flags to submit.")
-            continue
-
-        logger.info("Submitting <b>{count}</> flags...", count=len(buffer))
-
+    async def process_messages(messages: dict[str, aio_pika.abc.AbstractIncomingMessage]) -> None:
         try:
-            flags = list(buffer.keys())
+            flags = list(messages.keys())
             results = await submit_flags(flags)
         except Exception as e:
-            for message in buffer.values():
+            for message in messages.values():
                 await message.reject(requeue=True)
 
             logger.error(
@@ -213,10 +186,10 @@ async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag
             )
 
             for flag in flags:
-                message = buffer[flag]
+                message = messages[flag]
                 attempt = message.headers.get("x-delivery-count", 0) if message.headers else 0
                 status = "requeued" if attempt < config.submitter.retries else "failed"
-                # PERISTENCE HAPPENS HERE
+                # Persist the attempt
         else:
             stats = Counter(status for status, _, _ in results)
             logger.info(
@@ -228,10 +201,38 @@ async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag
 
             for status, response, flag in results:
                 if status != "requeued":
-                    await buffer[flag].ack()
+                    await messages[flag].ack()
                 else:
-                    await buffer[flag].reject(requeue=True)
-                # PERISTENCE HAPPENS HERE
+                    await messages[flag].reject(requeue=True)
+
+            # Persist the attempts
+            await asyncio.sleep(5)
+
+    while True:
+        sleep_for = calculate_next_submit_time().total_seconds()
+        logger.info(
+            "Next submission scheduled at <b>"
+            + (datetime.now() + timedelta(seconds=sleep_for)).strftime("%H:%M:%S")
+            + "</>."
+        )
+        await asyncio.sleep(sleep_for)
+
+        queue_cleared = False
+        while not queue_cleared:
+            messages: dict[str, aio_pika.abc.AbstractIncomingMessage] = {}
+
+            for _ in range(config.submitter.batch_size):
+                message = await queue.get(fail=False)
+                if message:
+                    flag: str = message.body.decode().strip()
+                    messages[flag] = message
+                else:
+                    queue_cleared = True
+
+            if messages:
+                asyncio.create_task(process_messages(messages))
+            else:
+                logger.info("No more flags to submit.")
 
 
 async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: StreamSubmitFunction) -> None:
@@ -292,6 +293,7 @@ async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: 
                 status = "failed"
 
         # PERISTENCE HAPPENS HERE
+        await asyncio.sleep(5)  # This works well
 
     logger.info("Waiting for flags...")
     await queue.consume(process_message)
