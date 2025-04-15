@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from avala.common.config import config
 
@@ -20,7 +20,7 @@ def get_game_ends_at_tick() -> int:
 
 
 def get_tick_elapsed(now: datetime | None = None) -> timedelta:
-    now = now or datetime.now()
+    now = now or datetime.now(timezone.utc)
     if not game_has_started():
         return timedelta(0)
 
@@ -28,7 +28,7 @@ def get_tick_elapsed(now: datetime | None = None) -> timedelta:
 
 
 def get_tick_number(now: datetime | None = None) -> int:
-    now = now or datetime.now()
+    now = now or datetime.now(timezone.utc)
     if not game_has_started():
         return 0
 
@@ -36,7 +36,7 @@ def get_tick_number(now: datetime | None = None) -> int:
 
 
 def get_next_tick_start(now: datetime | None = None) -> datetime:
-    now = now or datetime.now()
+    now = now or datetime.now(timezone.utc)
     if not game_has_started():
         return config.game.game_starts_at
 
@@ -44,5 +44,5 @@ def get_next_tick_start(now: datetime | None = None) -> datetime:
 
 
 def game_has_started(now: datetime | None = None) -> bool:
-    now = now or datetime.now()
+    now = now or datetime.now(timezone.utc)
     return now >= config.game.game_starts_at

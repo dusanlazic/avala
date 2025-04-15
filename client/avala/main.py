@@ -31,7 +31,7 @@ class Avala:
         protocol: Literal["http", "https"] = "http",
         host: str = "localhost",
         port: int = 2024,
-        username: str = "anon",
+        name: str = "anon",
         password: str | None = None,
         redis_url: str | None = None,
     ) -> None:
@@ -46,8 +46,8 @@ class Avala:
         :type host: str, optional
         :param port: Port of the Avala server, defaults to 2024
         :type port: int, optional
-        :param username: Player name, defaults to "anon"
-        :type username: str, optional
+        :param name: Name used for worker identification, defaults to "anon"
+        :type name: str, optional
         :param password: Password to the Avala server, defaults to None
         :type password: str | None, optional
         :param redis_url: Connection URL of Redis storage used for keeping track of flag IDs and for blob storage in
@@ -59,9 +59,10 @@ class Avala:
             protocol=protocol,
             host=host,
             port=port,
-            username=username,
+            username=name,
             password=password,
         )
+        self._worker_name: str = name
         self._client: APIClient = APIClient(self._connection)
         self._scheduler: BlockingScheduler
         self._blob_storage: BlobStorage | None = BlobStorage(redis_url, "avala_blobs") if redis_url else None
@@ -216,20 +217,23 @@ class Avala:
     def submit_flags(
         self,
         flags: Iterable[str],
-        exploit_alias: str = "manual",
-        host: str = "unknown",
+        host: str | None,
+        service_name: str | None,
+        exploit_alias: str | None,
     ) -> None:
         """
         Sends flags to the server for submission.
 
         :param flags: Flags to enqueue.
         :type flags: Iterable[str]
-        :param exploit_alias: Alias of the exploit that retrieved the flags.
-        :type exploit_alias: str
         :param host: Host of the target/victim team.
         :type host: str
+        :param service_name: Name of the attacked service.
+        :type service_name: str
+        :param exploit_alias: Alias of the exploit that retrieved the flags.
+        :type exploit_alias: str
         """
-        self._client.enqueue(flags, exploit_alias, host)
+        self._client.enqueue(flags, host, self._worker_name, service_name, exploit_alias)
 
     def match_flags(self, output: Any) -> list[str]:
         """
@@ -512,7 +516,7 @@ class Avala:
             return True
 
         try:
-            self._client.enqueue(flags, exploit.alias, host)
+            self._client.enqueue(flags, host, self._worker_name, exploit.service, exploit.alias)
         except Exception:
             logger.error(
                 "🚨 Failed to submit flags from attacking <b>{host}</> via <b>{alias}</>. <d>{flags}</>",
@@ -557,7 +561,7 @@ class Avala:
         flag = self._unsent_flag_storage.pop()
         while flag:
             try:
-                self._client.enqueue(flag.values, flag.exploit, flag.host)
+                self._client.enqueue(flag.values, flag.host, self._worker_name, flag.service, flag.exploit)
             except Exception:
                 self._unsent_flag_storage.add(flag)
                 logger.error(

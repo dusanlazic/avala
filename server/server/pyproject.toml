@@ -1,0 +1,31 @@
+[project]
+name = "server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aio-pika>=9.5.5",
+    "asyncpg>=0.30.0",
+    "avala-common>=0.1.0",
+    "fastapi[standard]>=0.115.12",
+    "sqlalchemy[asyncio]>=2.0.40",
+]
+
+[dependency-groups]
+dev = ["ipython>=9.1.0", "mypy>=1.15.0", "ruff>=0.11.5"]
+
+[tool.uv.sources]
+avala-common = { path = "../common" }
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["I", "W", "E", "F", "C", "B9"]
+
+[tool.isort]
+known_first_party = ["avala"]

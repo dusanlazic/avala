@@ -1,7 +1,16 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Type
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, ValidationError, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    PositiveInt,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict, YamlConfigSettingsSource
 
 from avala.common.logger import logger
@@ -14,7 +23,7 @@ class GameConfig(BaseModel):
     opp_team_hosts: set[str]
     nop_team_hosts: set[str] = Field(default_factory=set)
     flag_ttl: timedelta
-    game_starts_at: datetime
+    game_starts_at: AwareDatetime
     networks_open_after: timedelta
     game_ends_after: timedelta
 
@@ -69,6 +78,8 @@ class APIConfig(BaseModel):
     password: str | None = Field(default=None)
     cors: set[str] = Field(default_factory=set)
     dashboard: bool = Field(default=True)
+    proxy_header: str | None = Field(default=None)
+    trusted_proxies: set[str] = Field(default_factory=set)
 
     model_config = ConfigDict(extra="forbid")
 

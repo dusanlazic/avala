@@ -29,9 +29,9 @@ class APIClient:
     ) -> None:
         self.connection: ConnectionConfig = connection
         self.client: httpx.Client = self._setup_http_client()
-        self.game: GameConfig = self._fetch_game_settings()
-        self.schedule: ScheduleConfig = self._fetch_schedule_settings()
-
+        self.game: GameConfig
+        self.schedule: ScheduleConfig
+        self.game, self.schedule = self._fetch_settings()
         DOT_DIR_PATH.mkdir(exist_ok=True)
 
     @classmethod
@@ -55,28 +55,41 @@ class APIClient:
         :raises httpx.HTTPStatusError: If the server is unreachable within 5 seconds or
         responds with an error status code.
         """
-        self.client.get("/connect/health", timeout=5).raise_for_status()
+        self.client.get("/health", timeout=5).raise_for_status()
 
-    def enqueue(self, flags: Iterable[str], exploit_alias: str, host: str) -> None:
+    def enqueue(
+        self,
+        flags: Iterable[str],
+        host: str,
+        worker_name: str,
+        service_name: str | None = None,
+        exploit_alias: str | None = None,
+    ) -> None:
         """
         Sends flags to the server for submission.
 
         :param flags: Flags to enqueue.
         :type flags: Iterable[str]
-        :param exploit_alias: Alias of the exploit that retrieved the flags.
-        :type exploit_alias: str
         :param host: Host of the target/victim team.
         :type host: str
+        :param worker_name: Name of the worker that retrieved the flags.
+        :type worker_name: str
+        :param service_name: Name of the attacked service.
+        :type service_name: str
+        :param exploit_alias: Alias of the exploit that retrieved the flags.
+        :type exploit_alias: str
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
         """
         enqueue_body = FlagsEnqueueBody(
             values=flags,
-            exploit=exploit_alias,
             host=host,
+            service=service_name,
+            worker=worker_name,
+            exploit=exploit_alias,
         )
 
         response = self.client.post(
-            "/flags/queue",
+            "/flags",
             json=enqueue_body.model_dump(mode="json"),
         )
         response.raise_for_status()
@@ -160,27 +173,22 @@ class APIClient:
             auth=auth,
             base_url=f"{self.connection.protocol}://{self.connection.host}:{self.connection.port}",
         )
-        client.get("/connect/health", timeout=5).raise_for_status()
+        client.get("/health", timeout=5).raise_for_status()
 
         return client
 
-    def _fetch_game_settings(self) -> GameConfig:
+    def _fetch_settings(self) -> tuple[GameConfig, ScheduleConfig]:
         try:
-            return GameConfig.model_validate(self.client.get("/connect/game").json())
-        except Exception as e:
-            logger.error(
-                "Failed to fetch game information.\n\n<b>{error}</>\n{error_msg}\n",
-                error=type(e).__name__,
-                error_msg=e,
+            response = self.client.get("/configure").json()
+            game_data = response.get("game", {})
+            schedule_data = response.get("schedule", {})
+            return (
+                GameConfig.model_validate(game_data),
+                ScheduleConfig.model_validate(schedule_data),
             )
-            raise
-
-    def _fetch_schedule_settings(self) -> ScheduleConfig:
-        try:
-            return ScheduleConfig.model_validate(self.client.get("/connect/schedule").json())
         except Exception as e:
             logger.error(
-                "Failed to fetch scheduling information.\n\n<b>{error}</>\n{error_msg}\n",
+                "Failed to fetch and parse configuration.\n\n<b>{error}</>\n{error_msg}\n",
                 error=type(e).__name__,
                 error_msg=e,
             )

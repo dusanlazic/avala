@@ -32,9 +32,11 @@ class ConnectionConfig(BaseModel):
 
 
 class FlagsEnqueueBody(BaseModel):
-    values: list[str]
-    exploit: str
+    values: set[str]
     host: str
+    worker: str
+    service: str | None = None
+    exploit: str | None = None
 
 
 class FlagsEnqueueResponse(BaseModel):
