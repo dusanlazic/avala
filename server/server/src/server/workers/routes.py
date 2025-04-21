@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 
-from database import Database
+from server.database import Database
 
 from . import service
 from .schemas import WorkerRegistrationRequest, WorkerResponse

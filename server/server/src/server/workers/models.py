@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database import BaseModel
+from server.database import BaseModel
 
 
 class Worker(BaseModel):

@@ -3,7 +3,7 @@ import enum
 from sqlalchemy import Enum, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database import BaseModel
+from server.database import BaseModel
 
 
 class SubmissionOutcome(enum.StrEnum):

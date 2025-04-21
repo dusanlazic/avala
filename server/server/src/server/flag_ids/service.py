@@ -9,7 +9,7 @@ from typing import Any
 from avala.common.config import config
 from avala.common.logger import logger
 
-from database import Database, StateManager, get_async_db_session
+from server.database import Database, StateManager, get_async_db_session
 
 flag_ids_updated_event: asyncio.Event = asyncio.Event()
 
@@ -101,11 +101,13 @@ async def reload_flag_ids() -> None:
                         attempts=attempts_left,
                     )
                     await asyncio.sleep(config.flag_ids.interval.total_seconds())
+                    continue
                 else:
                     logger.warning(
                         "It seems that your <b>{module}</> module is not working properly. Please check it.",
                         module=config.flag_ids.script_path,
                     )
+                    break
 
             new_data_normalized = normalize_dict(new_data)
             new_data_dump = json.dumps(new_data_normalized)

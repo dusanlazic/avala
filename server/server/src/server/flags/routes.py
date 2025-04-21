@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from database import Database
-from messaging import Channel
+from server.database import Database
+from server.messaging import Channel
 
 from . import service
 from .schemas import FlagEnqueueBody, FlagEnqueueResponse

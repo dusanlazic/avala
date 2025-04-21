@@ -4,8 +4,8 @@ import aio_pika
 from avala.common.clock import get_tick_number
 from sqlalchemy import select
 
-from database import Database
-from messaging import Channel
+from server.database import Database
+from server.messaging import Channel
 
 from .models import Flag
 

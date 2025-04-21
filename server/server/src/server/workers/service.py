@@ -6,7 +6,7 @@ from avala.common.logger import logger
 from fastapi import Request
 from sqlalchemy import select
 
-from database import Database
+from server.database import Database
 
 from .models import Worker
 

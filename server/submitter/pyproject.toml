@@ -1,11 +1,21 @@
 [project]
-name = "avala-submitter"
+name = "submitter"
 version = "0.1.0"
 description = "Flag submitter component of Avala server"
 authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
-readme = "README.md"
-requires-python = ">=3.11"
-dependencies = ["aio-pika>=9.5.5", "avala-common"]
+requires-python = ">=3.12"
+dependencies = [
+    "aio-pika>=9.5.5",
+    "avala-common",
+    "pwntools>=4.14.1",
+]
+
+[project.scripts]
+submitter = "submitter:main.main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
@@ -29,4 +39,4 @@ select = ["I", "W", "E", "F", "C", "B9"]
 known_first_party = ["avala"]
 
 [tool.uv.sources]
-avala-common = { path = "../common" }
+avala-common = { path = "common" }

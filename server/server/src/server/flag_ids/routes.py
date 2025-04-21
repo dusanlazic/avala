@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query, Response, status
 
-from database import Database
+from server.database import Database
 
 from . import service
 

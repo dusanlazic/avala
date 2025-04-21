@@ -1,5 +1,3 @@
-import re
-
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, conlist, constr, field_validator
 
 

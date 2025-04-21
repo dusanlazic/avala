@@ -1,9 +1,9 @@
 [project]
 name = "server"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.11"
+description = "Core server component of Avala server"
+authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
+requires-python = ">=3.12"
 dependencies = [
     "aio-pika>=9.5.5",
     "apscheduler>=3.11.0",
@@ -14,11 +14,15 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.40",
 ]
 
+[project.scripts]
+server = "server:main.main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [dependency-groups]
 dev = ["ipython>=9.1.0", "mypy>=1.15.0", "ruff>=0.11.5"]
-
-[tool.uv.sources]
-avala-common = { path = "../common" }
 
 [tool.mypy]
 ignore_missing_imports = true
@@ -41,3 +45,6 @@ known_first_party = [
     "avala",
     "avala.common",
 ]
+
+[tool.uv.sources]
+avala-common = { path = "common" }

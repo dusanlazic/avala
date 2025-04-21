@@ -34,9 +34,7 @@ def determine_strategy() -> Literal["INTERVAL", "STREAM"]:
     }
     allowed_fields = set().union(*field_strategy_map.keys())
 
-    present_fields = frozenset(
-        config.submitter.model_dump(exclude_none=True).keys() & allowed_fields
-    )
+    present_fields = frozenset(config.submitter.model_dump(exclude_none=True).keys() & allowed_fields)
     return field_strategy_map[present_fields]  # type: ignore
 
 
@@ -60,9 +58,7 @@ def import_submitter_module() -> ModuleType:
     raise ImportError("Failed to import the submitter module.")
 
 
-def prepare_submit_function(
-    submitter_context: Any, module: ModuleType
-) -> StreamSubmitFunction | BatchSubmitFunction:
+def prepare_submit_function(submitter_context: Any, module: ModuleType) -> StreamSubmitFunction | BatchSubmitFunction:
     """
     Imports the user-defined submit function from the submitter module and fixes context argument
     if required by the function.
@@ -90,9 +86,7 @@ def prepare_submit_function(
     return wrapper
 
 
-def prepare_teardown_function(
-    submitter_context: Any, module: ModuleType
-) -> Callable[[], Awaitable[None]] | None:
+def prepare_teardown_function(submitter_context: Any, module: ModuleType) -> Callable[[], Awaitable[None]] | None:
     """
     Imports the user-defined teardown function from the submitter module if exists, and fixes context argument
     if required by the function.
@@ -179,9 +173,7 @@ async def prepare_context(module: ModuleType) -> Any:
         return setup_func()
 
 
-async def start_interval_consumer(
-    queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction
-):  # noqa: C901
+async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction):  # noqa: C901
     """
     Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
     one by one using the user-defined submit function.
@@ -206,9 +198,7 @@ async def start_interval_consumer(
 
             for flag in flags:
                 message = messages[flag]
-                attempt = (
-                    message.headers.get("x-delivery-count", 0) if message.headers else 0
-                )
+                attempt = message.headers.get("x-delivery-count", 0) if message.headers else 0
                 status = "requeued" if attempt < config.submitter.retries else "failed"
                 # Persist the attempt
         else:
@@ -256,9 +246,7 @@ async def start_interval_consumer(
                 logger.info("No more flags to submit.")
 
 
-async def start_stream_consumer(
-    queue: aio_pika.abc.AbstractQueue, submit_flag: StreamSubmitFunction
-) -> None:
+async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: StreamSubmitFunction) -> None:
     """
     Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
     one by one using the user-defined submit function.
@@ -315,9 +303,7 @@ async def start_stream_consumer(
                         exception_msg=exception,
                     )
                 elif response:
-                    logger.error(
-                        log_msg + " Response: {response}", flag=flag, response=response
-                    )
+                    logger.error(log_msg + " Response: {response}", flag=flag, response=response)
                 else:
                     logger.error(log_msg, flag=flag)
             case _:
@@ -367,7 +353,7 @@ async def shutdown(
     logger.info("Shutdown complete.")
 
 
-async def main() -> None:
+async def start() -> None:
     connection, channel = await connect_to_rabbitmq()
     if not connection or not channel:
         exit(1)
@@ -392,16 +378,16 @@ async def main() -> None:
     try:
         match determine_strategy():
             case "STREAM":
-                await start_stream_consumer(
-                    queue, cast(StreamSubmitFunction, submit_func)
-                )
+                await start_stream_consumer(queue, cast(StreamSubmitFunction, submit_func))
             case "INTERVAL":
-                await start_interval_consumer(
-                    queue, cast(BatchSubmitFunction, submit_func)
-                )
+                await start_interval_consumer(queue, cast(BatchSubmitFunction, submit_func))
     except (KeyboardInterrupt, SystemExit, asyncio.CancelledError):
         await shutdown(connection=connection, channel=channel, teardown=teardown_func)
 
 
+def main():
+    asyncio.run(start())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

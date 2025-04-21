@@ -8,13 +8,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from configure.routes import router as configure_router
-from database import init_db
-from flag_ids.routes import router as flag_ids_router
-from flags.routes import router as flags_router
-from messaging import connect_to_rabbitmq, declare_submission_queue
-from scheduling import init_scheduler
-from workers.routes import router as workers_router
+from .configure.routes import router as configure_router
+from .database import init_db
+from .flag_ids.routes import router as flag_ids_router
+from .flags.routes import router as flags_router
+from .messaging import connect_to_rabbitmq, declare_submission_queue
+from .scheduling import init_scheduler
+from .workers.routes import router as workers_router
 
 
 @asynccontextmanager

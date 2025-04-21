@@ -2,7 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from avala.common.clock import get_next_tick_start
 from avala.common.config import config
 
-from flag_ids import service as flag_ids_service
+from .flag_ids import service as flag_ids_service
 
 
 def init_scheduler():
