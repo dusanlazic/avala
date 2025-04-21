@@ -8,7 +8,7 @@ from .schemas import WorkerRegistrationRequest, WorkerResponse
 router = APIRouter(prefix="/workers", tags=["workers"])
 
 
-@router.get("/", response_model=list[WorkerResponse])
+@router.get("", response_model=list[WorkerResponse])
 async def get_all(db: Database):
     """
     Get all registered workers.
@@ -27,7 +27,7 @@ async def get_by_alias(alias: str, db: Database):
     return worker
 
 
-@router.post("/", response_model=WorkerResponse)
+@router.post("", response_model=WorkerResponse)
 async def register_or_update(worker: WorkerRegistrationRequest, db: Database, request: Request):
     """
     Register a new worker or update an existing one.

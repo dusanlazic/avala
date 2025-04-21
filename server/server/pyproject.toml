@@ -6,9 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aio-pika>=9.5.5",
+    "apscheduler>=3.11.0",
     "asyncpg>=0.30.0",
     "avala-common>=0.1.0",
     "fastapi[standard]>=0.115.12",
+    "requests>=2.32.3",
     "sqlalchemy[asyncio]>=2.0.40",
 ]
 
@@ -28,4 +30,14 @@ line-length = 120
 select = ["I", "W", "E", "F", "C", "B9"]
 
 [tool.isort]
-known_first_party = ["avala"]
+known_first_party = [
+    "configure",
+    "flag_ids",
+    "flags",
+    "workers",
+    "messaging",
+    "scheduling",
+    "database",
+    "avala",
+    "avala.common",
+]

@@ -9,7 +9,7 @@ from .schemas import FlagEnqueueBody, FlagEnqueueResponse
 router = APIRouter(prefix="/flags", tags=["flags"])
 
 
-@router.post("/", response_model=FlagEnqueueResponse)
+@router.post("", response_model=FlagEnqueueResponse)
 async def enqueue_flag(flags: FlagEnqueueBody, db: Database, ch: Channel):
     """
     Enqueue a flag for processing.

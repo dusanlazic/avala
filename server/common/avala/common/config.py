@@ -1,4 +1,5 @@
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, Type
 
 from pydantic import (
@@ -6,6 +7,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    FilePath,
     PositiveInt,
     ValidationError,
     field_validator,
@@ -35,7 +37,7 @@ class GameConfig(BaseModel):
 
 
 class SubmitterConfig(BaseModel):
-    module: str = Field(default="submitter")
+    script_path: FilePath = Field(default=Path("/etc/avala/submitter.py"))
     retries: PositiveInt = Field(default=5)
     interval: timedelta | None = Field(default=None)
     batch_idle_timeout: timedelta = Field(default_factory=lambda: timedelta(seconds=15))
@@ -64,8 +66,8 @@ class SubmitterConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class AttackDataConfig(BaseModel):
-    module: str = Field(default="flag_ids")
+class FlagIdsConfig(BaseModel):
+    script_path: FilePath = Field(default=Path("/etc/avala/flag_ids.py"))
     retries: PositiveInt = Field(default=5)
     interval: timedelta = Field(default=timedelta(seconds=2))
 
@@ -108,13 +110,15 @@ class AvalaServerConfig(BaseSettings):
     game: GameConfig
     submitter: SubmitterConfig
     server: APIConfig
-    attack_data: AttackDataConfig
+    flag_ids: FlagIdsConfig
     database: PostgresConfig
     rabbitmq: RabbitMQConfig
 
     model_config = SettingsConfigDict(
         extra="ignore",
         yaml_file=[
+            "/etc/avala/avala.yaml",
+            "/etc/avala/avala.yml",
             "avala.yaml",
             "avala.yml",
         ],

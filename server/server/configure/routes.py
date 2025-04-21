@@ -6,7 +6,7 @@ from .schemas import ConfigurationResponse, GameConfig, ScheduleConfig
 router = APIRouter(prefix="/configure", tags=["configure"])
 
 
-@router.get("/", response_model=ConfigurationResponse)
+@router.get("", response_model=ConfigurationResponse)
 async def get_config():
     """
     Get the server configuration for configuring clients.

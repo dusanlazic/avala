@@ -131,6 +131,9 @@ class Avala:
         running the same attacks multiple times. However, if an exploit is marked as `draft=True`, flag IDs are tracked
         but the attacks are not skipped, for easier testing and debugging during development.
         """
+        self._show_banner()
+        self._validate_directories()
+
         event_handler = FileEventHandler(callback=self._launch_modified_exploits)
         observer = Observer()
 
@@ -259,10 +262,14 @@ class Avala:
             else:
                 valid_directories.add(path)
 
-        logger.info(
-            "📂 Registered exploit directories: <green>{directories}</>",
-            directories=", ".join([d.name for d in valid_directories]),
-        )
+        if valid_directories:
+            logger.info(
+                "📂 Registered exploit directories: <green>{directories}</>",
+                directories=", ".join([d.name for d in valid_directories]),
+            )
+        else:
+            logger.error("❌ No directories found. Please register at least one directory.")
+            exit(1)
 
         self._exploit_directories = valid_directories
 
@@ -347,7 +354,7 @@ class Avala:
                 )
 
         logger.info(
-            "📥 Loaded <b>{count}</> exploits: {exploits}.",
+            "📥 Loaded <b>{count}</> exploits: {exploits}",
             count=len(exploits),
             exploits=", ".join(colorize(exploit.alias) for exploit in exploits),
         )

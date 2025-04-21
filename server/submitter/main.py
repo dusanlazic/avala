@@ -1,10 +1,11 @@
 import asyncio
 import inspect
-import os
 import sys
 from collections import Counter
 from datetime import datetime, timedelta
-from importlib import import_module, reload
+from importlib import reload
+from importlib.util import module_from_spec, spec_from_file_location
+from types import ModuleType
 from typing import Any, Awaitable, Callable, Literal, TypeAlias, cast
 
 import aio_pika
@@ -33,28 +34,40 @@ def determine_strategy() -> Literal["INTERVAL", "STREAM"]:
     }
     allowed_fields = set().union(*field_strategy_map.keys())
 
-    present_fields = frozenset(config.submitter.model_dump(exclude_none=True).keys() & allowed_fields)
+    present_fields = frozenset(
+        config.submitter.model_dump(exclude_none=True).keys() & allowed_fields
+    )
     return field_strategy_map[present_fields]  # type: ignore
 
 
-def import_user_function(func_name: str) -> Callable | None:
+def import_submitter_module() -> ModuleType:
     """
-    Dynamically imports a function written by the user from the submitter module.
+    Dynamically imports the submitter module.
     """
-    cwd = os.getcwd()
-    if cwd not in sys.path:
-        sys.path.append(cwd)
+    script_path = config.submitter.script_path
+    module_name = "submitter_script"
 
-    imported_module = reload(import_module(config.submitter.module))
-    return getattr(imported_module, func_name, None)
+    if module_name in sys.modules:
+        return reload(sys.modules[module_name])
+
+    spec = spec_from_file_location(module_name, script_path)
+    if spec and spec.loader:
+        module = module_from_spec(spec)
+        spec.loader.exec_module(module)
+        sys.modules[module_name] = module
+        return module
+
+    raise ImportError("Failed to import the submitter module.")
 
 
-def prepare_submit_function(submitter_context: Any) -> StreamSubmitFunction | BatchSubmitFunction:
+def prepare_submit_function(
+    submitter_context: Any, module: ModuleType
+) -> StreamSubmitFunction | BatchSubmitFunction:
     """
     Imports the user-defined submit function from the submitter module and fixes context argument
     if required by the function.
     """
-    submit_func = import_user_function("submit")
+    submit_func = getattr(module, "submit", None)
     if not submit_func:
         logger.error("Submit function not found in user script.")
         exit(1)
@@ -77,12 +90,14 @@ def prepare_submit_function(submitter_context: Any) -> StreamSubmitFunction | Ba
     return wrapper
 
 
-def prepare_teardown_function(submitter_context: Any) -> Callable[[], Awaitable[None]] | None:
+def prepare_teardown_function(
+    submitter_context: Any, module: ModuleType
+) -> Callable[[], Awaitable[None]] | None:
     """
     Imports the user-defined teardown function from the submitter module if exists, and fixes context argument
     if required by the function.
     """
-    teardown_func = import_user_function("teardown")
+    teardown_func = getattr(module, "teardown", None)
     if not teardown_func:
         return None
 
@@ -150,11 +165,11 @@ async def connect_to_rabbitmq() -> tuple[
     return None, None
 
 
-async def prepare_context() -> Any:
+async def prepare_context(module: ModuleType) -> Any:
     """
     Imports and executes the user-definted setup function from the submitter module, if present.
     """
-    setup_func = import_user_function("setup")
+    setup_func = getattr(module, "setup", None)
     if not setup_func:
         return None
 
@@ -164,13 +179,17 @@ async def prepare_context() -> Any:
         return setup_func()
 
 
-async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction):  # noqa: C901
+async def start_interval_consumer(
+    queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction
+):  # noqa: C901
     """
     Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
     one by one using the user-defined submit function.
     """
 
-    async def process_messages(messages: dict[str, aio_pika.abc.AbstractIncomingMessage]) -> None:
+    async def process_messages(
+        messages: dict[str, aio_pika.abc.AbstractIncomingMessage],
+    ) -> None:
         try:
             flags = list(messages.keys())
             results = await submit_flags(flags)
@@ -187,7 +206,9 @@ async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag
 
             for flag in flags:
                 message = messages[flag]
-                attempt = message.headers.get("x-delivery-count", 0) if message.headers else 0
+                attempt = (
+                    message.headers.get("x-delivery-count", 0) if message.headers else 0
+                )
                 status = "requeued" if attempt < config.submitter.retries else "failed"
                 # Persist the attempt
         else:
@@ -235,7 +256,9 @@ async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag
                 logger.info("No more flags to submit.")
 
 
-async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: StreamSubmitFunction) -> None:
+async def start_stream_consumer(
+    queue: aio_pika.abc.AbstractQueue, submit_flag: StreamSubmitFunction
+) -> None:
     """
     Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
     one by one using the user-defined submit function.
@@ -263,10 +286,18 @@ async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: 
         match status:
             case "accepted":
                 await message.ack()
-                logger.success("<b>{flag}</> accepted. Response: {response}", flag=flag, response=response)
+                logger.success(
+                    "<b>{flag}</> accepted. Response: {response}",
+                    flag=flag,
+                    response=response,
+                )
             case "rejected":
                 await message.ack()
-                logger.warning("<b>{flag}</> rejected. Response: {response}", flag=flag, response=response)
+                logger.warning(
+                    "<b>{flag}</> rejected. Response: {response}",
+                    flag=flag,
+                    response=response,
+                )
             case "requeued":
                 await message.reject(requeue=True)
 
@@ -284,12 +315,18 @@ async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: 
                         exception_msg=exception,
                     )
                 elif response:
-                    logger.error(log_msg + " Response: {response}", flag=flag, response=response)
+                    logger.error(
+                        log_msg + " Response: {response}", flag=flag, response=response
+                    )
                 else:
                     logger.error(log_msg, flag=flag)
             case _:
                 await message.reject(requeue=False)
-                logger.error("<b>{flag}</> got unknown status '{status}'.", flag=flag, status=status)
+                logger.error(
+                    "<b>{flag}</> got unknown status '{status}'.",
+                    flag=flag,
+                    status=status,
+                )
                 status = "failed"
 
         # PERISTENCE HAPPENS HERE
@@ -346,16 +383,22 @@ async def main() -> None:
         },
     )
 
-    context = await prepare_context()
-    teardown_func = prepare_teardown_function(context)
-    submit_func = prepare_submit_function(context)
+    submitter_module = import_submitter_module()
+
+    context = await prepare_context(submitter_module)
+    teardown_func = prepare_teardown_function(context, submitter_module)
+    submit_func = prepare_submit_function(context, submitter_module)
 
     try:
         match determine_strategy():
             case "STREAM":
-                await start_stream_consumer(queue, cast(StreamSubmitFunction, submit_func))
+                await start_stream_consumer(
+                    queue, cast(StreamSubmitFunction, submit_func)
+                )
             case "INTERVAL":
-                await start_interval_consumer(queue, cast(BatchSubmitFunction, submit_func))
+                await start_interval_consumer(
+                    queue, cast(BatchSubmitFunction, submit_func)
+                )
     except (KeyboardInterrupt, SystemExit, asyncio.CancelledError):
         await shutdown(connection=connection, channel=channel, teardown=teardown_func)
 
