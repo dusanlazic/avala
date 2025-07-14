@@ -14,6 +14,7 @@ from .flag_ids.routes import router as flag_ids_router
 from .flags.routes import router as flags_router
 from .messaging import connect_to_rabbitmq, declare_submission_queue
 from .scheduling import init_scheduler
+from .stats.routes import router as stats_router
 from .workers.routes import router as workers_router
 
 
@@ -69,6 +70,7 @@ for router in [
     configure_router,
     flags_router,
     flag_ids_router,
+    stats_router,
 ]:
     app.include_router(router)
 
