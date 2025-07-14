@@ -12,6 +12,8 @@ import aio_pika
 from avala.common.clock import game_has_started, get_tick_elapsed
 from avala.common.config import config
 from avala.common.logger import logger
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 StreamSubmitFunction: TypeAlias = Callable[
     [str],
@@ -159,6 +161,42 @@ async def connect_to_rabbitmq() -> tuple[
     return None, None
 
 
+async def connect_to_db() -> async_sessionmaker[AsyncSession]:
+    """
+    Connects to the database using the configuration settings and returns the AsyncSessionLocal factory.
+    """
+    try:
+        async_engine = create_async_engine(
+            "postgresql+asyncpg://%s:%s@%s:%d/%s"
+            % (
+                config.database.user,
+                config.database.password,
+                config.database.host,
+                config.database.port,
+                config.database.name,
+            ),
+            pool_size=80,
+            max_overflow=10,
+        )
+        AsyncSessionLocal = async_sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=async_engine,
+        )
+        async with AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+
+        logger.success("Connected to the database.")
+        return AsyncSessionLocal
+    except Exception as e:
+        logger.error(
+            "Failed to connect to the database. <b>{error}</>: {error_msg}",
+            error=type(e).__name__,
+            error_msg=e,
+        )
+        raise e
+
+
 async def prepare_context(module: ModuleType) -> Any:
     """
     Imports and executes the user-definted setup function from the submitter module, if present.
@@ -173,7 +211,33 @@ async def prepare_context(module: ModuleType) -> Any:
         return setup_func()
 
 
-async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flags: BatchSubmitFunction):  # noqa: C901
+async def perist_submission(
+    db: async_sessionmaker[AsyncSession],
+    flag: str,
+    status: Literal["accepted", "rejected", "requeued", "failed"],
+    response: str | None = None,
+):
+    async with db() as session:
+        try:
+            await session.execute(
+                text("UPDATE flag SET status = :status, response = :response WHERE value = :flag;"),
+                {"status": status.upper(), "response": response, "flag": flag},
+            )
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            logger.error(
+                "Failed to update flag status in the database. <b>{error}</>: {error_msg}",
+                error=type(e).__name__,
+                error_msg=e,
+            )
+
+
+async def start_interval_consumer(  # noqa: C901
+    queue: aio_pika.abc.AbstractQueue,
+    db: async_sessionmaker[AsyncSession],
+    submit_flags: BatchSubmitFunction,
+):  # noqa: C901
     """
     Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
     one by one using the user-defined submit function.
@@ -200,7 +264,7 @@ async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag
                 message = messages[flag]
                 attempt = message.headers.get("x-delivery-count", 0) if message.headers else 0
                 status = "requeued" if attempt < config.submitter.retries else "failed"
-                # Persist the attempt
+                await perist_submission(db=db, flag=flag, response=None, status=status)
         else:
             stats = Counter(status for status, _, _ in results)
             logger.info(
@@ -216,8 +280,9 @@ async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag
                 else:
                     await messages[flag].reject(requeue=True)
 
-            # Persist the attempts
-            await asyncio.sleep(5)
+            for status, response, flag in results:
+                if status != "requeued":
+                    await perist_submission(db=db, flag=flag, response=response, status=status)
 
     while True:
         sleep_for = calculate_next_submit_time().total_seconds()
@@ -246,7 +311,11 @@ async def start_interval_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag
                 logger.info("No more flags to submit.")
 
 
-async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: StreamSubmitFunction) -> None:
+async def start_stream_consumer(  # noqa: C901
+    queue: aio_pika.abc.AbstractQueue,
+    db: async_sessionmaker[AsyncSession],
+    submit_flag: StreamSubmitFunction,
+) -> None:
     """
     Starts the stream consumer that listens to the 'flag.submission' queue and processes incoming flags
     one by one using the user-defined submit function.
@@ -315,8 +384,7 @@ async def start_stream_consumer(queue: aio_pika.abc.AbstractQueue, submit_flag: 
                 )
                 status = "failed"
 
-        # PERISTENCE HAPPENS HERE
-        await asyncio.sleep(5)  # This works well
+        await perist_submission(db=db, flag=flag, status=status)
 
     logger.info("Waiting for flags...")
     await queue.consume(process_message)
@@ -355,7 +423,9 @@ async def shutdown(
 
 async def start() -> None:
     connection, channel = await connect_to_rabbitmq()
-    if not connection or not channel:
+    db_session_factory = await connect_to_db()
+
+    if not connection or not channel or not db_session_factory:
         exit(1)
 
     queue = await channel.declare_queue(
@@ -378,9 +448,9 @@ async def start() -> None:
     try:
         match determine_strategy():
             case "STREAM":
-                await start_stream_consumer(queue, cast(StreamSubmitFunction, submit_func))
+                await start_stream_consumer(queue, db_session_factory, cast(StreamSubmitFunction, submit_func))
             case "INTERVAL":
-                await start_interval_consumer(queue, cast(BatchSubmitFunction, submit_func))
+                await start_interval_consumer(queue, db_session_factory, cast(BatchSubmitFunction, submit_func))
     except (KeyboardInterrupt, SystemExit, asyncio.CancelledError):
         await shutdown(connection=connection, channel=channel, teardown=teardown_func)
 

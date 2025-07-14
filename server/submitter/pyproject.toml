@@ -6,8 +6,10 @@ authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
 requires-python = ">=3.12"
 dependencies = [
     "aio-pika>=9.5.5",
+    "asyncpg>=0.30.0",
     "avala-common",
     "pwntools>=4.14.1",
+    "sqlalchemy>=2.0.39",
 ]
 
 [project.scripts]
