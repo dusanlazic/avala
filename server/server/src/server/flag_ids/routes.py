@@ -10,7 +10,7 @@ from . import service
 router = APIRouter(prefix="/flag-ids", tags=["flag_ids"], dependencies=[Depends(get_current_user)])
 
 
-@router.get("", response_model=list[Any])
+@router.get("")
 async def get_flag_ids(
     db: Database,
     response: Response,
