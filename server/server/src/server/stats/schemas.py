@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Literal
 
 
 class TotalNumbersResponse(BaseModel):
@@ -15,3 +16,11 @@ class CurrentTickResponse(BaseModel):
     rejected: int
     accepted_delta: int
     rejected_delta: int
+
+
+class FlagUpdateMessage(BaseModel):
+    host: str
+    service: str
+    exploit: str
+    status: Literal["queued", "accepted", "rejected", "discarded"]
+    delta: int

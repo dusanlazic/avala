@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .configure.routes import router as configure_router
-from .database import init_db
+from .database import broadcast, init_db
 from .flag_ids.routes import router as flag_ids_router
 from .flags.routes import router as flags_router
 from .messaging import connect_to_rabbitmq, declare_submission_queue
@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize the database
     await init_db()
+    await broadcast.connect()
 
     # Connect to RabbitMQ
     connection, channel = await connect_to_rabbitmq()
@@ -44,6 +45,7 @@ async def lifespan(app: FastAPI):
 
     await channel.close()
     await connection.close()
+    await broadcast.disconnect()
 
     scheduler.shutdown(wait=False)
 

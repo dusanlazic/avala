@@ -9,6 +9,7 @@ dependencies = [
     "apscheduler>=3.11.0",
     "asyncpg>=0.30.0",
     "avala-common>=0.1.0",
+    "broadcaster[postgres]>=0.3.1",
     "fastapi[standard]>=0.115.12",
     "requests>=2.32.3",
     "sqlalchemy[asyncio]>=2.0.40",
@@ -22,7 +23,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["ipython>=9.1.0", "mypy>=1.15.0", "ruff>=0.11.5"]
+dev = [
+    "ipython>=9.1.0",
+    "mypy>=1.15.0",
+    "ruff>=0.11.5",
+]
 
 [tool.mypy]
 ignore_missing_imports = true

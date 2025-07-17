@@ -121,6 +121,23 @@ dev = [
 ]
 
 [[package]]
+name = "broadcaster"
+version = "0.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0f/9a/937530b4b1339f96423ef314b832aa585250c99de465a6ec1a12da03bbda/broadcaster-0.3.1.tar.gz", hash = "sha256:35d1e174a98346d184cc6558979548340e877ae841c65c7e354153a84fe675d6", size = 6945 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/17/db/6789b924f1349739ea3a4eff0ad6877d1c4a2f844e8a15db49fd6335a532/broadcaster-0.3.1-py3-none-any.whl", hash = "sha256:433023ab6b6b4a8da9cbba95910eff52b1e767141419659be287cfd49f2a3ecb", size = 9545 },
+]
+
+[package.optional-dependencies]
+postgres = [
+    { name = "asyncpg" },
+]
+
+[[package]]
 name = "certifi"
 version = "2025.1.31"
 source = { registry = "https://pypi.org/simple" }
@@ -936,6 +953,7 @@ dependencies = [
     { name = "apscheduler" },
     { name = "asyncpg" },
     { name = "avala-common" },
+    { name = "broadcaster", extra = ["postgres"] },
     { name = "fastapi", extra = ["standard"] },
     { name = "requests" },
     { name = "sqlalchemy", extra = ["asyncio"] },
@@ -954,6 +972,7 @@ requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.0" },
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "avala-common", directory = "common" },
+    { name = "broadcaster", extras = ["postgres"], specifier = ">=0.3.1" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.12" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.40" },

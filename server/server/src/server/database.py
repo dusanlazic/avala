@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Annotated, AsyncIterator
 
 from avala.common.config import config
+from broadcaster import Broadcast
 from fastapi import Depends
 from sqlalchemy import DateTime, String, Text, select
 from sqlalchemy.dialects.postgresql import UUID
@@ -12,23 +13,22 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+POSTGRESQL_URL = "postgresql+asyncpg://%s:%s@%s:%d/%s" % (
+    config.database.user,
+    config.database.password,
+    config.database.host,
+    config.database.port,
+    config.database.name,
+)
+
+broadcast = Broadcast(POSTGRESQL_URL.replace("postgresql+asyncpg", "postgresql"))
+
 
 class Base(DeclarativeBase):
     pass
 
 
-async_engine = create_async_engine(
-    "postgresql+asyncpg://%s:%s@%s:%d/%s"
-    % (
-        config.database.user,
-        config.database.password,
-        config.database.host,
-        config.database.port,
-        config.database.name,
-    ),
-    pool_size=80,
-    max_overflow=10,
-)
+async_engine = create_async_engine(POSTGRESQL_URL, pool_size=80, max_overflow=10)
 
 AsyncSessionLocal = async_sessionmaker(
     autocommit=False,

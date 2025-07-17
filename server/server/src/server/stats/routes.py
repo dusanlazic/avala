@@ -1,6 +1,7 @@
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
-from server.database import Database
+from server.database import Database, broadcast
 
 from . import service
 from .schemas import CurrentTickResponse, TotalNumbersResponse
@@ -116,3 +117,24 @@ async def get_exploits_table(
     Retrieve the contents for filling the exploits table.
     """
     return await service.fetch_exploit_data(db)
+
+
+@router.get("/flags-stream")
+async def get_flags_stream():
+    return StreamingResponse(
+        flags_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+async def flags_stream():
+    try:
+        async with broadcast.subscribe("flags") as subscriber:
+            async for event in subscriber:
+                yield "data: %s\n\n" % event.message
+    except Exception:
+        return

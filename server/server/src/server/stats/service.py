@@ -20,19 +20,25 @@ async def get_flag_ids(db: Database) -> dict | None:
         return json.loads(flag_ids) if flag_ids else None
 
 
-async def get_target_hosts(db: Database) -> set[set]:
+async def get_target_hosts(db: Database) -> set[str]:
     """
     Retrieve the set of target hosts from the database.
     """
     flag_ids = await get_flag_ids(db)
+    if not flag_ids:
+        return set()
+
     return {host for service_data in flag_ids.values() for host in service_data.keys()}
 
 
-async def get_target_services(db: Database) -> set[set]:
+async def get_target_services(db: Database) -> set[str]:
     """
     Retrieve the set of target services from the database.
     """
     flag_ids = await get_flag_ids(db)
+    if not flag_ids:
+        return set()
+
     return set(flag_ids.keys())
 
 
