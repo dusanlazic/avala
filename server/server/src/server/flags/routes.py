@@ -1,12 +1,13 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from server.auth import get_current_user
 from server.database import Database
 from server.messaging import Channel
 
 from . import service
 from .schemas import FlagEnqueueBody, FlagEnqueueResponse
 
-router = APIRouter(prefix="/flags", tags=["flags"])
+router = APIRouter(prefix="/flags", tags=["flags"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("", response_model=FlagEnqueueResponse)

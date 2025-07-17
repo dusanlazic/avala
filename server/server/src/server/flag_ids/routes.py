@@ -1,13 +1,16 @@
-from fastapi import APIRouter, Query, Response, status
+from typing import Any
 
+from fastapi import APIRouter, Depends, Query, Response, status
+
+from server.auth import get_current_user
 from server.database import Database
 
 from . import service
 
-router = APIRouter(prefix="/flag-ids", tags=["flag_ids"])
+router = APIRouter(prefix="/flag-ids", tags=["flag_ids"], dependencies=[Depends(get_current_user)])
 
 
-@router.get("")
+@router.get("", response_model=list[Any])
 async def get_flag_ids(
     db: Database,
     response: Response,

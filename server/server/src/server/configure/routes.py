@@ -1,9 +1,11 @@
 from avala.common.config import config
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from server.auth import get_current_user
 
 from .schemas import ConfigurationResponse, GameConfig, ScheduleConfig
 
-router = APIRouter(prefix="/configure", tags=["configure"])
+router = APIRouter(prefix="/configure", tags=["configure"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("", response_model=ConfigurationResponse)

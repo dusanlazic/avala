@@ -211,7 +211,7 @@ async def prepare_context(module: ModuleType) -> Any:
         return setup_func()
 
 
-async def perist_submission(
+async def persist_flag_status(
     db: async_sessionmaker[AsyncSession],
     flag: str,
     status: Literal["accepted", "rejected", "requeued", "failed"],
@@ -264,7 +264,7 @@ async def start_interval_consumer(  # noqa: C901
                 message = messages[flag]
                 attempt = message.headers.get("x-delivery-count", 0) if message.headers else 0
                 status = "requeued" if attempt < config.submitter.retries else "failed"
-                await perist_submission(db=db, flag=flag, response=None, status=status)
+                await persist_flag_status(db=db, flag=flag, response=None, status=status)
         else:
             stats = Counter(status for status, _, _ in results)
             logger.info(
@@ -282,7 +282,7 @@ async def start_interval_consumer(  # noqa: C901
 
             for status, response, flag in results:
                 if status != "requeued":
-                    await perist_submission(db=db, flag=flag, response=response, status=status)
+                    await persist_flag_status(db=db, flag=flag, response=response, status=status)
 
     while True:
         sleep_for = calculate_next_submit_time().total_seconds()
@@ -384,7 +384,7 @@ async def start_stream_consumer(  # noqa: C901
                 )
                 status = "failed"
 
-        await perist_submission(db=db, flag=flag, status=status)
+        await persist_flag_status(db=db, flag=flag, status=status)
 
     logger.info("Waiting for flags...")
     await queue.consume(process_message)

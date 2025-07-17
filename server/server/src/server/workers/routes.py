@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from server.auth import get_current_user
 from server.database import Database
 
 from . import service
 from .schemas import WorkerRegistrationRequest, WorkerResponse
 
-router = APIRouter(prefix="/workers", tags=["workers"])
+router = APIRouter(prefix="/workers", tags=["workers", "experimental"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("", response_model=list[WorkerResponse])

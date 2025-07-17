@@ -1,12 +1,13 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from server.auth import get_current_user
 from server.database import Database, broadcast
 
 from . import service
 from .schemas import CurrentTickResponse, TotalNumbersResponse
 
-router = APIRouter(prefix="/stats", tags=["stats"])
+router = APIRouter(prefix="/stats", tags=["stats"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/hosts", response_model=list[str])
