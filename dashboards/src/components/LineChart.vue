@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, defineProps } from 'vue'
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -8,9 +8,12 @@ import {
   PointElement,
   LineElement,
   Tooltip,
+  Filler,
+  elements
 } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
+
 
 const props = defineProps({
   data: {
@@ -25,20 +28,12 @@ const props = defineProps({
     type: String,
     required: true
   },
-  showAxis: {
-    type: Boolean,
-    default: true
+  yMax: {
+    type: Number,
+    required: false,
+    default: 1
   }
 })
-
-const maxValue = computed(() => {
-  if (props.data.length === 0) {
-    return 0;  // Return 0 if the data array is empty
-  }
-
-  const maxDataValue = Math.max(...props.data);
-  return maxDataValue === 0 ? 1 : maxDataValue;  // Ensure max is at least 1 if maxDataValue is 0
-});
 
 const data = computed(() => ({
   labels: props.labels,
@@ -47,10 +42,12 @@ const data = computed(() => ({
       label: props.label,
       data: props.data,
       borderColor: '#EF233C',
+      borderWidth: 2,
       pointBackgroundColor: '#EF233C',
       pointHoverBackgroundColor: '#EF233C',
       pointHoverRadius: 5,
-      pointBorderColor: 'transparent'
+      pointBorderColor: 'transparent',
+      fill: false
     }
   ]
 }))
@@ -67,25 +64,9 @@ const options = computed(() => ({
       }
     },
     y: {
-      display: props.showAxis,
+      display: false,
       min: 0,
-      max: maxValue.value,
-      ticks: {
-        color: 'grey',
-        font: {
-          size: 10
-        },
-        stepSize: maxValue.value,
-        callback: function(value) {
-          if (value === 0 || value === maxValue.value) {
-            return value;
-          }
-          return null;
-        }
-      },
-      grid: {
-        display: false
-      }
+      max: props.yMax
     }
   },
   plugins: {
@@ -98,19 +79,17 @@ const options = computed(() => ({
       radius: 0,
       hitRadius: 25
     },
-    line: {
-      cubicInterpolationMode: 'monotone'
-    }
   },
-  animations: false,
+  animation: false,
   interaction: {
-    mode: 'index'
+    mode: 'index',
+    intersect: false
   },
   maintainAspectRatio: false,
   responsive: true
-}))
+}));
 </script>
 
 <template>
-  <Line :data="data" :options="options" />
+  <Line :data="data" :options="options" style="height: 45px;" />
 </template>

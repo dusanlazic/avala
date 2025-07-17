@@ -1,116 +1,105 @@
-<script setup>
-import { ref, provide } from 'vue'
+<script setup lang="ts">
+import { RouterLink, RouterView } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import TickProgress from '@/components/TickProgress.vue'
-import DashboardView from '@/views/DashboardView.vue'
-import FlagBrowserView from '@/views/FlagBrowserView.vue'
-import ManualSubmissionView from '@/views/ManualSubmissionView.vue'
+import TickProgress from './components/TickProgress.vue'
+import { onMounted, onUnmounted, provide } from 'vue';
+import { useConfigStore } from '@/stores/config';
+import { ref } from 'vue';
 
-const tickNumber = ref(0)
-const totalTicks = ref(0)
-const networkOpenTick = ref(0)
+const configStore = useConfigStore();
+const tickNumber = ref(1);
+const refreshTrigger = ref(1);
 
-provide('tickNumber', tickNumber)
-provide('totalTicks', totalTicks)
-provide('networkOpenTick', networkOpenTick)
+let refreshInterval: number | undefined;
+const REFRESH_INTERVAL_MS = 3000; // 3 seconds
 
-const currentView = ref('dashboard')
+provide('tickNumber', tickNumber);
+provide('refreshTrigger', refreshTrigger)
 
-const showView = (view) => {
-  currentView.value = view
-}
+onMounted(() => {
+  if (!configStore.config) {
+    configStore.fetchConfig();
+  }
+
+  refreshInterval = setInterval(() => {
+    refreshTrigger.value = refreshTrigger.value * -1;
+    console.log('refreshTrigger flipped to:', refreshTrigger.value);
+  }, REFRESH_INTERVAL_MS);
+})
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    console.log('Refresh trigger interval cleared.');
+  }
+});
 </script>
 
 <template>
   <TickProgress />
-  <div class="container">
-    <header>
-      <nav>
-        <a
-          href="#"
-          :class="{ 'router-link-active': currentView === 'dashboard' }"
-          @click.prevent="showView('dashboard')"
-        >
-          <Icon icon="ri:dashboard-3-line" /> Dashboard
-        </a>
-        <a
-          href="#"
-          :class="{ 'router-link-active': currentView === 'flags' }"
-          @click.prevent="showView('flags')"
-        >
-          <Icon icon="ri:flag-line" /> Browse Flags
-        </a>
-        <a
-          href="#"
-          :class="{ 'router-link-active': currentView === 'submit' }"
-          @click.prevent="showView('submit')"
-        >
-          <Icon icon="ri:cursor-line" /> Manual Submit
-        </a>
-        <div class="divider"></div>
-      </nav>
-    </header>
-    <div class="spacing"></div>
-    <div v-show="currentView === 'dashboard'">
-      <DashboardView />
-    </div>
-    <div v-show="currentView === 'flags'">
-      <FlagBrowserView />
-    </div>
-    <div v-show="currentView === 'submit'">
-      <ManualSubmissionView />
-    </div>
+  <div class="app-container">
+    <!-- <aside class="sidebar">
+      <RouterLink to="/dashboard" class="nav-icon" title="Dashboard">
+        <Icon icon="ri:dashboard-3-line" />
+      </RouterLink>
+      <RouterLink to="/exploits" class="nav-icon" title="Exploits">
+        <Icon icon="ri:sword-line" />
+      </RouterLink>
+      <RouterLink to="/flags" class="nav-icon" title="Flags">
+        <Icon icon="ri:flag-line" />
+      </RouterLink>
+    </aside> -->
+    <main class="main-view">
+      <RouterView />
+    </main>
   </div>
 </template>
 
 <style scoped>
-.container {
-  width: 100%;
-  max-width: 1344px;
-  margin: 0 auto;
-}
-
-header {
-  position: fixed;
-  z-index: 4;
-  background-image: linear-gradient(to bottom, #131313 0%, transparent 100%);
-  width: 100%;
-}
-
-nav {
+.app-container {
   display: flex;
-  gap: 2.5rem;
-  padding: 36px 0;
+  height: calc(100vh - 6px);
+  width: 100vw;
 }
 
-nav a {
-  color: #6b6b6b;
-  text-decoration: none;
-  font-size: 18px;
-  font-weight: 500;
+.sidebar {
+  width: 48px;
+  background-color: #181818;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 9px;
+  padding: 0.5rem 0;
+  border-right: 1px solid #313131;
 }
 
-nav a:hover {
-  color: #c4c4c4;
+.nav-icon {
+  margin: 1rem 0;
+  color: #2b2b2b;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 2px;
+  padding: 6px;
+  border-radius: 100%;
 }
 
-nav a.router-link-active {
-  color: #ef233c;
+.nav-icon:hover {
+  color: #dddddd;
 }
 
-nav a .iconify {
-  font-size: 24px;
-  padding-bottom: 3px;
+.nav-icon.router-link-exact-active {
+  color: #dddddd;
+  background-color: #404040;
 }
 
-nav .divider {
-  margin-left: auto;
+.nav-icon :deep(svg) {
+  width: 22px;
+  height: 22px;
 }
 
-.spacing {
-  height: 100px;
+.main-view {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
 }
 </style>

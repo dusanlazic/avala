@@ -1,284 +1,148 @@
-<script setup>
-import { ref, onMounted, onUnmounted, watch, inject } from 'vue'
+<script setup lang="ts">
+import Card from '@/components/Card.vue';
+import TimelineCard from '@/components/TimelineCard.vue';
+import ExploitsTable from '@/components/ExploitsTable.vue';
+import AttackMatrixCard from '@/components/AttackMatrixCard.vue';
 import { Icon } from '@iconify/vue'
-import ValueCard from '@/components/ValueCard.vue'
-import ValueChartCard from '@/components/ValueChartCard.vue'
-import ExploitCard from '@/components/ExploitCard.vue'
-import Timeline from '@/components/Timeline.vue'
-import axios from 'axios'
+import { useConfigStore } from '@/stores/config';
+import { useGameStatsStore } from '@/stores/gameStats';
+import { useCurrentTickStatsStore } from '@/stores/currentTickStats';
+import { useAttackStatsStore } from '@/stores/attackStats';
+import { inject, onMounted, watch, type Ref } from 'vue';
 
-const tickNumber = inject('tickNumber')
-
-const retrievalRate = ref(0)
-const retrievalHistory = ref([])
-const submissionRate = ref(0)
-const submissionHistory = ref([])
-
-const queuedCount = ref(0)
-const duplicatesCount = ref(0)
-const acceptedCount = ref(0)
-const rejectedCount = ref(0)
-
-const exploitsStats = ref([])
-
-const aborter = new AbortController()
-
-function resetDashboardStats() {
-  queuedCount.value = 0
-  duplicatesCount.value = 0
-  acceptedCount.value = 0
-  rejectedCount.value = 0
+interface FlagUpdateMessage {
+  host: string;
+  service: string;
+  exploit: string;
+  status: 'queued' | 'accepted' | 'rejected' | 'discarded';
+  delta: number;
 }
 
-async function fetchLatestDashboardStats() {
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_API_URL}/stats/dashboard`, {
-      withCredentials: true
-    })
-    const data = response.data
-    acceptedCount.value += data.accepted
-    rejectedCount.value += data.rejected
-    queuedCount.value = Math.max(queuedCount.value + data.queued, 0)
-  } catch (error) {
-    console.error('Error fetching dashboard stats:', error)
-  }
-}
+const configStore = useConfigStore();
+const gameStatsStore = useGameStatsStore();
+const currentTickStatsStore = useCurrentTickStatsStore();
+const attackStatsStore = useAttackStatsStore();
 
-function updateDashboardStats(chunk) {
-  const data = JSON.parse(chunk)
+const tickNumber = inject<Ref<number>>('tickNumber');
+const refreshTrigger = inject<Ref<number>>('refreshTrigger');
 
-  queuedCount.value = Math.max(queuedCount.value + data.queued, 0)
-  duplicatesCount.value += data.discarded
-  acceptedCount.value += data.accepted
-  rejectedCount.value += data.rejected
+function consumeFlagUpdateStream() {
+  const streamUrl = `${import.meta.env.VITE_API_URL}/stats/flags-stream`
 
-  if (data.exploit) {
-    const targetExploit = exploitsStats.value.find((exploit) => exploit.name === data.exploit)
-    if (targetExploit) {
-      if (!targetExploit.currentTick.targets) {
-        targetExploit.currentTick.targets = new Set()
-      }
+  const eventSource = new EventSource(streamUrl, {
+    withCredentials: true,
+  });
 
-      targetExploit.currentTick.retrieved += data.queued
-      targetExploit.currentTick.duplicates += data.discarded
-      targetExploit.currentTick.targets.add(data.target)
+  eventSource.onmessage = (event) => {
+    const flagUpdate: FlagUpdateMessage = JSON.parse(event.data);
+
+    switch (flagUpdate.status) {
+      case 'queued':
+        currentTickStatsStore.incrementQueued(flagUpdate.delta);
+        gameStatsStore.incrementQueued(flagUpdate.delta);
+        attackStatsStore.incrementExploitField(flagUpdate.exploit, 'flags_queued_current_tick', flagUpdate.delta);
+        break;
+      case 'discarded':
+        currentTickStatsStore.incrementDiscarded(flagUpdate.delta);
+        break;
+      default:
+        console.warn(`Unknown flag status: ${flagUpdate.status}`);
     }
   }
 }
 
-function updateRabbitStats(chunk) {
-  const data = JSON.parse(chunk)
-
-  retrievalRate.value = data.retrieved_per_second
-
-  retrievalHistory.value.push({
-    sample: data.retrieved_per_second,
-    timestamp: data.timestamp
-  })
-
-  if (retrievalHistory.value.length > 60) {
-    retrievalHistory.value.shift()
-  }
-
-  submissionRate.value = data.submitted_per_second
-
-  submissionHistory.value.push({
-    sample: data.submitted_per_second,
-    timestamp: data.timestamp
-  })
-
-  if (submissionHistory.value.length > 60) {
-    submissionHistory.value.shift()
-  }
-}
-
-function consumeFlagEventStream() {
-  const streamUrl = `${import.meta.env.VITE_API_URL}/stats/stream/flags`
-
-  const eventSource = new EventSource(streamUrl, { withCredentials: true })
-
-  eventSource.onmessage = (event) => {
-    updateDashboardStats(event.data)
-  }
-
-  eventSource.onerror = (error) => {
-    console.error('Error processing the event stream:', error)
-    eventSource.close()
-  }
-}
-
-function consumeRabbitEventStream() {
-  const streamUrl = `${import.meta.env.VITE_API_URL}/stats/stream/rabbit`
-
-  const eventSource = new EventSource(streamUrl, { withCredentials: true })
-
-  eventSource.onmessage = (event) => {
-    updateRabbitStats(event.data)
-  }
-
-  eventSource.onerror = (error) => {
-    console.error('Error processing the event stream:', error)
-    eventSource.close()
-  }
-}
-
-async function fetchExploitStats() {
-  try {
-    const response = await axios.get(`${import.meta.env.VITE_API_URL}/stats/exploits`, {
-      withCredentials: true
-    })
-    exploitsStats.value = response.data.map((exploit) => ({
-      ...exploit,
-      currentTick: {
-        retrieved: 0,
-        duplicates: 0,
-        targets: new Set()
-      }
-    }))
-  } catch (error) {
-    console.error('Error fetching exploit stats:', error)
-  }
-}
+watch([tickNumber, refreshTrigger], () => {
+  gameStatsStore.fetchStats();
+  currentTickStatsStore.fetchStats();
+})
 
 watch(tickNumber, () => {
-  resetDashboardStats()
-  fetchLatestDashboardStats()
-  fetchExploitStats()
+  currentTickStatsStore.resetDiscarded();
 })
 
 onMounted(() => {
-  consumeFlagEventStream()
-  consumeRabbitEventStream()
-})
-
-onUnmounted(() => {
-  aborter.abort()
-})
+  consumeFlagUpdateStream();
+});
 </script>
 
 <template>
-  <main>
-    <h2>
-      Statistics
-      <Icon icon="ri:donut-chart-fill" />
-    </h2>
-    <div class="grid-container column-300">
-      <ValueCard icon="ri:hourglass-2-fill" title="Queued" :number="queuedCount" />
-      <ValueCard icon="ri:reset-left-fill" title="Duplicates" :number="duplicatesCount" />
-      <ValueCard icon="ri:check-double-fill" title="Accepted" :number="acceptedCount" />
-      <ValueCard icon="ri:close-fill" title="Rejected" :number="rejectedCount" />
-    </div>
-
-    <div class="grid-container column-500">
-      <ValueChartCard
-        icon="ri:speed-up-fill"
-        title="Retrieval speed"
-        :number="retrievalRate"
-        :unit="'flags/s'"
-        :data="retrievalHistory.map((obj) => obj.sample) || [0, 0]"
-        :labels="retrievalHistory.map((obj) => obj.timestamp) || [0, 0]"
-      />
-      <ValueChartCard
-        icon="ri:speed-up-fill"
-        title="Submission speed"
-        :number="submissionRate"
-        :unit="'flags/s'"
-        :data="submissionHistory.map((obj) => obj.sample) || [0, 0]"
-        :labels="submissionHistory.map((obj) => obj.timestamp) || [0, 0]"
-      />
-    </div>
-
-    <div class="columns-2" style="margin-top: 40px; margin-bottom: 40px">
-      <div class="column">
-        <h2>
-          Exploits
-          <Icon icon="ri:sword-line" />
-        </h2>
-        <div v-if="!exploitsStats.length" class="empty-exploits">
-          <Icon icon="mdi:dinosaur-pixel" />
-          <p>No exploits yet</p>
-        </div>
-        <div class="grid-container column-200">
-          <ExploitCard
-            v-for="exploit in exploitsStats"
-            :key="exploit.name"
-            :title="exploit.name"
-            :history="exploit.history"
-            :retrieved="exploit.currentTick.retrieved"
-            :duplicates="exploit.currentTick.duplicates"
-            :targets="exploit.currentTick.targets"
-          />
-        </div>
-      </div>
-      <div class="column">
-        <h2>
-          Timeline
-          <Icon icon="ri:time-line" />
-        </h2>
-        <Timeline />
-      </div>
-    </div>
-  </main>
+  <h2>
+    <Icon icon="ri:bar-chart-fill" />
+    Game stats
+  </h2>
+  <div class="card-grid">
+    <Card title="Flags in queue" :value="gameStatsStore.stats?.queued ?? 0" icon="ri:flag-line" backgroundIcon />
+    <Card title="Total accepted flags" :value="gameStatsStore.stats?.accepted ?? 0" icon="ri:check-double-fill"
+      backgroundIcon :subtext="`${gameStatsStore.stats?.accepted_previous_tick ?? 0} in the previous tick`" />
+    <Card title="Total rejected flags" :value="gameStatsStore.stats?.rejected ?? 0" icon="ri:close-line" backgroundIcon
+      :subtext="`${gameStatsStore.stats?.rejected_previous_tick ?? 0} in the previous tick`" />
+  </div>
+  <h2>
+    <Icon icon="ri:timer-flash-line" />
+    Current tick — <b>{{ tickNumber }}</b> / {{ configStore.config?.schedule.total_ticks }}
+  </h2>
+  <div class="card-grid">
+    <Card title="Queued flags" :value="currentTickStatsStore.stats?.queued ?? 0" icon="ri:flag-line" backgroundIcon />
+    <Card title="Discarded (duplicate) flags" :value="currentTickStatsStore.stats?.discarded ?? 0"
+      icon="ri:flag-off-line" backgroundIcon />
+    <Card title="Accepted flags" :value="currentTickStatsStore.stats?.accepted ?? 0" icon="ri:check-double-fill"
+      backgroundIcon
+      :subtext="currentTickStatsStore.stats?.accepted_delta >= 0 ? `+${currentTickStatsStore.stats.accepted_delta} compared to the previous tick` : `${currentTickStatsStore.stats.accepted_delta} compared to the previous tick`" />
+    <Card title="Rejected flags" :value="currentTickStatsStore.stats?.rejected ?? 0" icon="ri:close-line" backgroundIcon
+      :subtext="currentTickStatsStore.stats?.rejected_delta >= 0 ? `+${currentTickStatsStore.stats.rejected_delta} compared to the previous tick` : `${currentTickStatsStore.stats.rejected_delta} compared to the previous tick`" />
+  </div>
+  <h2 style="display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; text-align: left;">
+    <span>
+      <Icon icon="ri:sword-line" />
+      Exploits
+    </span>
+    <span style="margin-left: 0.5rem;">
+      <Icon icon="ri:fire-line" />
+      Attack Heatmap
+    </span>
+    <span style="margin-left: 0.5rem;">
+      <Icon icon="ri:time-line" />
+      Timeline
+    </span>
+  </h2>
+  <div class="card-grid">
+    <ExploitsTable :tableData="[
+      { type: 'manual', alias: 'Alpha', worker: 'Worker X', accepted: 15, rejected: 3, queued: 7, discarded: 2, targetHits: 5, acceptedLastTenTicks: [12, 25, 18, 30, 22, 5, 10, 20, 28, 35] },
+      { type: 'worker', alias: 'Beta', worker: 'Worker Y', accepted: 9, rejected: 2, queued: 3, discarded: 1, targetHits: 4, acceptedLastTenTicks: [5, 10, 5, 20, 25, 30, 5, 40, 45, 50] },
+      { type: 'manual', alias: 'Gamma', worker: 'Worker Z', accepted: 11, rejected: 4, queued: 5, discarded: 0, targetHits: 6, acceptedLastTenTicks: [8, 16, 24, 32, 40, 2, 20, 28, 36, 44] },
+      { type: 'worker', alias: 'Delta', worker: 'Worker A', accepted: 13, rejected: 1, queued: 4, discarded: 3, targetHits: 2, acceptedLastTenTicks: [10, 20, 30, 40, 15, 5, 35, 5, 12, 22] },
+      { type: 'manual', alias: 'Epsilon', worker: 'Worker B', accepted: 8, rejected: 5, queued: 6, discarded: 1, targetHits: 3, acceptedLastTenTicks: [7, 14, 21, 28, 35, 42, 10, 18, 26, 34] },
+      { type: 'worker', alias: 'Zeta', worker: 'Worker C', accepted: 10, rejected: 2, queued: 8, discarded: 2, targetHits: 4, acceptedLastTenTicks: [9, 8, 27, 6, 45, 12, 24, 0, 40, 50] },
+      { type: 'manual', alias: 'Eta', worker: 'Worker D', accepted: 14, rejected: 3, queued: 2, discarded: 0, targetHits: 7, acceptedLastTenTicks: [6, 2, 18, 24, 30, 36, 2, 48, 15, 25] },
+      { type: 'worker', alias: 'Theta', worker: 'Worker E', accepted: 12, rejected: 1, queued: 5, discarded: 3, targetHits: 6, acceptedLastTenTicks: [11, 22, 33, 44, 10, 0, 30, 40, 5, 15] },
+      { type: 'manual', alias: 'Iota', worker: 'Worker F', accepted: 7, rejected: 4, queued: 3, discarded: 1, targetHits: 2, acceptedLastTenTicks: [5, 10, 15, 20, 25, 30, 5, 4, 45, 50] }
+    ]" />
+    <AttackMatrixCard />
+    <TimelineCard />
+  </div>
 </template>
 
 <style scoped>
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1rem;
+  align-items: start;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
 h2 {
-  margin: 0;
-  font-weight: 600;
-  margin-bottom: 20px;
-  display: flex;
-  gap: 10px;
+  color: #aaaaaa;
+  font-size: 10pt;
+  font-weight: 400;
+  margin-top: 0px;
+  margin-bottom: 10px;
 }
 
 h2 .iconify {
-  font-size: 28px;
-}
-
-.grid-container {
-  display: grid;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.grid-container.column-200 {
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-}
-
-.grid-container.column-300 {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
-
-.grid-container.column-500 {
-  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
-}
-
-.columns-2 {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.column {
-  flex: 1 1 calc(50% - 10px);
-  box-sizing: border-box;
-}
-
-.empty-exploits {
-  text-align: center;
-  color: #6b6b6b;
-}
-
-.empty-exploits .iconify {
-  font-size: 72px;
-}
-
-.empty-exploits p {
-  margin: 0;
-}
-
-@media (max-width: 500px) {
-  .column {
-    flex: 1 1 100%;
-  }
+  font-size: 18px;
+  vertical-align: bottom;
+  margin-right: 2px;
 }
 </style>

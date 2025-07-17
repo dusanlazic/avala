@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DashboardView from '../views/DashboardView.vue'
-import FlagBrowserView from '@/views/FlagBrowserView.vue'
-import ManualSubmissionView from '@/views/ManualSubmissionView.vue'
+import ExploitsView from '@/views/ExploitsView.vue'
+import FlagsView from '@/views/FlagsView.vue'
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -9,19 +10,19 @@ const router = createRouter({
     {
       path: '/',
       name: 'dashboard',
-      component: DashboardView
+      component: DashboardView,
+    },
+    {
+      path: '/exploits',
+      name: 'exploits',
+      component: ExploitsView,
     },
     {
       path: '/flags',
       name: 'flags',
-      component: FlagBrowserView
+      component: FlagsView,
     },
-    {
-      path: '/submit',
-      name: 'submit',
-      component: ManualSubmissionView
-    }
-  ]
+  ],
 })
 
 export default router
