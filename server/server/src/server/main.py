@@ -78,13 +78,13 @@ for router in [
 if config.server.cors:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[config.server.cors],
+        allow_origins=list(config.server.cors),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    logger.info("CORS enabled for origins: %s", config.server.cors)
+    logger.info("CORS enabled for origins: %s" % ", ".join(config.server.cors))
 
 # Serve static files if configured
 if config.server.dashboard:
