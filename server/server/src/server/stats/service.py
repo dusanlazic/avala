@@ -48,18 +48,18 @@ async def get_distinct_exploits(db: Database) -> set[str]:
 async def count_flags_by_status_and_tick_range(
     db: Database,
     status: str,
-    before_tick: int | None = None,
     after_tick: int | None = None,
+    before_tick: int | None = None,
 ) -> int:
     """
     Count the number of flags in the database based on their status and tick range. Tick numbers are inclusive.
     """
     query = select(func.count(Flag.id)).filter(Flag.status == status)
 
-    if before_tick is not None:
-        query = query.filter(Flag.tick <= before_tick)
     if after_tick is not None:
         query = query.filter(Flag.tick >= after_tick)
+    if before_tick is not None:
+        query = query.filter(Flag.tick <= before_tick)
 
     result = await db.execute(query)
     count = result.scalar_one()
