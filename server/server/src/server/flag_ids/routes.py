@@ -1,5 +1,3 @@
-from typing import Any
-
 from fastapi import APIRouter, Depends, Query, Response, status
 
 from server.auth import get_current_user

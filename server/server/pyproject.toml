@@ -23,11 +23,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = [
-    "ipython>=9.1.0",
-    "mypy>=1.15.0",
-    "ruff>=0.11.5",
-]
+dev = ["ipython>=9.1.0", "mypy>=1.15.0", "ruff>=0.11.5"]
 
 [tool.mypy]
 ignore_missing_imports = true
