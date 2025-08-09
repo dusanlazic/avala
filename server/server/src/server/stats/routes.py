@@ -20,7 +20,7 @@ async def get_target_hosts(db: Database):
     Retrieve the list of target hosts.
     """
     hosts = await service.get_target_hosts(db)
-    return sorted(hosts)
+    return service.sort_hosts(hosts)
 
 
 @router.get("/services", response_model=list[str])
