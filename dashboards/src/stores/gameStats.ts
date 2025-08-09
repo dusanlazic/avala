@@ -37,37 +37,10 @@ export const useGameStatsStore = defineStore('gameStats', () => {
     }
   }
 
-  function incrementQueued(delta: number = 1) {
-    if (stats.value) {
-      stats.value.queued += delta;
-    } else {
-      console.warn("Attempted to increment 'queued' but stats object is null.");
-    }
-  }
-
-  function incrementAccepted(delta: number = 1) {
-    if (stats.value) {
-      stats.value.accepted += delta;
-    } else {
-      console.warn("Attempted to increment 'accepted' but stats object is null.");
-    }
-  }
-
-  function incrementRejected(delta: number = 1) {
-    if (stats.value) {
-      stats.value.rejected += delta;
-    } else {
-      console.warn("Attempted to increment 'rejected' but stats object is null.");
-    }
-  }
-
   return {
     stats,
     isLoading,
     error,
     fetchStats,
-    incrementQueued,
-    incrementAccepted,
-    incrementRejected,
   };
 });

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi_cache.decorator import cache
 
 from server.auth import get_current_user
-from server.database import Database, broadcast
+from server.database import Database
 
 from . import service
 from .schemas import CurrentTickResponse, TotalNumbersResponse
@@ -10,7 +10,11 @@ from .schemas import CurrentTickResponse, TotalNumbersResponse
 router = APIRouter(prefix="/stats", tags=["stats"], dependencies=[Depends(get_current_user)])
 
 
+CACHE_DURATION = 3  # Cache data for 3 seconds
+
+
 @router.get("/hosts", response_model=list[str])
+@cache(expire=CACHE_DURATION)
 async def get_target_hosts(db: Database):
     """
     Retrieve the list of target hosts.
@@ -20,6 +24,7 @@ async def get_target_hosts(db: Database):
 
 
 @router.get("/services", response_model=list[str])
+@cache(expire=CACHE_DURATION)
 async def get_target_services(db: Database):
     """
     Retrieve the list of target services.
@@ -29,6 +34,7 @@ async def get_target_services(db: Database):
 
 
 @router.get("/exploits", response_model=list[str])
+@cache(expire=CACHE_DURATION)
 async def get_distinct_exploits(db: Database):
     """
     Retrieve the list of distinct exploits.
@@ -38,6 +44,7 @@ async def get_distinct_exploits(db: Database):
 
 
 @router.get("/totals", response_model=TotalNumbersResponse)
+@cache(expire=CACHE_DURATION)
 async def get_total_numbers(db: Database):
     """
     Retrieve the total number of flags in queue, accepted and rejected flags.
@@ -58,6 +65,7 @@ async def get_total_numbers(db: Database):
 
 
 @router.get("/current-tick", response_model=CurrentTickResponse)
+@cache(expire=CACHE_DURATION)
 async def get_current_tick_numbers(db: Database):
     """
     Retrieve the number of flags queued, accepted and rejected during the current tick.
@@ -90,6 +98,7 @@ async def get_current_tick_numbers(db: Database):
 
 
 @router.get("/tick-graph", response_model=list[int])
+@cache(expire=CACHE_DURATION)
 async def get_tick_graph(db: Database, status: str | None = None, exploit: str | None = None):
     """
     Retrieve the tick graph for flags with the given status and exploit.
@@ -98,6 +107,7 @@ async def get_tick_graph(db: Database, status: str | None = None, exploit: str |
 
 
 @router.get("/attack-heatmap", response_model=list[list[int]])
+@cache(expire=CACHE_DURATION)
 async def get_attack_heatmap(
     db: Database,
     status: str | None = None,
@@ -111,6 +121,7 @@ async def get_attack_heatmap(
 
 
 @router.get("/exploits-table")
+@cache(expire=CACHE_DURATION)
 async def get_exploits_table(
     db: Database,
 ):
@@ -118,24 +129,3 @@ async def get_exploits_table(
     Retrieve the contents for filling the exploits table.
     """
     return await service.fetch_exploit_data(db)
-
-
-@router.get("/flags-stream")
-async def get_flags_stream():
-    return StreamingResponse(
-        flags_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
-    )
-
-
-async def flags_stream():
-    try:
-        async with broadcast.subscribe("flags") as subscriber:
-            async for event in subscriber:
-                yield "data: %s\n\n" % event.message
-    except Exception:
-        return

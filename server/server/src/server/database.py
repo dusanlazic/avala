@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from typing import Annotated, AsyncIterator
 
 from avala.common.config import config
-from broadcaster import Broadcast
 from fastapi import Depends
 from sqlalchemy import DateTime, String, Text, select
 from sqlalchemy.dialects.postgresql import UUID
@@ -20,8 +19,6 @@ POSTGRESQL_URL = "postgresql+asyncpg://%s:%s@%s:%d/%s" % (
     config.database.port,
     config.database.name,
 )
-
-broadcast = Broadcast(POSTGRESQL_URL.replace("postgresql+asyncpg", "postgresql"))
 
 
 class Base(DeclarativeBase):

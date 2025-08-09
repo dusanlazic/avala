@@ -7,7 +7,6 @@ import { Icon } from '@iconify/vue'
 import { useConfigStore } from '@/stores/config';
 import { useGameStatsStore } from '@/stores/gameStats';
 import { useCurrentTickStatsStore } from '@/stores/currentTickStats';
-import { useAttackStatsStore } from '@/stores/attackStats';
 import { inject, onMounted, watch, type Ref } from 'vue';
 
 interface FlagUpdateMessage {
@@ -21,35 +20,9 @@ interface FlagUpdateMessage {
 const configStore = useConfigStore();
 const gameStatsStore = useGameStatsStore();
 const currentTickStatsStore = useCurrentTickStatsStore();
-const attackStatsStore = useAttackStatsStore();
 
 const tickNumber = inject<Ref<number>>('tickNumber');
 const refreshTrigger = inject<Ref<number>>('refreshTrigger');
-
-function consumeFlagUpdateStream() {
-  const streamUrl = `${import.meta.env.VITE_API_URL}/stats/flags-stream`
-
-  const eventSource = new EventSource(streamUrl, {
-    withCredentials: true,
-  });
-
-  eventSource.onmessage = (event) => {
-    const flagUpdate: FlagUpdateMessage = JSON.parse(event.data);
-
-    switch (flagUpdate.status) {
-      case 'queued':
-        currentTickStatsStore.incrementQueued(flagUpdate.delta);
-        gameStatsStore.incrementQueued(flagUpdate.delta);
-        attackStatsStore.incrementExploitField(flagUpdate.exploit, 'flags_queued_current_tick', flagUpdate.delta);
-        break;
-      case 'discarded':
-        currentTickStatsStore.incrementDiscarded(flagUpdate.delta);
-        break;
-      default:
-        console.warn(`Unknown flag status: ${flagUpdate.status}`);
-    }
-  }
-}
 
 watch([tickNumber, refreshTrigger], () => {
   gameStatsStore.fetchStats();
@@ -59,10 +32,6 @@ watch([tickNumber, refreshTrigger], () => {
 watch(tickNumber, () => {
   currentTickStatsStore.resetDiscarded();
 })
-
-onMounted(() => {
-  consumeFlagUpdateStream();
-});
 </script>
 
 <template>

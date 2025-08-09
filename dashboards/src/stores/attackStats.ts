@@ -78,26 +78,6 @@ export const useAttackStatsStore = defineStore('attackStats', () => {
     ]);
   }
 
-  function incrementExploitField(exploitName: string, field: keyof ExploitTableEntry, delta: number = 1) {
-    if (!exploitsTable.value) {
-      console.warn(`Attempted to increment field '${String(field)}' for exploit '${exploitName}', but exploitsTable is null.`);
-      return;
-    }
-
-    const exploitEntry = exploitsTable.value.find(exp => exp.exploit_name === exploitName);
-
-    if (!exploitEntry) {
-      console.warn(`Exploit '${exploitName}' not found in exploitsTable.`);
-      return;
-    }
-
-    if (typeof exploitEntry[field] === 'number') {
-      (exploitEntry[field] as number) += delta;
-    } else {
-      console.warn(`Attempted to increment field '${String(field)}' which is not a number for exploit '${exploitName}'.`);
-    }
-  }
-
 
   return {
     hosts,
@@ -108,6 +88,5 @@ export const useAttackStatsStore = defineStore('attackStats', () => {
     fetchServices,
     fetchExploitsTable,
     fetchAllAttackStats,
-    incrementExploitField,
   };
 });

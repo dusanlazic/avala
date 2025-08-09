@@ -4,10 +4,9 @@ import aio_pika
 from avala.common.clock import get_tick_number
 from sqlalchemy import select
 
-from server.database import Database, broadcast
+from server.database import Database
 from server.messaging import Channel
 
-from ..stats.schemas import FlagUpdateMessage
 from .models import Flag
 
 
@@ -24,19 +23,6 @@ async def enqueue_flags(
     new_flag_values = values - set(dup_flag_values)
 
     if not new_flag_values:
-        if dup_flag_values:
-            # Stream live data to dashboard
-            await broadcast.publish(
-                channel="flags",
-                message=FlagUpdateMessage(
-                    host=host,
-                    service=service,
-                    exploit=exploit,
-                    status="discarded",
-                    delta=len(dup_flag_values),
-                ).model_dump_json(),
-            )
-
         return 0, len(dup_flag_values)
 
     # Persist the new flags in the database
@@ -55,18 +41,6 @@ async def enqueue_flags(
         ]
     )
     await db.commit()
-
-    # Stream live data to dashboard
-    await broadcast.publish(
-        channel="flags",
-        message=FlagUpdateMessage(
-            host=host,
-            service=service,
-            exploit=exploit,
-            status="queued",
-            delta=len(new_flag_values),
-        ).model_dump_json(),
-    )
 
     # Publish the new flags for processing
     messages = [
