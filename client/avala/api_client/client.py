@@ -36,6 +36,15 @@ class APIClient:
 
     @classmethod
     def connect_or_exit(cls, connection: ConnectionConfig) -> "APIClient":
+        """
+        Connect to the Avala server and return an APIClient instance, or exit the program
+        with an error message if the connection fails.
+
+        :param connection: Connection configuration for the Avala server.
+        :type connection: ConnectionConfig
+        :return: An instance of APIClient.
+        :rtype: APIClient
+        """
         try:
             return cls(connection)
         except Exception as e:
