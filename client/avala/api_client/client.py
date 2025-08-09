@@ -127,7 +127,8 @@ class APIClient:
         response = self.client.get(
             "/flag-ids",
             params={"wait": True},
-            timeout=self.schedule.tick_duration.total_seconds(),
+            timeout=self.schedule.tick_duration.total_seconds()
+            - 1,  # Subtract 1 second to prevent scheduler jobs from overlapping
         )
         response.raise_for_status()
 
@@ -142,8 +143,7 @@ class APIClient:
         currently available flag IDs.
 
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
-        :return: Flag ids for all targets across all services, covering the last N ticks
-        as provided by the game server.
+        :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedFlagIds
         """
         response = self.client.get("/flag-ids")
