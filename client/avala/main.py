@@ -3,6 +3,7 @@ import importlib.util
 import json
 import logging
 import re
+import time
 from datetime import datetime
 from multiprocessing import Process
 from pathlib import Path
@@ -10,7 +11,7 @@ from queue import Empty
 from typing import Any, Callable, Iterable, Literal
 
 import tzlocal
-from apscheduler.schedulers.background import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from httpx import HTTPStatusError, RequestError
 from pydantic import AwareDatetime, ValidationError
 
@@ -61,7 +62,7 @@ class Avala:
         )
         self._worker_name: str = name
         self._client: APIClient = APIClient(self._connection)
-        self._scheduler: BlockingScheduler
+        self._scheduler: BackgroundScheduler
         self._blob_storage: BlobStorage | None = BlobStorage(redis_url, "avala_blobs") if redis_url else None
         self._flag_ids_hash_storage: FlagIdsHashStorage | None = (
             FlagIdsHashStorage(redis_url, "avala_flag_hashes") if redis_url else None
@@ -87,20 +88,12 @@ class Avala:
         self._show_banner()
         self._validate_directories()
 
-        self._scheduler = BlockingScheduler()
+        self._scheduler = BackgroundScheduler()
         self._client = APIClient.connect_or_exit(self._connection)
 
         self._save_config_to_json()
 
         logging.getLogger("apscheduler.executors.default").setLevel(logging.CRITICAL)
-
-        self._scheduler.add_job(
-            func=self._schedule_exploits,
-            trigger="interval",
-            seconds=self._client.schedule.tick_duration.total_seconds(),
-            id="schedule_exploits",
-            next_run_time=self._get_next_tick_start(),
-        )
 
         if self._unsent_flag_storage is not None:
             self._scheduler.add_job(
@@ -113,6 +106,16 @@ class Avala:
 
         try:
             self._scheduler.start()
+            while True:
+                # WARNING: We intentionally avoid scheduling `_schedule_exploits()` with APScheduler.
+                # The `pwntools` library used in attack scripts is not compatible with APScheduler's
+                # threading model. To work around this, the method is called in a blocking loop,
+                # and we use `time.sleep()` to pause until the next tick.
+                self._schedule_exploits()
+                seconds_before_next_tick = (
+                    self._get_next_tick_start() - datetime.now(tzlocal.get_localzone())
+                ).total_seconds()
+                time.sleep(seconds_before_next_tick)
         except (KeyboardInterrupt, SystemExit):
             print()  # Add a newline after the ^C
             self._scheduler.shutdown()
@@ -322,7 +325,6 @@ class Avala:
 
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                # TODO: Patch pwntools problem
 
                 for _, func in module.__dict__.items():
                     if (
@@ -542,24 +544,12 @@ class Avala:
         tick_duration = self._client.schedule.tick_duration
         now: AwareDatetime = datetime.now(tzlocal.get_localzone())
 
-        game_has_started = first_tick_start > now
+        game_has_started = now > first_tick_start
 
         if not game_has_started:
             return first_tick_start
 
         return now + tick_duration - (now - first_tick_start) % tick_duration
-
-    @staticmethod
-    def _patch_pwntools(file_path: Path) -> str:
-        """
-        Comments out `from pwn import *` to prevent "signal only works in main thread of the main interpreter" error
-
-        :param code: Path to the Python file containing the exploit code.
-        :type code: str
-        :return: Exploit code without `from pwn import *`
-        :rtype: str
-        """
-        return file_path.read_text().replace("from pwn import *\n", "# from pwn import *\n")
 
     def _save_config_to_json(self) -> None:
         """
