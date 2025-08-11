@@ -1,0 +1,39 @@
+site_name: ""
+site_url: https://avala.lazicdusan.com
+theme:
+  name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.ico
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.instant
+  palette:
+    scheme: slate
+    primary: black
+    accent: red
+    theme: dark
+markdown_extensions:
+- attr_list
+- md_in_html
+- def_list
+- admonition
+- pymdownx.details
+- pymdownx.superfences:
+    custom_fences:
+      - name: mermaid
+        class: mermaid
+        format: !!python/name:pymdownx.superfences.fence_code_format
+- pymdownx.highlight:
+    anchor_linenums: true
+- pymdownx.tabbed:
+    alternate_style: true 
+- pymdownx.tasklist:
+    custom_checkbox: true
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg
+- toc:
+    permalink: true
+extra_css:
+  - stylesheets/extra.css
