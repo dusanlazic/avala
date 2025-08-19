@@ -1,5 +1,7 @@
 site_name: ""
 site_url: https://avala.lazicdusan.com
+repo_url: https://github.com/dusanlazic/avala
+repo_name: dusanlazic/avala
 theme:
   name: material
   logo: assets/logo.svg
@@ -8,6 +10,7 @@ theme:
     - content.code.copy
     - navigation.footer
     - navigation.instant
+    - navigation.tabs
   palette:
     scheme: slate
     primary: black
@@ -37,3 +40,12 @@ markdown_extensions:
     permalink: true
 extra_css:
   - stylesheets/extra.css
+
+nav:
+  - Configuring the server:
+      - Overview: server/index.md
+      - Writing submitter script: server/submitter.md
+      - Writing flag IDs script: server/flag-ids.md
+      - Configuration: server/configuration.md
+      - Docker build: server/docker-build.md
+      - Docker compose: server/docker-compose.md
