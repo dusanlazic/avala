@@ -27,9 +27,8 @@ server-workspace/
 
 As a first step, **create an empty folder on your server**. The next steps will guide you through the entire process of setting up the Avala server.
 
-- [x] [Create an empty directory on your server](./index.md)
-- [ ] [Write the **submitter** script](./submitter.md)
-- [ ] [Write the **flag ID fetching** script](./flag-ids.md)
+- [x] [Create an empty directory on your server](./index.md) ✅
+- [ ] [Write the **submitter** script](./submitter.md) 👈
+- [ ] [Write the **flag IDs fetching** script](./flag-ids.md)
 - [ ] [Configure the Avala server](./configuration.md)
-- [ ] [Get the Docker image](./docker-build.md)
 - [ ] [Launch all containers using Docker Compose](./docker-compose.md)

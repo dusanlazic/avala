@@ -8,7 +8,7 @@ As a first step, create a file named `submitter.py` in your directory.
 
 ## Script structure
 
-You can submit the flags in **batches** that get submitted in fixed intervals, or in a single or multiple continuous **streams**. Both approaches will require you to write a function named `submit`, and optionally `setup` and `teardown` functions.
+You can submit the flags in **batches** that are sent in fixed intervals, or in a single or multiple continuous **streams** submitting flags one by one. Both approaches will require you to write a function named `submit`, with optional `setup` and `teardown` functions described below.
 
 ### Batch submission
 
@@ -16,52 +16,61 @@ You can submit the flags in **batches** that get submitted in fixed intervals, o
 
 The `submit` function must accept a `list` of flags and is expected to return a `list` of `tuples`, where each tuple consists of a submission status (`"accepted"`, `"rejected"`, or `"requeued"`), a message from the service (`str`), and the original flag (`str`).
 
+```py
+from typing import Literal
+
+def submit(flags: list[str]) -> list[tuple[Literal["accepted", "rejected", "requeued"], str, str]]:
+    """
+    Submits a list of flags and returns their status based on the flag checking 
+    service's response. Returns a list of tuples, where each tuple contains the
+    flag's status (accepted, rejected, or requeued), the response message, and 
+    the original flag.
+
+    Use this when the flag checking service allows submitting multiple flags
+    at once (e.g. over HTTP).
+    """
+
+    return [
+        ("accepted", "FLAG_3B37DF144CE4A83566BB OK", "FLAG_3B37DF144CE4A83566BB"),
+        ("rejected", "FLAG_FEECD28345E360BA3775 OLD", "FLAG_FEECD28345E360BA3775")
+    ]
+```
+
 ### Stream submission
 
-**Stream submission** should be used for competitions that accept flags one at the time, typically via **raw TCP**. Avala handles the submission by routing each obtained flag to an instance of the submission stream.
+**Stream submission** should be used for competitions that accept flags one at the time, typically via **raw TCP**. Avala handles the submission by sending each flag immediatelly upon capture.
 
 The `submit` function must accept a single flag (`str`) and is expected to return a `tuple` consisting of the submission status (`"accepted"`, `"rejected"`, or `"requeued"`) and the message from the service (`str`).
 
-If you're submitting flags over TCP, it's efficient to reuse a single connection for multiple flag submissions, which is why Avala supports [using the context](#using-the-context).
+```py
+from typing import Literal
 
-### Using the context
+def submit(flag: str) -> tuple[Literal["accepted", "rejected", "requeued"], str]:
+    """
+    Submits a single flag to the flag checking service. Returns a tuple
+    containing the flag's status (accepted, rejected, or requeued)
+    and the response message from the service.
+
+    Use this when the flag checking service allows submitting only one flag
+    at the time (e.g. over TCP).
+    """
+
+    return "accepted", "FLAG_3B37DF144CE4A83566BB OK"
+```
+
+!!! tip "Important"
+
+    When submitting flags over TCP, it's much more efficient to reuse a single connection for submitting all the flags, which can be achieved with [persistent context](#persistent-context).
+
+### Persistent context
 
 If your submission process requires a persistent connection (e.g. `remote` from `pwn`), a session token (e.g. `Session` from `requests`), or any other shared state, you can manage the submission context using the `setup` and `teardown` functions.
 
-- The `setup` function runs once at the beginning and returns an object that is then passed to every `submit` call as the second argument.
-- The `teardown` function runs during the shutdown process to clean up any resources, such as closing a connection.
+- The `setup` function runs once at the beginning and returns an object that is passed to every `submit` call as the second argument.
+- The `teardown` function runs during the shutdown process to clean up any resources, such as closing the connection.
 
 All three functions, `submit`, `setup`, and `teardown`, can also be **coroutines** if you want to use `asyncio` and asynchronous libraries.
 
-### Templates
-
-
-=== "Batch"
-
-    ```py
-    from typing import Literal
-
-    def submit(flags: list[str]) -> list[tuple[Literal["accepted", "rejected", "requeued"], str, str]]:
-
-        # Submit a batch of flags, get the responses and determine statuses of each of the flags
-
-        return [
-            ("accepted", "FLAG_3B37DF144CE4A83566BB OK", "FLAG_3B37DF144CE4A83566BB"),
-            ("rejected", "FLAG_FEECD28345E360BA3775 OLD", "FLAG_FEECD28345E360BA3775")
-        ]
-    ```
-
-=== "Stream"
-
-    ```py
-    from typing import Literal
-
-    def submit(flag: str) -> tuple[Literal["accepted", "rejected", "requeued"], str]:
-
-        # Submit a single flag, get the response and determine the status
-
-        return "accepted", "FLAG_3B37DF144CE4A83566BB OK"
-    ```
 
 === "Batch with context"
 
@@ -69,12 +78,26 @@ All three functions, `submit`, `setup`, and `teardown`, can also be **coroutines
     from typing import Any, Literal
 
     def setup() -> Any:
-        # Object you return will be passed to every submit call
+        """
+        Gets called before the Avala server starts accepting flags. Use it to 
+        establish a TCP connection to the flag submitting service, initiate a
+        session, etc.
+        
+        Object returned from this function will be passed as the second argument
+        to the submit function.
+        """
         return {}
 
     def submit(flags: list[str], context: Any) -> list[tuple[Literal["accepted", "rejected", "requeued"], str, str]]:
+        """
+        Submits a list of flags and returns their status based on the flag checking 
+        service's response. Returns a list of tuples, where each tuple contains the
+        flag's status (accepted, rejected, or requeued), the response message, and 
+        the original flag.
 
-        # Submit a batch of flags, get the responses and determine statuses of each of the flags
+        Use this when the flag checking service allows submitting multiple flags
+        at once (e.g. over HTTP).
+        """
 
         return [
             ("accepted", "FLAG_3B37DF144CE4A83566BB OK", "FLAG_3B37DF144CE4A83566BB"),
@@ -82,7 +105,10 @@ All three functions, `submit`, `setup`, and `teardown`, can also be **coroutines
         ]
 
     def teardown(context: Any):
-        # Teardown the context if needed
+        """
+        Gets called during the shutdown process to clean up any resources,
+        such as closing the connection and similar.
+        """
         pass
     ```
 
@@ -92,17 +118,33 @@ All three functions, `submit`, `setup`, and `teardown`, can also be **coroutines
     from typing import Any, Literal
 
     def setup() -> Any:
-        # Object you return will be passed to every submit call
+        """
+        Gets called before the Avala server starts accepting flags. Use it to 
+        establish a TCP connection to the flag submitting service, initiate a
+        session, etc.
+        
+        Object returned from this function will be passed as the second argument
+        to the submit function.
+        """
         return {}
 
     def submit(flag: str, context: Any) -> tuple[Literal["accepted", "rejected", "requeued"], str]:
+        """
+        Submits a single flag to the flag checking service. Returns a tuple
+        containing the flag's status (accepted, rejected, or requeued)
+        and the response message from the service.
 
-        # Submit a batch of flags, get the responses and determine statuses of each of the flags
+        Use this when the flag checking service allows submitting only one flag
+        at the time (e.g. over TCP).
+        """
 
         return "accepted", "FLAG_3B37DF144CE4A83566BB OK"
 
     def teardown(context: Any):
-        # Teardown the context if needed
+        """
+        Gets called during the shutdown process to clean up any resources,
+        such as closing the connection and similar.
+        """
         pass
     ```
 
@@ -143,7 +185,7 @@ The following are complete `submitter.py` scripts from AD competitions Team Serb
         ]
     ```
 
-=== "ENOWARS8"
+=== "ENOWARS8 / Compete With Team Czechia 2024"
 
     ```py
     from typing import Literal
@@ -193,3 +235,20 @@ The following are complete `submitter.py` scripts from AD competitions Team Serb
 
         return "accepted" if "success" in response.text else "rejected", response.text
     ```
+
+## Next steps
+
+After completing your submitter script, in your directory you should have the following:
+
+```
+server-workspace/
+└── submitter.py
+```
+
+Next step is writing the flag ID fetching script.
+
+- [x] [Create an empty directory on your server](./index.md) ✅
+- [x] [Write the **submitter** script](./submitter.md) ✅
+- [ ] [Write the **flag IDs fetching** script](./flag-ids.md) 👈
+- [ ] [Configure the Avala server](./configuration.md)
+- [ ] [Launch all containers using Docker Compose](./docker-compose.md)

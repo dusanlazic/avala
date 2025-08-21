@@ -15,7 +15,6 @@ theme:
     scheme: slate
     primary: black
     accent: red
-    theme: dark
 markdown_extensions:
 - attr_list
 - md_in_html
@@ -42,10 +41,22 @@ extra_css:
   - stylesheets/extra.css
 
 nav:
-  - Configuring the server:
+  - Server setup:
       - Overview: server/index.md
       - Writing submitter script: server/submitter.md
       - Writing flag IDs script: server/flag-ids.md
       - Configuration: server/configuration.md
-      - Docker build: server/docker-build.md
       - Docker compose: server/docker-compose.md
+  - Exploit development:
+      - Overview: client/index.md
+      - Client setup: client/client-setup.md
+      - Decorator options: exploit/write-exploit.md
+      - Storage: exploit/storage.md
+      - Usage examples: exploit/examples.md
+      - Avala class: exploit/avala-class.md
+  - Infrastructure tips:
+      - Overview: infrastructure/index.md
+  - Troubleshooting:
+      - Overview: troubleshooting/index.md
+  - Contributing:
+      - Overview: contributing/index.md
