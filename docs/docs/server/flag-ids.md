@@ -2,7 +2,7 @@
 
 The same principles apply here as they do for the submitter script. Avala lets you write your own flag ID fetching script tailored to the competition's requirements. This script, written by you, is responsible for fetching the latest flag IDs and converting them to a standardized JSON format. Avala executes this script at the start of every tick and takes care of potential delays, network hiccups and other common issues during AD.
 
-Your flag IDs fetching script must adhere to one of the templates specified below. If you like to learn by examples, you'll find them at the [bottom of the page](#examples).
+Your flag IDs fetching script must adhere to the template specified below. If you like to learn by examples, you'll find them at the [bottom of the page](#examples).
 
 As a first step, create a file named `flag_ids.py` in your directory.
 

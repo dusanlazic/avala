@@ -8,7 +8,7 @@ As a first step, create a file named `submitter.py` in your directory.
 
 ## Script structure
 
-You can submit the flags in **batches** that are sent in fixed intervals, or in a single or multiple continuous **streams** submitting flags one by one. Both approaches will require you to write a function named `submit`, with optional `setup` and `teardown` functions described below.
+You can submit flags in **batches** that are sent in fixed intervals, or in a single or multiple continuous **streams** submitting flags one by one. Both approaches will require you to write a function named `submit`, with optional `setup` and `teardown` functions described below.
 
 ### Batch submission
 

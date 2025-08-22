@@ -40,10 +40,9 @@ class SubmitterConfig(BaseModel):
     script_path: FilePath = Field(default=Path("/etc/avala/submitter.py"))
     retries: PositiveInt = Field(default=5)
     interval: timedelta | None = Field(default=None)
-    batch_idle_timeout: timedelta = Field(default_factory=lambda: timedelta(seconds=15))
     per_tick: PositiveInt | None = Field(default=None)
     batch_size: PositiveInt | None = Field(default=None)
-    workers: PositiveInt | None = Field(default=None)
+    workers: PositiveInt | None = Field(default=None) # TODO: Replace with streams boolean
     threading: bool = Field(default=False)
 
     @model_validator(mode="before")
