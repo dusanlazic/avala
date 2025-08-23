@@ -3,7 +3,9 @@ hide:
 - toc
 ---
 
-Avala server is configured via `avala.yaml` file. 
+The `avala.yaml` file is the primary configuration file for your Avala server. It is where you define tick duration and flag format, fine-tune flag ID fetching and flag submission, configure authorization parameters and connection parameters to database and message queue. 
+
+Create a file named `avala.yaml` in your current directory and paste the following content. Adjust the parameters in each section as necessary to configure Avala based on your competition's rulebook and preferences.
 
 ```yaml
 #
@@ -48,7 +50,7 @@ game:
 
   # IP addresses or hostnames of the opponent teams.
   # There is usually just a single machine per team, but some competitions may have more.
-  # Make sure to include all hosts that belong to the opponent teams.
+  # Make sure to include ALL hosts that belong to the opponent teams.
   opp_team_hosts:
     - 10.10.2.1
     - 10.10.2.2
@@ -81,66 +83,70 @@ game:
 
 # Flag submission configuration
 submitter:
-  # Path to the submitter script. If running Avala in Docker, you likely don't need to change this.
+  # Path to the submitter script. If running Avala in Docker, you liekly don't need to change this.
   script_path: /etc/avala/submitter.py
 
   # Number of retries if flag submission fails with an error.
   retries: 5
-  
-  # If submitting in batches, choose batch_size and interval.
+
+  # If submitting in batches, set interval or per_tick, and batch_size.
   # Duration in seconds between submitting two batches of flags.
   # interval: 5
-  # Number of batches to submit over a single tick.
+  # OR
+  # Number of batches to submit during a single tick (interval will be calculated based on this value).
   # per_tick: 5
+  # Maximum size of a batch of flags. Think of HTTP request size, game server limitations and similar
+  # factors to avoid submitting a batch that's too large.
+  # batch_size: 50
 
-  # Maximum size of a single batch of flags. Think of HTTP request size, game server limitations and similar
-  # to avoid submitting a batch that's too large.
-  batch_size: 50
-
-  # Enable streaming
+  # If submitting in a stream, just uncomment the setting below.
   # stream: true
 
+  # [Experimental] Spawn a new thread for each call to the submit function. Not recommended
+  # if using persistent context in a thread-unsafe way. Disabled by default.
+  # threading: true
+
 # Flag IDs fetching
-attack_data:
-  # Name of the Python module responsible for fetching flag IDs.
-  # This should correspond to the file name of your submission script, without the .py extension.
-  module: flag_ids
+flag_ids:
+  # Path to the flag IDs fetching script. If running Avala in Docker, you liekly don't need to change this.
+  script_path: /etc/avala/flag_ids.py
 
   # Maximum number of attempts to fetch the flag IDs.
   # This is added to mitigate game-server latency issues. In case of failure,
   # the last fetched flag IDs will be reused.
-  max_attempts: 5
+  retries: 5
 
   # Interval (in seconds) between retrying to fetch flag IDs.
-  retry_interval: 1
+  interval: 2
 
-# Server configuration
+# Server access configuration
 server:
-  # Hostname or IP address for the server to bind to (0.0.0.0 for all interfaces).
+  # Hostname or IP address to bind to (0.0.0.0 for all interfaces).
   host: 0.0.0.0
 
   # Port number for the server to listen on.
   # Make sure this port is open and not blocked by any firewall rules.
   port: 2024
 
-  # Password used for authenticating clients connecting to the server and restrict
-  # access to the dashboard. It's recommended to use a strong password.
+  # Password for authorizing clients and allowing dashboard access.
+  # It's recommended to use a strong password.
   # https://www.random.org/strings/?num=1&len=32&digits=on&upperalpha=on&loweralpha=on&format=plain
-  password: strong_password
+  password: avalarocks
+
+  # Enable serving the dashboard (frontend app) at the root (/) URL.
+  # Leave this to true to simplify the setup process.
+  dashboard: true
 
   # List of allowed domains for Cross-Origin Resource Sharing (CORS).
   # Enable this if you're serving the frontend from a different domain.
-  # If you have frontend: true set below, you likely don't need this.
+  # If you have dashboard: true set above, you likely don't need this.
   # cors:
   #   - http://hakuj.me
   #   - https://hakuj.me
 
-  # Enable serving the dashboard (frontend app) at the root URL.
-  # Leave this to true to simplify the setup process.
-  frontend: true
-
 # Database connection settings
-# Note that it uses the hostname of the Postgres service defined in Docker Compose.
+# If running via Docker compose, ensure that the parameters and the hostname match 
+# those in compose.yaml.
 database:
   name: avala
   user: admin
@@ -149,7 +155,8 @@ database:
   port: 5432
 
 # RabbitMQ connection settings
-# Note that it uses the hostname of the RabbitMQ service defined in Docker Compose.
+# If running via Docker compose, ensure that the parameters and the hostname match 
+# those in compose.yaml.
 rabbitmq:
   user: guest
   password: guest
@@ -157,3 +164,22 @@ rabbitmq:
   port: 5672
   management_port: 15672
 ```
+
+## Next steps
+
+After configuring Avala via `avala.yaml` file, in your directory you should have the following:
+
+```
+server-workspace/
+├── avala.yaml
+├── flag_ids.py
+└── submitter.py
+```
+
+Next step is writing the flag ID fetching script.
+
+- [x] [Create an empty directory on your server](./index.md) ✅
+- [x] [Write the **submitter** script](./submitter.md) ✅
+- [x] [Write the **flag IDs fetching** script](./flag-ids.md) ✅
+- [x] [Configure the Avala server](./configuration.md) ✅
+- [ ] [Launch all containers using Docker Compose](./docker-compose.md) 👈
