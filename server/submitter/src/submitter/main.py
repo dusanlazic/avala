@@ -32,7 +32,7 @@ def determine_strategy() -> Literal["INTERVAL", "STREAM"]:
     field_strategy_map = {
         frozenset(["interval", "batch_size"]): "INTERVAL",
         frozenset(["per_tick", "batch_size"]): "INTERVAL",
-        frozenset(["workers"]): "STREAM",
+        frozenset(["stream"]): "STREAM",
     }
     allowed_fields = set().union(*field_strategy_map.keys())
 
@@ -135,9 +135,9 @@ def calculate_next_submit_time() -> timedelta:
         return (config.game.game_starts_at + interval) - now
 
 
-async def connect_to_rabbitmq() -> tuple[
-    aio_pika.abc.AbstractRobustConnection | None, aio_pika.abc.AbstractChannel | None
-]:
+async def connect_to_rabbitmq() -> (
+    tuple[aio_pika.abc.AbstractRobustConnection | None, aio_pika.abc.AbstractChannel | None]
+):
     """
     Connects to RabbitMQ using the configuration settings and returns the connection and channel objects.
     """

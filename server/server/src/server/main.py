@@ -17,7 +17,6 @@ from .flags.routes import router as flags_router
 from .messaging import connect_to_rabbitmq, declare_submission_queue
 from .scheduling import init_scheduler
 from .stats.routes import router as stats_router
-from .workers.routes import router as workers_router
 
 
 @asynccontextmanager
@@ -71,7 +70,6 @@ async def health():
 
 
 for router in [
-    workers_router,
     configure_router,
     flags_router,
     flag_ids_router,

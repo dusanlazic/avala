@@ -42,7 +42,7 @@ class SubmitterConfig(BaseModel):
     interval: timedelta | None = Field(default=None)
     per_tick: PositiveInt | None = Field(default=None)
     batch_size: PositiveInt | None = Field(default=None)
-    workers: PositiveInt | None = Field(default=None) # TODO: Replace with streams boolean
+    stream: bool | None = Field(default=None)
     threading: bool = Field(default=False)
 
     @model_validator(mode="before")
@@ -50,7 +50,7 @@ class SubmitterConfig(BaseModel):
         allowed_field_sets = [
             {"interval", "batch_size"},
             {"per_tick", "batch_size"},
-            {"workers"},
+            {"stream"},
         ]
         all_fields = set().union(*allowed_field_sets)
 
@@ -79,8 +79,6 @@ class APIConfig(BaseModel):
     password: str | None = Field(default=None)
     cors: set[str] = Field(default_factory=set)
     dashboard: bool = Field(default=True)
-    proxy_header: str | None = Field(default=None)
-    trusted_proxies: set[str] = Field(default_factory=set)
 
     model_config = ConfigDict(extra="forbid")
 
