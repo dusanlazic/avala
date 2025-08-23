@@ -7,6 +7,8 @@ The `avala.yaml` file is the primary configuration file for your Avala server. I
 
 Create a file named `avala.yaml` in your current directory and paste the following content. Adjust the parameters in each section as necessary to configure Avala based on your competition's rulebook and preferences.
 
+---
+
 ```yaml
 #
 #       db 
@@ -83,7 +85,7 @@ game:
 
 # Flag submission configuration
 submitter:
-  # Path to the submitter script. If running Avala in Docker, you liekly don't need to change this.
+  # Path to the submitter script. If running Avala in Docker, you likely don't need to change this.
   script_path: /etc/avala/submitter.py
 
   # Number of retries if flag submission fails with an error.
@@ -108,7 +110,7 @@ submitter:
 
 # Flag IDs fetching
 flag_ids:
-  # Path to the flag IDs fetching script. If running Avala in Docker, you liekly don't need to change this.
+  # Path to the flag IDs fetching script. If running Avala in Docker, you likely don't need to change this.
   script_path: /etc/avala/flag_ids.py
 
   # Maximum number of attempts to fetch the flag IDs.
@@ -182,4 +184,4 @@ Next step is writing the flag ID fetching script.
 - [x] [Write the **submitter** script](./submitter.md) ✅
 - [x] [Write the **flag IDs fetching** script](./flag-ids.md) ✅
 - [x] [Configure the Avala server](./configuration.md) ✅
-- [ ] [Launch all containers using Docker Compose](./docker-compose.md) 👈
+- [ ] [Launch all containers using Docker Compose](./launching.md) 👈

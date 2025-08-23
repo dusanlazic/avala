@@ -46,7 +46,7 @@ nav:
       - Writing submitter script: server/submitter.md
       - Writing flag IDs script: server/flag-ids.md
       - Configuration: server/configuration.md
-      - Docker compose: server/docker-compose.md
+      - Launching: server/launching.md
   - Exploit development:
       - Overview: client/index.md
       - Client setup: client/client-setup.md
@@ -54,6 +54,8 @@ nav:
       - Storage: exploit/storage.md
       - Usage examples: exploit/examples.md
       - Avala class: exploit/avala-class.md
+  - Attack monitoring:
+      - Overview: dashboard/index.md
   - Infrastructure tips:
       - Overview: infrastructure/index.md
   - Troubleshooting:

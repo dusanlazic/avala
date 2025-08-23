@@ -3,13 +3,13 @@ hide:
 - toc
 ---
 
-# Avala Server Overview
+# Avala server overview
 
 The **Avala** server is responsible for a number of key tasks:
 
 - Fetching and providing easy access to the latest flag IDs
 - Keeping all configuration in a single place
-- Synchronizing the attacks with the ticks
+- Synchronizing the attacks with the game ticks
 - Automatic flag submission
 - Real-time attack monitoring
 
@@ -31,4 +31,4 @@ As a first step, **create an empty folder on your server**. The next steps will 
 - [ ] [Write the **submitter** script](./submitter.md) 👈
 - [ ] [Write the **flag IDs fetching** script](./flag-ids.md)
 - [ ] [Configure the Avala server](./configuration.md)
-- [ ] [Launch all containers using Docker Compose](./docker-compose.md)
+- [ ] [Launch all containers using Docker Compose](./launching.md)

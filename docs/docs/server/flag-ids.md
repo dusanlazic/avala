@@ -6,6 +6,8 @@ Your flag IDs fetching script must adhere to the template specified below. If yo
 
 As a first step, create a file named `flag_ids.py` in your directory.
 
+---
+
 ## Script structure
 
 The flag ID fetching script is composed of two main functions: `fetch` and `process`. The `fetch` function is responsible for retrieving raw flag IDs from the game server, while the `process` function standardizes this raw data into a structured format that Avala can work with.
@@ -237,4 +239,4 @@ Next step is writing the flag ID fetching script.
 - [x] [Write the **submitter** script](./submitter.md) ✅
 - [x] [Write the **flag IDs fetching** script](./flag-ids.md) ✅
 - [ ] [Configure the Avala server](./configuration.md) 👈
-- [ ] [Launch all containers using Docker Compose](./docker-compose.md)
+- [ ] [Launch all containers using Docker Compose](./launching.md)

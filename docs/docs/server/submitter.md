@@ -6,6 +6,8 @@ Your submitter script must adhere to one of the templates specified below. If yo
 
 As a first step, create a file named `submitter.py` in your directory.
 
+---
+
 ## Script structure
 
 You can submit flags in **batches** that are sent in fixed intervals, or in a single or multiple continuous **streams** submitting flags one by one. Both approaches will require you to write a function named `submit`, with optional `setup` and `teardown` functions described below.
@@ -251,4 +253,4 @@ Next step is writing the flag ID fetching script.
 - [x] [Write the **submitter** script](./submitter.md) ✅
 - [ ] [Write the **flag IDs fetching** script](./flag-ids.md) 👈
 - [ ] [Configure the Avala server](./configuration.md)
-- [ ] [Launch all containers using Docker Compose](./docker-compose.md)
+- [ ] [Launch all containers using Docker Compose](./launching.md)
