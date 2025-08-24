@@ -18,7 +18,7 @@ You can submit flags in **batches** that are sent in fixed intervals, or in a si
 
 The `submit` function must accept a `list` of flags and is expected to return a `list` of `tuples`, where each tuple consists of a submission status (`"accepted"`, `"rejected"`, or `"requeued"`), a message from the service (`str`), and the original flag (`str`).
 
-```py
+```py title="submitter.py"
 from typing import Literal
 
 def submit(flags: list[str]) -> list[tuple[Literal["accepted", "rejected", "requeued"], str, str]]:
@@ -44,7 +44,7 @@ def submit(flags: list[str]) -> list[tuple[Literal["accepted", "rejected", "requ
 
 The `submit` function must accept a single flag (`str`) and is expected to return a `tuple` consisting of the submission status (`"accepted"`, `"rejected"`, or `"requeued"`) and the message from the service (`str`).
 
-```py
+```py title="submitter.py"
 from typing import Literal
 
 def submit(flag: str) -> tuple[Literal["accepted", "rejected", "requeued"], str]:

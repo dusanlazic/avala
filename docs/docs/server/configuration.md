@@ -9,7 +9,7 @@ Create a file named `avala.yaml` in your current directory and paste the followi
 
 ---
 
-```yaml
+```yaml title="avala.yaml"
 #
 #       db 
 #      ;MM:

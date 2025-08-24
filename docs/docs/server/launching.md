@@ -15,7 +15,7 @@ Create a file named `compose.yaml` in your current directory and paste the conte
 - **Docker image**: The services are configured to use images from Docker Hub. If your images have different names or are hosted on a different registry, you'll need to update the `image` field accordingly.
 - **Volumes**: The configuration uses Docker volumes to persist data for RabbitMQ and PostgreSQL. Ensure these are correctly set up if you are not using Docker's default volume management.
 
-```yaml
+```yaml title="compose.yaml"
 services:
   avala-server:
     image: avala-server

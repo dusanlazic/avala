@@ -12,7 +12,7 @@ As a first step, create a file named `flag_ids.py` in your directory.
 
 The flag ID fetching script is composed of two main functions: `fetch` and `process`. The `fetch` function is responsible for retrieving raw flag IDs from the game server, while the `process` function standardizes this raw data into a structured format that Avala can work with.
 
-```py
+```py title="flag_ids.py"
 from typing import Any
 import requests
 

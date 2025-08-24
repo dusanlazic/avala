@@ -5,7 +5,7 @@ hide:
 
 # Avala server overview
 
-The **Avala** server is responsible for a number of key tasks:
+The **Avala server** is responsible for a number of key tasks:
 
 - Fetching and providing easy access to the latest flag IDs
 - Keeping all configuration in a single place

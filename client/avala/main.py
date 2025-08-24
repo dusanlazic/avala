@@ -88,6 +88,9 @@ class Avala:
         self._show_banner()
         self._validate_directories()
 
+        # TODO: Allow running it without any directories and print out
+        # settings (tick number, tick duration, flag format...)
+
         self._scheduler = BackgroundScheduler()
         self._client = APIClient.connect_or_exit(self._connection)
 

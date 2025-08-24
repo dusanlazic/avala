@@ -49,11 +49,11 @@ nav:
       - Launching: server/launching.md
   - Exploit development:
       - Overview: client/index.md
-      - Client setup: client/client-setup.md
-      - Decorator options: exploit/write-exploit.md
-      - Storage: exploit/storage.md
-      - Usage examples: exploit/examples.md
-      - Avala class: exploit/avala-class.md
+      - Client setup: client/setup.md
+      - Decorator options: client/decorator.md
+      - Storage: client/storage.md
+      - Usage examples: client/examples.md
+      - Avala class: client/avala-class.md
   - Attack monitoring:
       - Overview: dashboard/index.md
   - Infrastructure tips:
