@@ -50,10 +50,10 @@ nav:
   - Exploit development:
       - Overview: client/index.md
       - Client setup: client/setup.md
-      - Decorator options: client/decorator.md
-      - Storage: client/storage.md
-      - Usage examples: client/examples.md
-      - Avala class: client/avala-class.md
+      - Visual Studio Code extension: client/vscode.md
+      - Writing exploits: client/exploit.md
+      - Decorator reference: client/decorator.md
+      - Utility functions: client/utils.md
   - Attack monitoring:
       - Overview: dashboard/index.md
   - Infrastructure tips:

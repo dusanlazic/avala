@@ -18,7 +18,7 @@ A virtual environment is a self-contained directory that holds a specific versio
 
 ## Install Avala library
 
-Once your virtual environment is created and activated, you can install the library using **pip**. The package is named `avala-ad` on the Python Package Index (PyPI).
+Once your virtual environment is created and activated, you can install the library via **pip**. The package is named `avala-ad` on the Python Package Index (PyPI).
 
 ```sh
 pip install avala-ad
@@ -43,14 +43,14 @@ avl = Avala(
 avl.start()
 ```
 
-Running the script should connect to the server and display server configuration. It will also warn you that no exploit directories are registered.
+Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet.
 
 !!! info  "TODO"
     asciinema replay of running the server
 
 ## Register exploit directories
 
-Avala client needs to know where the exploit scripts will be located at. Create a directory of arbitrary name in your current directory (e.g. `exploits`) and register it.
+Avala client needs to know where the exploit scripts will be located at. Create a directory of arbitrary name (e.g. `sploits`) in your current directory and register it.
 
 ```py title="client.py" hl_lines="10"
 from avala import Avala
@@ -62,9 +62,9 @@ avl = Avala(
     password="your server password"
 )
 
-avl.register_directory("exploits")
+avl.register_directory("sploits")
 
 avl.start()
 ```
 
-From now on, you can start writing exploits inside your `exploits` directory.
+From now on, you can start writing exploits inside your `sploits` directory.

