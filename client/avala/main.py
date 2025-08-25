@@ -61,7 +61,7 @@ class Avala:
             password=password,
         )
         self._worker_name: str = name
-        self._client: APIClient = APIClient(self._connection)
+        self._client: APIClient  # TODO: Implement connect method
         self._scheduler: BackgroundScheduler
         self._blob_storage: BlobStorage | None = BlobStorage(redis_url, "avala_blobs") if redis_url else None
         self._flag_ids_hash_storage: FlagIdsHashStorage | None = (
@@ -86,13 +86,11 @@ class Avala:
         runs indefinitely until interrupted.
         """
         self._show_banner()
-        self._validate_directories()
-
-        # TODO: Allow running it without any directories and print out
-        # settings (tick number, tick duration, flag format...)
 
         self._scheduler = BackgroundScheduler()
         self._client = APIClient.connect_or_exit(self._connection)
+
+        self._validate_directories()
 
         self._save_config_to_json()
 
@@ -272,8 +270,7 @@ class Avala:
                 directories=", ".join([d.name for d in valid_directories]),
             )
         else:
-            logger.error("❌ No directories found. Please register at least one directory.")
-            exit(1)
+            logger.error("❌ No exploit directories found! Register at least one directory to start running exploits.")
 
         self._exploit_directories = valid_directories
 
@@ -344,11 +341,15 @@ class Avala:
                     error=e,
                 )
 
-        logger.info(
-            "📥 Loaded <b>{count}</> exploits: {exploits}",
-            count=len(exploits),
-            exploits=", ".join(colorize(exploit.alias) for exploit in exploits),
-        )
+        if exploits:
+            logger.info(
+                "📥 Loaded <b>{count}</> exploits: {exploits}",
+                count=len(exploits),
+                exploits=", ".join(colorize(exploit.alias) for exploit in exploits),
+            )
+        else:
+            logger.warning("⚠️  No exploits loaded.")
+
         return exploits
 
     def _schedule_exploits(self) -> None:

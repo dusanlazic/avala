@@ -46,7 +46,32 @@ class APIClient:
         :rtype: APIClient
         """
         try:
-            return cls(connection)
+            instance = cls(connection)
+
+            logger.success(
+                "✅ Connected to Avala server at <b>{protocol}://{host}:{port}</> as <b>{username}</>.",
+                protocol=connection.protocol,
+                host=connection.host,
+                port=connection.port,
+                username=connection.username,
+            )
+
+            logger.info(
+                "Flag format: <b>{flag_format}</>",
+                flag_format=instance.game.flag_format,
+            )
+
+            logger.info(
+                "Tick duration: <b>{tick_duration}</> seconds",
+                tick_duration=instance.schedule.tick_duration.total_seconds(),
+            )
+
+            logger.info(
+                "Time of the first tick: <b>{first_tick_timestamp}</>",
+                first_tick_timestamp=instance.schedule.first_tick_start,
+            )
+
+            return instance
         except Exception as e:
             logger.error(
                 "Failed to connect to Avala server.\n\n<b>{error}</>\n{error_msg}\n",
