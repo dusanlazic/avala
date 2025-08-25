@@ -1,10 +1,10 @@
-site_name: ""
+site_name: "Avala Documentation"
 site_url: https://avala.lazicdusan.com
 repo_url: https://github.com/dusanlazic/avala
 repo_name: dusanlazic/avala
 theme:
   name: material
-  logo: assets/logo.svg
+  logo: assets/logo.png
   favicon: assets/favicon.ico
   features:
     - content.code.copy

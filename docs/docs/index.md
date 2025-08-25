@@ -6,7 +6,7 @@ hide:
 title: ""
 ---
 
-![Avala Logo](assets/logo.svg){ width="300" }
+# Avala Documentation
 
 **Avala** is a specialized tool built for rapid developing, testing, running and monitoring exploits in attack-defense CTF competitions. The goal of Avala is to take the technical burden off the team players, enabling them to focus on writing exploits and patching vulnerabilities.
 
@@ -14,7 +14,7 @@ The development of Avala was heavily influenced by the practical experiences and
 
 ---
 
-## Thank you for choosing Avala! 🎈
+### Thank you for choosing Avala! 🎈
 
 What do you need help with?
 
@@ -42,7 +42,7 @@ What do you need help with?
 
     Writing and running exploits, attack configuration, working with flag IDs, working with storage, examples...
 
-    [:octicons-arrow-right-24: Usage guide](exploits/workflow.md)
+    [:octicons-arrow-right-24: Usage guide](client/exploit.md)
 
 
 </div>
