@@ -14,11 +14,11 @@
         <link rel="prev" href="../">
       
       
-        <link rel="next" href="../vscode/">
+        <link rel="next" href="../cli/">
       
       
       <link rel="icon" href="../../assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.17">
     
     
       
@@ -688,6 +688,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../vscode/" class="md-nav__link">
         
   
@@ -1166,17 +1189,17 @@
 </code></pre></div>
 <h2 id="connect-to-the-server">Connect to the server<a class="headerlink" href="#connect-to-the-server" title="Permanent link">&para;</a></h2>
 <p>To configure Avala client, you just need to provide connection parameters for your Avala server.</p>
-<p>In your current directory, create a Python file of arbitrary name (e.g. <code>client.py</code>) and create an instance of <code>Avala</code>. Provide it your own connection parameters.</p>
-<div class="highlight"><span class="filename">client.py</span><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
+<p>In your current directory, create a Python file of arbitrary name (e.g. <code>app.py</code>) and create an instance of <code>Avala</code>. Provide it your own connection parameters.</p>
+<div class="highlight"><span class="filename">app.py</span><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">avl</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">app</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;avala.hakuj.me&quot;</span><span class="p">,</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">port</span><span class="o">=</span><span class="mi">2024</span><span class="p">,</span>
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;your nickname, can be any&quot;</span><span class="p">,</span>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;your server password&quot;</span>
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">)</span>
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">avl</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">app</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 </code></pre></div>
 <p>Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet.</p>
 <div class="admonition info">
@@ -1185,20 +1208,20 @@
 </div>
 <h2 id="register-exploit-directories">Register exploit directories<a class="headerlink" href="#register-exploit-directories" title="Permanent link">&para;</a></h2>
 <p>Avala client needs to know where the exploit scripts will be located at. Create a directory of arbitrary name (e.g. <code>sploits</code>) in your current directory and register it.</p>
-<div class="highlight"><span class="filename">client.py</span><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
+<div class="highlight"><span class="filename">app.py</span><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">avl</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">app</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;avala.hakuj.me&quot;</span><span class="p">,</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">port</span><span class="o">=</span><span class="mi">2024</span><span class="p">,</span>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;your nickname, can be any&quot;</span><span class="p">,</span>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;your server password&quot;</span>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">)</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="hll"><span class="n">avl</span><span class="o">.</span><span class="n">register_directory</span><span class="p">(</span><span class="s2">&quot;sploits&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="hll"><span class="n">app</span><span class="o">.</span><span class="n">register_directory</span><span class="p">(</span><span class="s2">&quot;sploits&quot;</span><span class="p">)</span>
 </span><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">avl</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">app</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 </code></pre></div>
-<p>From now on, you can start writing exploits inside your <code>sploits</code> directory.</p>
+<p>Rerun the <code>app.py</code> script so the changes take effect, and you are ready to write exploits inside your <code>sploits</code> directory.</p>
 
 
 
@@ -1245,13 +1268,13 @@
         
         
           
-          <a href="../vscode/" class="md-footer__link md-footer__link--next" aria-label="Next: Visual Studio Code extension">
+          <a href="../cli/" class="md-footer__link md-footer__link--next" aria-label="Next: CLI reference">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Visual Studio Code extension
+                CLI reference
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1287,10 +1310,10 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>
       
     
   </body>
