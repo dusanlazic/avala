@@ -50,6 +50,7 @@ nav:
   - Exploit development:
       - Overview: client/index.md
       - Client setup: client/setup.md
+      - CLI reference: client/cli.md
       - Visual Studio Code extension: client/vscode.md
       - Writing exploits: client/exploit.md
       - Decorator reference: client/decorator.md

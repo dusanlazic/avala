@@ -28,19 +28,19 @@ pip install avala-ad
 
 To configure Avala client, you just need to provide connection parameters for your Avala server.
 
-In your current directory, create a Python file of arbitrary name (e.g. `client.py`) and create an instance of `Avala`. Provide it your own connection parameters.
+In your current directory, create a Python file of arbitrary name (e.g. `app.py`) and create an instance of `Avala`. Provide it your own connection parameters.
 
-```py title="client.py"
+```py title="app.py"
 from avala import Avala
 
-avl = Avala(
+app = Avala(
     host="avala.hakuj.me",
     port=2024,
     name="your nickname, can be any",
     password="your server password"
 )
 
-avl.start()
+app.start()
 ```
 
 Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet.
@@ -52,19 +52,20 @@ Running the script should connect to the server and display its configuration. I
 
 Avala client needs to know where the exploit scripts will be located at. Create a directory of arbitrary name (e.g. `sploits`) in your current directory and register it.
 
-```py title="client.py" hl_lines="10"
+```py title="app.py" hl_lines="10"
 from avala import Avala
 
-avl = Avala(
+app = Avala(
     host="avala.hakuj.me",
     port=2024,
     name="your nickname, can be any",
     password="your server password"
 )
 
-avl.register_directory("sploits")
+app.register_directory("sploits")
 
-avl.start()
+app.start()
 ```
 
-From now on, you can start writing exploits inside your `sploits` directory.
+Rerun the `app.py` script so the changes take effect, and you are ready to write exploits inside your `sploits` directory.
+
