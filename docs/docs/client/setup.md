@@ -6,66 +6,99 @@ A virtual environment is a self-contained directory that holds a specific versio
 
 1. **Create the virtual environment**: From your terminal, navigate to an empty directory where you will keep your exploits, and run the following command. The `venv` module creates a new virtual environment in a folder named `venv` within your current directory.
 
-    ```sh
-    python3 -m venv venv
+    ```console
+    $ python3 -m venv venv
     ```
 
 2. **Activate the virtual environment**: To use the virtual environment, you need to activate it. You'll know it's active when the name of the environment (e.g. `(venv)`) appears at the beginning of your terminal prompt, or by running `which python` to see if it points to the Python executable within your virtual environment.
 
-    ```sh
-    source venv/bin/activate
+    ```console
+    $ source venv/bin/activate
+    (venv) $ 
     ```
 
 ## Install Avala library
 
 Once your virtual environment is created and activated, you can install the library via **pip**. The package is named `avala-ad` on the Python Package Index (PyPI).
 
-```sh
-pip install avala-ad
+```console
+$ pip install avala-ad
 ```
 
 ## Connect to the server
 
-To configure Avala client, you just need to provide connection parameters for your Avala server.
-
-In your current directory, create a Python file of arbitrary name (e.g. `app.py`) and create an instance of `Avala`. Provide it your own connection parameters.
+In your current directory, create a Python file named `app.py` and create an instance of `Avala`. Provide it your own connection parameters.
 
 ```py title="app.py"
 from avala import Avala
 
-app = Avala(
+avl = Avala(
+    protocol="http",
     host="avala.hakuj.me",
     port=2024,
     name="your nickname, can be any",
     password="your server password"
 )
 
-app.start()
+if __name__ == "__main__":
+    avl.run()
 ```
 
-Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet.
+Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet. 
+
+You can also run Avala client using CLI by running `avl run`. For using the CLI, refer to [CLI reference](./cli.md). 
 
 !!! info  "TODO"
     asciinema replay of running the server
 
 ## Register exploit directories
 
-Avala client needs to know where the exploit scripts will be located at. Create a directory of arbitrary name (e.g. `sploits`) in your current directory and register it.
+Avala client needs to know where the exploit scripts will be located at. Create a directory with a custom name (e.g. `sploits`) in your current directory and register it.
 
-```py title="app.py" hl_lines="10"
+```py title="app.py" hl_lines="11"
 from avala import Avala
 
-app = Avala(
+avl = Avala(
+    protocol="http",
     host="avala.hakuj.me",
     port=2024,
     name="your nickname, can be any",
     password="your server password"
 )
 
-app.register_directory("sploits")
+avl.register_directory("sploits")
 
-app.start()
+if __name__ == "__main__":
+    avl.run()
 ```
 
-Rerun the `app.py` script so the changes take effect, and you are ready to write exploits inside your `sploits` directory.
+If already running the client, stop it and rerun it so the changes take effect. Avala will now scan and pick up exploits in any files in `sploits` directory.
 
+## Redis cache (optional)
+
+To support advanced features such as [blob storage](./exploit.md#store-parameter), fallback flag store and skipping successful attacks to reduce resource usage, you can run a Redis instance and connect your Avala client.
+
+You can spin up a Redis instance using Docker:
+
+```console
+$ docker run -d --name avala-client-redis -p 6379:6379 --restart always redis
+```
+
+Pass the connection string to the `Avala` instance:
+
+```py hl_lines="7"
+avl = Avala(
+    protocol="http",
+    host="avala.hakuj.me",
+    port=2024,
+    name="your nickname, can be any",
+    password="your server password",
+    redis_url="redis://localhost:6379/0",
+)
+```
+
+This will allow you to use:
+
+- [Blob storage](./exploit.md#store-parameter) – Lets you persist any data between multiple attacks.
+- Fallback flag store – Keeps unsubmitted flags locally while the Avala server is down and sends them as soon as the server comes online.
+- Skipping successful attacks – Keeps a list of attacks that have returned a flag, so they don't run twice. Attacks are identified by the hash of the exploit alias and flag ID value. This is disabled if `dev` is set to `True`.

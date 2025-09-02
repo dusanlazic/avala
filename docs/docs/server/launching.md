@@ -102,8 +102,8 @@ server-workspace/
 
 Launching all containers is done using the following command:
 
-```sh
-docker compose up -d
+```console
+$ docker compose up -d
 ```
 
 After your containers are up, you can access the dashboard via `http://<your hostname>:2024/` (assuming that you're using the default port 2024). Upon opening the page you will be prompted for a username and a password. The password is the one you set in `avala.yaml`, while the username can be anything. 
@@ -114,20 +114,20 @@ To confirm the system is working, manually submit a test flag. If the submitted 
 
 If you need to restart a service, run the following:
 
-```sh
-docker compose restart avala-submitter
+```console
+$ docker compose restart avala-submitter
 ```
 
 To shut down the infrastructure temporarily:
 
-```sh
-docker compose down
+```console
+$ docker compose down
 ```
 
 To destroy the infrastructure and clean up the volumes completely:
 
-```sh
-docker compose down -v
+```console
+$ docker compose down -v
 ```
 
 ## Next steps

@@ -13,7 +13,7 @@ Each player on the team should have **Avala client** installed on their own mach
 
 ---
 
-When developing exploits with Avala, you can focus just on the core logic of the attack. Avala will handle all the surrounding tasks, such as obtaining target IPs, fetching corresponding flag IDs, keeping attacks in sync with the game tick, and extracting flags from any strings or objects that you return.
+When developing exploits with Avala, you can focus on the core logic of the attack. Avala will handle all the surrounding tasks, such as obtaining target IPs, fetching corresponding flag IDs, keeping attacks in sync with the game tick, and extracting flags from any strings or objects that you return.
 
 The following example shows a simple login bypass using a username provided in a flag ID (e.g. `"{\"username\": \"johndoe\"}"`). After a successful login, the flag will be *somewhere* in the response and Avala will pick it up for submitting.
 

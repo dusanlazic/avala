@@ -75,7 +75,7 @@ class Avala:
         self._before_all_hook: Callable | None = None
         self._after_all_hook: Callable | None = None
 
-    def start(self) -> None:
+    def run(self) -> None:
         """
         Runs the Avala client in production mode. This mode operates on a schedule, scanning registered directories for
         functions decorated with the `@exploit` decorator and scheduling attacks based on their configuration,
@@ -91,8 +91,6 @@ class Avala:
         self._client = APIClient.connect_or_exit(self._connection)
 
         self._validate_directories()
-
-        self._save_config_to_json()
 
         logging.getLogger("apscheduler.executors.default").setLevel(logging.CRITICAL)
 
@@ -554,27 +552,6 @@ class Avala:
             return first_tick_start
 
         return now + tick_duration - (now - first_tick_start) % tick_duration
-
-    def _save_config_to_json(self) -> None:
-        """
-        Saves the client configuration to a JSON file in the .avala directory. This is useful for
-        reconnecting to the server using the Avala CLI.
-        """
-        if not DOT_DIR_PATH.exists():
-            DOT_DIR_PATH.mkdir(parents=True, exist_ok=True)
-
-        config = {
-            "protocol": self._connection.protocol,
-            "host": self._connection.host,
-            "port": self._connection.port,
-            "name": self._connection.username,
-            "password": self._connection.password,
-            "redis_url": self._blob_storage.redis_url if self._blob_storage else None,
-            "exploit_directories": [str(d) for d in self._exploit_directories],
-        }
-
-        config_path = DOT_DIR_PATH / "config.json"
-        config_path.write_text(json.dumps(config))
 
     def _show_banner(self) -> None:
         """

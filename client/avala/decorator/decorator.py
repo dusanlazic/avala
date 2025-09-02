@@ -10,16 +10,11 @@ from .schemas import Batching
 def exploit(
     service: str,
     draft: bool = False,
-    reload: bool = True,
     alias: str | None = None,
     targets: Iterable[str] | TargetingStrategy = TargetingStrategy.AUTO,
     flag_id_scope: FlagIdScope = FlagIdScope.SINGLE_TICK,
     skip: Iterable[str] | None = None,
     include: Iterable[str] | None = None,
-    prepare: str | None = None,
-    cleanup: str | None = None,
-    command: str | None = None,
-    env: dict[str, str] | None = None,
     delay: int | float | timedelta = timedelta(seconds=0),
     batching: Batching = Batching(count=1),
     timeout: int | float | timedelta = timedelta(seconds=15),
@@ -27,14 +22,10 @@ def exploit(
     """
     Decorator for defining and configuring an exploit.
 
-    :param service: Name of the service attacked by the exploit. To see the names of available services, you can use
-    `get_services()` method of `Avala` instance.
+    :param service: Name of the service attacked by the exploit. To see the names of available services, run `avl services`.
     :type service: str
-    :param draft: Exclude the exploit when running Avala in production mode. Useful for testing and debugging exploits
-    in watch mode. Defaults to False.
+    :param draft: Exclude the exploit when running Avala in production mode. Useful for testing and debugging exploits when running manually. Defaults to False.
     :type draft: bool
-    :param reload: Reload the exploit on save when running Avala in watch mode. Defaults to True.
-    :type reload: bool
     :param alias: Alias used for exploit identification, logging and as a key for tracking repeated flag IDs.
     :type alias: str | None
     :param targets: IP addresses or hostnames of the targeted teams, or a targeting strategy. Defaults to `TargetingStrategy.AUTO`.
@@ -48,19 +39,10 @@ def exploit(
     :param include: Additional IP addresses or hostnames to include when attacking. Can be used to include hosts that
     are skipped by default (NOP team and own team).
     :type include: Iterable[str] | None
-    :param prepare: Optional shell command to run before starting the first attack, defaults to None. Useful for setting
-    up the environment, files, etc. before running the attacks.
-    :type prepare: str | None, optional
-    :param cleanup: Optional shell command to run after completing the last attack, defaults to None. Useful for
-    cleaning up any artifacts created during the attacks.
-    :type cleanup: str | None, optional
-    :param env: Environment variables to be passed into the exploit's execution environment. Any passed environment
-    variables will be merged with the current environment variables. Defaults to an empty dictionary.
-    :type env: dict[str, str], optional
     :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. Useful when running
-    multiple exploits and need a way to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage. **Ignored in watch mode**.
+    multiple exploits and need a way to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage.
     :type delay: int | float | timedelta, optional
-    :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes. **Ignored in watch mode**.
+    :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes.
     :type batching: Batching | None, optional
     :param timeout: Timeout in seconds after which the exploit will be terminated if it hangs or takes too long to complete, defaults to 15.
     :type timeout: int, optional
@@ -80,20 +62,21 @@ def exploit(
         wrapper.exploit = Exploit(
             service=service,
             is_draft=draft,
-            is_reload_enabled=reload,
             alias=alias or f"{func.__module__}.{func.__name__}",
             targets_skip=set(skip) if skip else set(),
             targets_include=set(include) if include else set(),
             targets_explicit=set(targets) if isinstance(targets, Iterable) else set(),
-            targets_strategy=targets if isinstance(targets, TargetingStrategy) else None,
+            targets_strategy=targets
+            if isinstance(targets, TargetingStrategy)
+            else None,
             flag_id_scope=flag_id_scope,
-            prepare=prepare,
-            cleanup=cleanup,
-            command=command,
-            env=env or {},
-            delay=timedelta(seconds=delay) if isinstance(delay, (int, float)) else delay,
+            delay=timedelta(seconds=delay)
+            if isinstance(delay, (int, float))
+            else delay,
             batching=batching,
-            timeout=timedelta(seconds=timeout) if isinstance(timeout, (int, float)) else timeout,
+            timeout=timedelta(seconds=timeout)
+            if isinstance(timeout, (int, float))
+            else timeout,
             func=func,
         )
 
