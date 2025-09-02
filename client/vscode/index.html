@@ -1054,6 +1054,11 @@
   <h1>Visual Studio Code extension</h1>
 
 <p>For improved exploit development experience, it's recommended to install a lightweight <strong>Avala</strong> extension for Visual Studio Code. It adds "Run" button above your exploit function definition allowing you to run an exploit immediately from VS Code.</p>
+<p>Clicking "Run" button will open an integrated terminal and run <code>avl launch [exploit alias]</code>. The same terminal will be reused for any subsequent exploit runs.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>At the moment, running exploits through VS Code is possible only if your client script is named <code>app.py</code>.</p>
+</div>
 
 
 
@@ -1142,7 +1147,7 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>

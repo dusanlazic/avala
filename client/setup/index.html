@@ -672,6 +672,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#redis-cache-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      Redis cache (optional)
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1147,6 +1156,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#redis-cache-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      Redis cache (optional)
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1174,54 +1192,80 @@
 <ol>
 <li>
 <p><strong>Create the virtual environment</strong>: From your terminal, navigate to an empty directory where you will keep your exploits, and run the following command. The <code>venv</code> module creates a new virtual environment in a folder named <code>venv</code> within your current directory.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">$ </span>python3<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>venv
 </code></pre></div>
 </li>
 <li>
 <p><strong>Activate the virtual environment</strong>: To use the virtual environment, you need to activate it. You'll know it's active when the name of the environment (e.g. <code>(venv)</code>) appears at the beginning of your terminal prompt, or by running <code>which python</code> to see if it points to the Python executable within your virtual environment.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">source</span><span class="w"> </span>venv/bin/activate
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gp">$ </span><span class="nb">source</span><span class="w"> </span>venv/bin/activate
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="gp gp-VirtualEnv">(venv)</span> <span class="gp">$ </span>
 </code></pre></div>
 </li>
 </ol>
 <h2 id="install-avala-library">Install Avala library<a class="headerlink" href="#install-avala-library" title="Permanent link">&para;</a></h2>
 <p>Once your virtual environment is created and activated, you can install the library via <strong>pip</strong>. The package is named <code>avala-ad</code> on the Python Package Index (PyPI).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>avala-ad
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>avala-ad
 </code></pre></div>
 <h2 id="connect-to-the-server">Connect to the server<a class="headerlink" href="#connect-to-the-server" title="Permanent link">&para;</a></h2>
-<p>To configure Avala client, you just need to provide connection parameters for your Avala server.</p>
-<p>In your current directory, create a Python file of arbitrary name (e.g. <code>app.py</code>) and create an instance of <code>Avala</code>. Provide it your own connection parameters.</p>
+<p>In your current directory, create a Python file named <code>app.py</code> and create an instance of <code>Avala</code>. Provide it your own connection parameters.</p>
 <div class="highlight"><span class="filename">app.py</span><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">app</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;avala.hakuj.me&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">port</span><span class="o">=</span><span class="mi">2024</span><span class="p">,</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;your nickname, can be any&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;your server password&quot;</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">)</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">app</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">avl</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">protocol</span><span class="o">=</span><span class="s2">&quot;http&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;avala.hakuj.me&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">port</span><span class="o">=</span><span class="mi">2024</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;your nickname, can be any&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;your server password&quot;</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">)</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    <span class="n">avl</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
-<p>Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet.</p>
+<p>Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet. </p>
+<p>You can also run Avala client using CLI by running <code>avl run</code>. For using the CLI, refer to <a href="../cli/">CLI reference</a>. </p>
 <div class="admonition info">
 <p class="admonition-title">TODO</p>
 <p>asciinema replay of running the server</p>
 </div>
 <h2 id="register-exploit-directories">Register exploit directories<a class="headerlink" href="#register-exploit-directories" title="Permanent link">&para;</a></h2>
-<p>Avala client needs to know where the exploit scripts will be located at. Create a directory of arbitrary name (e.g. <code>sploits</code>) in your current directory and register it.</p>
+<p>Avala client needs to know where the exploit scripts will be located at. Create a directory with a custom name (e.g. <code>sploits</code>) in your current directory and register it.</p>
 <div class="highlight"><span class="filename">app.py</span><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">app</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;avala.hakuj.me&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">port</span><span class="o">=</span><span class="mi">2024</span><span class="p">,</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;your nickname, can be any&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;your server password&quot;</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">)</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="hll"><span class="n">app</span><span class="o">.</span><span class="n">register_directory</span><span class="p">(</span><span class="s2">&quot;sploits&quot;</span><span class="p">)</span>
-</span><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">app</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">avl</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">protocol</span><span class="o">=</span><span class="s2">&quot;http&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;avala.hakuj.me&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">port</span><span class="o">=</span><span class="mi">2024</span><span class="p">,</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;your nickname, can be any&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;your server password&quot;</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="hll"><span class="n">avl</span><span class="o">.</span><span class="n">register_directory</span><span class="p">(</span><span class="s2">&quot;sploits&quot;</span><span class="p">)</span>
+</span><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="n">avl</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
-<p>Rerun the <code>app.py</code> script so the changes take effect, and you are ready to write exploits inside your <code>sploits</code> directory.</p>
+<p>If already running the client, stop it and rerun it so the changes take effect. Avala will now scan and pick up exploits in any files in <code>sploits</code> directory.</p>
+<h2 id="redis-cache-optional">Redis cache (optional)<a class="headerlink" href="#redis-cache-optional" title="Permanent link">&para;</a></h2>
+<p>To support advanced features such as <a href="../exploit/#store-parameter">blob storage</a>, fallback flag store and skipping successful attacks to reduce resource usage, you can run a Redis instance and connect your Avala client.</p>
+<p>You can spin up a Redis instance using Docker:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="gp">$ </span>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>avala-client-redis<span class="w"> </span>-p<span class="w"> </span><span class="m">6379</span>:6379<span class="w"> </span>--restart<span class="w"> </span>always<span class="w"> </span>redis
+</code></pre></div>
+<p>Pass the connection string to the <code>Avala</code> instance:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">avl</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">protocol</span><span class="o">=</span><span class="s2">&quot;http&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">host</span><span class="o">=</span><span class="s2">&quot;avala.hakuj.me&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">port</span><span class="o">=</span><span class="mi">2024</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;your nickname, can be any&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">password</span><span class="o">=</span><span class="s2">&quot;your server password&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="hll">    <span class="n">redis_url</span><span class="o">=</span><span class="s2">&quot;redis://localhost:6379/0&quot;</span><span class="p">,</span>
+</span><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="p">)</span>
+</code></pre></div>
+<p>This will allow you to use:</p>
+<ul>
+<li><a href="../exploit/#store-parameter">Blob storage</a> – Lets you persist any data between multiple attacks.</li>
+<li>Fallback flag store – Keeps unsubmitted flags locally while the Avala server is down and sends them as soon as the server comes online.</li>
+<li>Skipping successful attacks – Keeps a list of attacks that have returned a flag, so they don't run twice. Attacks are identified by the hash of the exploit alias and flag ID value. This is disabled if <code>dev</code> is set to <code>True</code>.</li>
+</ul>
 
 
 
@@ -1310,7 +1354,7 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>

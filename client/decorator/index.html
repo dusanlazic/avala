@@ -762,6 +762,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="targets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#targetingstrategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      TargetingStrategy
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -789,6 +804,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="flag_id_scope">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#flagidscope" class="md-nav__link">
+    <span class="md-ellipsis">
+      FlagIdScope
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -806,6 +836,21 @@
       batching
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="batching">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#batching_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Batching
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1199,6 +1244,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="targets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#targetingstrategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      TargetingStrategy
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1226,6 +1286,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="flag_id_scope">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#flagidscope" class="md-nav__link">
+    <span class="md-ellipsis">
+      FlagIdScope
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1243,6 +1318,21 @@
       batching
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="batching">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#batching_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Batching
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1276,16 +1366,47 @@
 
   <h1>Decorator reference</h1>
 
-<h2 id="service"><code>service</code><a class="headerlink" href="#service" title="Permanent link">&para;</a></h2>
+<h2 id="service"><code>service</code> <small>required</small><a class="headerlink" href="#service" title="Permanent link">&para;</a></h2>
+<p><code>str</code></p>
+<p>Name of the service attacked by the exploit. Run <code>avl services</code> to see the names of available services.</p>
 <h2 id="draft"><code>draft</code><a class="headerlink" href="#draft" title="Permanent link">&para;</a></h2>
+<p><code>bool</code></p>
+<p>Exclude the exploit when running Avala in production mode. Useful for testing and debugging exploits when running manually. Defaults to <code>False</code>.</p>
 <h2 id="alias"><code>alias</code><a class="headerlink" href="#alias" title="Permanent link">&para;</a></h2>
+<p><code>str | None</code></p>
+<p>Alias used for exploit identification, logging and as a key for <a href="../setup/#redis-cache-optional">tracking repeated flag IDs</a>. If not provided, Avala will set it to <code>&lt;module name&gt;.&lt;function name&gt;</code>. Defaults to <code>None</code>.</p>
 <h2 id="targets"><code>targets</code><a class="headerlink" href="#targets" title="Permanent link">&para;</a></h2>
+<p><code>Iterable[str] | TargetingStrategy</code></p>
+<p>IP addresses or hostnames of the targeted teams, or a targeting strategy. Defaults to <code>TargetingStrategy.AUTO</code>.</p>
+<h3 id="targetingstrategy"><code>TargetingStrategy</code><a class="headerlink" href="#targetingstrategy" title="Permanent link">&para;</a></h3>
+<p>Targeting strategy that can be used as an alternative to specifying a collection of targets in the exploit configuration.</p>
+<ul>
+<li><code>TargetingStrategy.AUTO</code> <strong>(default)</strong> – Selects all available hosts, excluding your own team and the NOP team.</li>
+<li><code>TargetingStrategy.NOP_TEAM</code> – Selects the hosts of the NOP team.</li>
+<li><code>TargetingStrategy.OWN_TEAM</code> – Selects the hosts of your own team.</li>
+</ul>
 <h2 id="skip"><code>skip</code><a class="headerlink" href="#skip" title="Permanent link">&para;</a></h2>
+<p><code>Iterable[str] | None</code></p>
+<p>IP addresses or hostnames to skip when attacking. Hosts of the NOP team and own team are skipped regardless of this setting. To include NOP team and own team hosts, use <code>include</code>. Defaults to <code>None</code>.</p>
 <h2 id="include"><code>include</code><a class="headerlink" href="#include" title="Permanent link">&para;</a></h2>
+<p><code>Iterable[str] | None</code></p>
+<p>Additional IP addresses or hostnames to include when attacking. Can be used to include hosts that are skipped by default (NOP team and own team). Defaults to <code>None</code>.</p>
 <h2 id="flag_id_scope"><code>flag_id_scope</code><a class="headerlink" href="#flag_id_scope" title="Permanent link">&para;</a></h2>
+<p><code>FlagIdScope</code></p>
+<p>TODO</p>
+<h3 id="flagidscope"><code>FlagIdScope</code><a class="headerlink" href="#flagidscope" title="Permanent link">&para;</a></h3>
+<p>TODO</p>
 <h2 id="delay"><code>delay</code><a class="headerlink" href="#delay" title="Permanent link">&para;</a></h2>
+<p><code>int | float | timedelta</code></p>
+<p>Delay in seconds to wait before starting the first attack, defaults to 0 (<code>timedelta(seconds=0)</code>). Useful when running multiple exploits and need a way to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage.</p>
 <h2 id="batching"><code>batching</code><a class="headerlink" href="#batching" title="Permanent link">&para;</a></h2>
+<p><code>Batching</code></p>
+<p>TODO</p>
+<h3 id="batching_1"><code>Batching</code><a class="headerlink" href="#batching_1" title="Permanent link">&para;</a></h3>
+<p>TODO</p>
 <h2 id="timeout"><code>timeout</code><a class="headerlink" href="#timeout" title="Permanent link">&para;</a></h2>
+<p><code>int | float | timedelta</code></p>
+<p>Timeout in seconds after which the exploit will be terminated if it hangs or takes too long to complete, defaults to <code>timedelta(seconds=15)</code>.</p>
 
 
 
@@ -1374,7 +1495,7 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>

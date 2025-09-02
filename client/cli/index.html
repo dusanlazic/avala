@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#avl-init" class="md-skip">
+        <a href="#discovery" class="md-skip">
           Skip to content
         </a>
       
@@ -660,6 +660,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      Discovery
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#avl-init" class="md-nav__link">
     <span class="md-ellipsis">
       avl init
@@ -690,6 +699,24 @@
   <a href="#avl-flag_ids" class="md-nav__link">
     <span class="md-ellipsis">
       avl flag_ids
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#avl-exploits" class="md-nav__link">
+    <span class="md-ellipsis">
+      avl exploits
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#avl-launch" class="md-nav__link">
+    <span class="md-ellipsis">
+      avl launch
     </span>
   </a>
   
@@ -1121,6 +1148,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      Discovery
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#avl-init" class="md-nav__link">
     <span class="md-ellipsis">
       avl init
@@ -1157,6 +1193,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#avl-exploits" class="md-nav__link">
+    <span class="md-ellipsis">
+      avl exploits
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#avl-launch" class="md-nav__link">
+    <span class="md-ellipsis">
+      avl launch
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#avl-submit" class="md-nav__link">
     <span class="md-ellipsis">
       avl submit
@@ -1186,21 +1240,83 @@
 
   <h1>CLI reference</h1>
 
-<p>After installing Avala within your Python virtual environment, you will also have access to a CLI utility <code>avl</code>. This page lists all the commands that you can use. Use it for reference.</p>
+<p>After installing Avala, you'll have access to the <code>avl</code> CLI utility. This guide serves as a quick reference for its commands.</p>
+<h2 id="discovery">Discovery<a class="headerlink" href="#discovery" title="Permanent link">&para;</a></h2>
+<p>By default, <code>avl</code> command will try to import <code>app.py</code> in the current working directory and look for an instance of <code>Avala</code>. To import a file other than <code>app.py</code>, use <code>--path</code> flag to specify a different path.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">$ </span>avl<span class="w"> </span>--path<span class="w"> </span>hello<span class="w"> </span>run
+</code></pre></div>
+<p>The rest of this guide assumes the file is named <code>app.py</code> and omits the <code>--path</code> flag.</p>
 <h2 id="avl-init"><code>avl init</code><a class="headerlink" href="#avl-init" title="Permanent link">&para;</a></h2>
-<p>initializes avala workspace</p>
+<p>Creates an <code>app.py</code> client script and an exploit directory in the current working directory based on user inputs. Serves as a guided interactive way of setting up the client.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gp">$ </span>avl<span class="w"> </span>init
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="go">protocol [http]: http</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="go">host [localhost]: avala.hakuj.me</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="go">port [2024]: 2024</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="go">name [anon]: s4ndu</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="go">password []: </span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="go">redis url []:</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="go">exploit directory [sploits]: sploits</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="go">🚀 Initialization complete. Run &#39;avl run&#39; to run Avala.</span>
+</code></pre></div>
 <h2 id="avl-run"><code>avl run</code><a class="headerlink" href="#avl-run" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>avl run [exploit_alias]
-</code></pre></div>
+<p>Runs Avala client in production mode.</p>
 <h2 id="avl-services"><code>avl services</code><a class="headerlink" href="#avl-services" title="Permanent link">&para;</a></h2>
-<p>prints out services</p>
-<h2 id="avl-flag_ids"><code>avl flag_ids</code><a class="headerlink" href="#avl-flag_ids" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>avl flag_ids [service_name] [target_name] [tick_index]
+<p>Displays all service names based on flag IDs.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>avl<span class="w"> </span>services
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="go">foo</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="go">bar</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="go">baz</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="go">qux</span>
 </code></pre></div>
-<p>all are optional ^</p>
+<h2 id="avl-flag_ids"><code>avl flag_ids</code><a class="headerlink" href="#avl-flag_ids" title="Permanent link">&para;</a></h2>
+<p>Filters and lists flag IDs. You can narrow down the results by providing a service name, target host, and/or tick index. Pipe output to <code>jq</code> to make large outputs easier to read. </p>
+<p><code>avl flag_ids [service] [target] [tick index]</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="gp">$ </span>avl<span class="w"> </span>flag_ids
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="go">&lt;entire flag_ids json&gt;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="gp">$ </span>avl<span class="w"> </span>flag_ids<span class="w"> </span>foobar<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="go">{</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="go">  &lt;...&gt;</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="go">  &quot;10.10.42.1&quot;: [...],</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="go">  &quot;10.10.43.1&quot;: [</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="go">    &quot;lorem&quot;,</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="go">    &quot;ipsum&quot;,</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="go">    &quot;dolor&quot;,</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="go">    &quot;sit&quot;,</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="go">    &quot;amet&quot;</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="go">  ],</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="go">  &quot;10.10.44.1&quot;: [...],</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="go">  &lt;...&gt;</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="go">}</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="gp">$ </span>avl<span class="w"> </span>flag_ids<span class="w"> </span>foobar<span class="w"> </span><span class="s2">&quot;10.10.43.1&quot;</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="go">[&quot;lorem&quot;, &quot;ipsum&quot;, &quot;dolor&quot;, &quot;sit&quot;, &quot;amet&quot;]</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="gp">$ </span>avl<span class="w"> </span>flag_ids<span class="w"> </span>foobar<span class="w"> </span><span class="s2">&quot;10.10.43.1&quot;</span><span class="w"> </span><span class="m">2</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="go">dolor</span>
+</code></pre></div>
+<h2 id="avl-exploits"><code>avl exploits</code><a class="headerlink" href="#avl-exploits" title="Permanent link">&para;</a></h2>
+<p>Displays aliases of all found exploits.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="gp">$ </span>avl<span class="w"> </span>exploits
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="go">alpha</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="go">bravo</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="go">charlie (dev)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="go">delta</span>
+</code></pre></div>
+<h2 id="avl-launch"><code>avl launch</code><a class="headerlink" href="#avl-launch" title="Permanent link">&para;</a></h2>
+<p>Launches attacks using an exploit with specified alias.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="gp">$ </span>avl<span class="w"> </span>launch<span class="w"> </span>alpha
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="go">TODO: Running exploits output</span>
+</code></pre></div>
 <h2 id="avl-submit"><code>avl submit</code><a class="headerlink" href="#avl-submit" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>avl submit
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>Paste content containing the flags:
+<p>Extracts flags from text and sends them for submission. </p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="gp">$ </span>avl<span class="w"> </span>submit
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="go">Paste content containing the flags:</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="gp">$ </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;surroundingtext FLAG_3B37DF144CE4A83566BB surroundingtext&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avl<span class="w"> </span>submit
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="gp">$ </span>avl<span class="w"> </span>submit<span class="w"> </span>&lt;<span class="w"> </span>response.txt
 </code></pre></div>
 
 
@@ -1290,7 +1406,7 @@
     
     
       
-      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.footer", "navigation.instant", "navigation.tabs"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
       <script src="../../assets/javascripts/bundle.92b07e13.min.js"></script>
