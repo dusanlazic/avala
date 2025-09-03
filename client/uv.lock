@@ -63,7 +63,6 @@ dependencies = [
     { name = "httpx" },
     { name = "loguru" },
     { name = "pydantic" },
-    { name = "pygments" },
     { name = "redis", extra = ["hiredis"] },
 ]
 
@@ -82,7 +81,6 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "loguru", specifier = ">=0.7.2" },
     { name = "pydantic", specifier = ">=2.10.2" },
-    { name = "pygments", specifier = ">=2.18.0" },
     { name = "redis", extras = ["hiredis"], specifier = ">=5.2.1" },
 ]
 

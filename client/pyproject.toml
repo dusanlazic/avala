@@ -11,12 +11,11 @@ dependencies = [
     "httpx>=0.28.0",
     "loguru>=0.7.2",
     "pydantic>=2.10.2",
-    "pygments>=2.18.0",
     "redis[hiredis]>=5.2.1",
 ]
 
 [project.scripts]
-avl = "avala.cli:cli"
+avl = "avala.cli:avl"
 
 [dependency-groups]
 dev = ["ipython>=8.30.0", "mypy>=1.13.0", "pydeps>=3.0.0", "ruff>=0.8.1"]

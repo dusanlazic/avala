@@ -1,12 +1,8 @@
 import hashlib
-import json
 from datetime import timedelta
 from typing import Any, Iterator, Literal
 
 from pydantic import AwareDatetime, BaseModel, Field, PositiveInt
-from pygments import highlight
-from pygments.formatters import TerminalFormatter
-from pygments.lexers import JsonLexer
 
 
 class GameConfig(BaseModel):
@@ -84,10 +80,6 @@ class TickScopedFlagIds:
             raise ValueError(
                 "Ticks ago value must be an integer." + f" Got {type(ticks_ago).__name__} ('{ticks_ago}')."
             )
-
-    def __repr__(self) -> str:
-        json_string = json.dumps(self.value, indent=4)
-        return highlight(json_string, JsonLexer(), TerminalFormatter())
 
 
 class TargetScopedFlagIds:
@@ -173,10 +165,6 @@ class TargetScopedFlagIds:
 
     def __getitem__(self, index: int) -> Any:
         return self.get_flag_ids_for_tick(index)
-
-    def __repr__(self) -> str:
-        json_string = json.dumps(self.serialize(), indent=4)
-        return highlight(json_string, JsonLexer(), TerminalFormatter())
 
 
 class ServiceScopedFlagIds:
@@ -270,10 +258,6 @@ class ServiceScopedFlagIds:
     def __getitem__(self, target_host: str) -> TargetScopedFlagIds:
         return self.get_flag_ids_for_target(target_host)
 
-    def __repr__(self) -> str:
-        json_string = json.dumps(self.serialize(), indent=4)
-        return highlight(json_string, JsonLexer(), TerminalFormatter())
-
 
 class UnscopedFlagIds:
     """
@@ -354,7 +338,3 @@ class UnscopedFlagIds:
 
     def __getitem__(self, service_name: str) -> ServiceScopedFlagIds:
         return self.get_flag_ids_for_service(service_name)
-
-    def __repr__(self) -> str:
-        json_string = json.dumps(self.serialize(), indent=4)
-        return highlight(json_string, JsonLexer(), TerminalFormatter())

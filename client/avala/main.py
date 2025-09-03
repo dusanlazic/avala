@@ -1,6 +1,5 @@
 import concurrent.futures
 import importlib.util
-import json
 import logging
 import re
 import time
@@ -8,14 +7,14 @@ from datetime import datetime
 from multiprocessing import Process
 from pathlib import Path
 from queue import Empty
-from typing import Any, Callable, Iterable, Literal
+from typing import Any, Iterable, Literal
 
 import tzlocal
 from apscheduler.schedulers.background import BackgroundScheduler
 from httpx import HTTPStatusError, RequestError
 from pydantic import AwareDatetime, ValidationError
 
-from .api_client.client import DOT_DIR_PATH, APIClient
+from .api_client.client import APIClient
 from .api_client.schemas import ConnectionConfig, FlagsEnqueueBody, UnscopedFlagIds
 from .decorator.schemas import Batching
 from .exploit import Exploit
@@ -61,7 +60,7 @@ class Avala:
             password=password,
         )
         self._worker_name: str = name
-        self._client: APIClient  # TODO: Implement connect method
+        self._client: APIClient | None = None
         self._scheduler: BackgroundScheduler
         self._blob_storage: BlobStorage | None = BlobStorage(redis_url, "avala_blobs") if redis_url else None
         self._flag_ids_hash_storage: FlagIdsHashStorage | None = (
@@ -72,8 +71,19 @@ class Avala:
         )
 
         self._exploit_directories: set[Path] = set()
-        self._before_all_hook: Callable | None = None
-        self._after_all_hook: Callable | None = None
+
+        self.suppress_logs = False
+
+    def connect(self) -> bool:
+        """
+        Connects to the Avala server without running it. This method must be called before using any method
+        that uses the API client, other than run() as it calls this method internally.
+        """
+        self._client = APIClient.connect(self._connection, quiet=self.suppress_logs)
+        if self._client is None:
+            return False
+
+        return True
 
     def run(self) -> None:
         """
@@ -88,7 +98,10 @@ class Avala:
         self._show_banner()
 
         self._scheduler = BackgroundScheduler()
-        self._client = APIClient.connect_or_exit(self._connection)
+        self.connect()
+
+        if self._client is None:
+            return
 
         self._validate_directories()
 
@@ -135,7 +148,10 @@ class Avala:
 
         exploit = next((e for e in self._reload_exploits() if e.alias == exploit_alias), None)
         if not exploit:
-            logger.error("❌ Exploit with alias <b>{alias}</> not found.", alias=colorize(exploit_alias))
+            logger.error(
+                "❌ Exploit with alias <b>{alias}</> not found.",
+                alias=colorize(exploit_alias),
+            )
             return
 
         if exploit.takes_flag_ids and flag_ids is None:
@@ -158,46 +174,15 @@ class Avala:
 
     def register_directory(self, dir_path: str) -> None:
         """
-        Registers a directory containing exploits. The directory path must be either absolute, or relative to your
-        **current working directory when running the client**.
+        Registers a directory containing exploits. The directory path must be either absolute, or relative to the
+        module that creates the Avala instance.
 
         :param dir_path: Path to the directory containing exploits.
         :type dir_path: str
         """
-        path = Path(dir_path).resolve()
+        path = Path(dir_path)
         if path not in self._exploit_directories:
             self._exploit_directories.add(path)
-
-    def before_all(self):
-        """
-        Decorator for a function that will be executed before reloading and scheduling attacks, or at the beginning of
-        each tick.
-
-        This hook can be used to perform any setup or initialization before running attacks, such as pulling exploits
-        from a git repository.
-        """
-
-        def decorator(func: Callable) -> Callable:
-            self._before_all_hook = func
-            return func
-
-        # TODO: Not used yet.
-        return decorator
-
-    def after_all(self):
-        """
-        Decorator for a function that will be executed after all attacks are completed.
-
-        This hook can be used to perform any cleanup or finalization after running attacks, such as cleaning up
-        temporary files, sending a notification, etc.
-        """
-
-        def decorator(func) -> Callable:
-            self._after_all_hook = func
-            return func
-
-        # TODO: Not used yet.
-        return decorator
 
     def get_flag_ids(self) -> UnscopedFlagIds:
         """
@@ -220,9 +205,9 @@ class Avala:
     def submit_flags(
         self,
         flags: Iterable[str],
-        host: str | None,
-        service_name: str | None,
-        exploit_alias: str | None,
+        host: str = "unknown",
+        service_name: str = "unknown",
+        exploit_alias: str = "manual submission",
     ) -> None:
         """
         Sends flags to the server for submission.
@@ -238,17 +223,39 @@ class Avala:
         """
         self._client.enqueue(flags, host, self._worker_name, service_name, exploit_alias)
 
-    def match_flags(self, output: Any) -> list[str]:
+    def match_flags(self, output: Any) -> set[str]:
         """
         Matches flags in the attack's result using the flag format defined in the server settings.
 
         :param output: Any object that may contain flags when converted to a string. This should be the return value of
         an exploit function.
         :type output: Any
-        :return: List of flags extracted from the output.
-        :rtype: list[str]
+        :return: Set of flags extracted from the output.
+        :rtype: set[str]
         """
-        return re.findall(self._client.game.flag_format, str(output))
+        return set(re.findall(self._client.game.flag_format, str(output)))
+
+    def list_exploits(self) -> list[tuple[str, bool]]:
+        """
+        Lists aliases and their draft flags of all found exploits.
+
+        :return: List of tuples containing exploit aliases and their draft flags.
+        :rtype: list[tuple[str, bool]]
+        """
+        return [(exploit.alias, exploit.is_draft) for exploit in self._reload_exploits()]
+
+    def update_directory_paths(self, module_path: str) -> None:
+        """
+        Updates the exploit directory paths to be relative to the given module path. This is useful when running the
+        client from a different working directory when using the CLI. Updates _exploit_directories in place.
+        """
+        module_path = Path(module_path).parent.resolve()
+        updated_directories = set()
+        for path in self._exploit_directories:
+            if not path.is_absolute():
+                path = (module_path / path).resolve()
+            updated_directories.add(path)
+        self._exploit_directories = updated_directories
 
     def _validate_directories(self) -> None:
         """
@@ -325,12 +332,7 @@ class Avala:
                 spec.loader.exec_module(module)
 
                 for _, func in module.__dict__.items():
-                    if (
-                        callable(func)
-                        and hasattr(func, "exploit")
-                        and isinstance(func.exploit, Exploit)
-                        and not func.exploit.is_draft
-                    ):
+                    if callable(func) and hasattr(func, "exploit") and isinstance(func.exploit, Exploit):
                         exploits.append(func.exploit)
             except Exception as e:
                 logger.error(
@@ -340,11 +342,15 @@ class Avala:
                 )
 
         if exploits:
-            logger.info(
-                "📥 Loaded <b>{count}</> exploits: {exploits}",
-                count=len(exploits),
-                exploits=", ".join(colorize(exploit.alias) for exploit in exploits),
-            )
+            if not self.suppress_logs:
+                logger.info(
+                    "📥 Loaded <b>{count}</> exploits: {exploits}",
+                    count=len(exploits),
+                    exploits=", ".join(
+                        (f"{colorize(exploit.alias)}*" if exploit.is_draft else colorize(exploit.alias))
+                        for exploit in exploits
+                    ),
+                )
         else:
             logger.warning("⚠️  No exploits loaded.")
 
@@ -366,7 +372,7 @@ class Avala:
         # This way, fetching flag ids (resolving flag_ids_future) won't block scheduling of exploits that don't need
         # flag ids.
 
-        exploits = self._reload_exploits()
+        exploits = [e for e in self._reload_exploits() if not e.is_draft]
         ordered_exploits = [e for e in exploits if not e.takes_flag_ids] + [e for e in exploits if e.takes_flag_ids]
 
         for exploit in ordered_exploits:
@@ -524,7 +530,13 @@ class Avala:
         flag = self._unsent_flag_storage.pop()
         while flag:
             try:
-                self._client.enqueue(flag.values, flag.host, self._worker_name, flag.service, flag.exploit)
+                self._client.enqueue(
+                    flag.values,
+                    flag.host,
+                    self._worker_name,
+                    flag.service,
+                    flag.exploit,
+                )
             except Exception:
                 self._unsent_flag_storage.add(flag)
                 logger.error(

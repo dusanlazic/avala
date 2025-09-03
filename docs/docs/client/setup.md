@@ -27,6 +27,9 @@ $ pip install avala-ad
 
 ## Connect to the server
 
+!!! tip
+    You can also setup Avala client interactively via `avl init`. See [CLI reference](./cli.md#avl-init).
+
 In your current directory, create a Python file named `app.py` and create an instance of `Avala`. Provide it your own connection parameters.
 
 ```py title="app.py"
@@ -46,7 +49,7 @@ if __name__ == "__main__":
 
 Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet. 
 
-You can also run Avala client using CLI by running `avl run`. For using the CLI, refer to [CLI reference](./cli.md). 
+You can also run Avala client using the CLI by running `avl run`. For using the CLI, refer to [CLI reference](./cli.md). 
 
 !!! info  "TODO"
     asciinema replay of running the server
@@ -101,4 +104,4 @@ This will allow you to use:
 
 - [Blob storage](./exploit.md#store-parameter) – Lets you persist any data between multiple attacks.
 - Fallback flag store – Keeps unsubmitted flags locally while the Avala server is down and sends them as soon as the server comes online.
-- Skipping successful attacks – Keeps a list of attacks that have returned a flag, so they don't run twice. Attacks are identified by the hash of the exploit alias and flag ID value. This is disabled if `dev` is set to `True`.
+- Skipping successful attacks – Keeps a list of attacks that have returned a flag, so they don't run twice. Attacks are identified by the hash of the exploit alias and flag ID value. This is disabled if `draft` is set to `True`.

@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 import httpx
 
@@ -35,41 +35,44 @@ class APIClient:
         DOT_DIR_PATH.mkdir(exist_ok=True)
 
     @classmethod
-    def connect_or_exit(cls, connection: ConnectionConfig) -> "APIClient":
+    def connect(cls, connection: ConnectionConfig, quiet: bool = False) -> Optional["APIClient"]:
         """
-        Connect to the Avala server and return an APIClient instance, or exit the program
-        with an error message if the connection fails.
+        Connect to the Avala server and return an APIClient instance, or return None and
+        print an error message if the connection fails.
 
         :param connection: Connection configuration for the Avala server.
         :type connection: ConnectionConfig
+        :param quiet: If True, suppresses the log messages upon a successful connection, defaults to False.
+        :type quiet: bool
         :return: An instance of APIClient.
-        :rtype: APIClient
+        :rtype: APIClient | None
         """
         try:
             instance = cls(connection)
 
-            logger.success(
-                "✅ Connected to Avala server at <b>{protocol}://{host}:{port}</> as <b>{username}</>.",
-                protocol=connection.protocol,
-                host=connection.host,
-                port=connection.port,
-                username=connection.username,
-            )
+            if not quiet:
+                logger.success(
+                    "✅ Connected to Avala server at <b>{protocol}://{host}:{port}</> as <b>{username}</>.",
+                    protocol=connection.protocol,
+                    host=connection.host,
+                    port=connection.port,
+                    username=connection.username,
+                )
 
-            logger.info(
-                "Flag format: <b>{flag_format}</>",
-                flag_format=instance.game.flag_format,
-            )
+                logger.info(
+                    "Flag format: <b>{flag_format}</>",
+                    flag_format=instance.game.flag_format,
+                )
 
-            logger.info(
-                "Tick duration: <b>{tick_duration}</> seconds",
-                tick_duration=instance.schedule.tick_duration.total_seconds(),
-            )
+                logger.info(
+                    "Tick duration: <b>{tick_duration}</> seconds",
+                    tick_duration=instance.schedule.tick_duration.total_seconds(),
+                )
 
-            logger.info(
-                "Time of the first tick: <b>{first_tick_timestamp}</>",
-                first_tick_timestamp=instance.schedule.first_tick_start,
-            )
+                logger.info(
+                    "Time of the first tick: <b>{first_tick_timestamp}</>",
+                    first_tick_timestamp=instance.schedule.first_tick_start,
+                )
 
             return instance
         except Exception as e:
@@ -79,7 +82,7 @@ class APIClient:
                 error_msg=e,
             )
             logger.info("❌ Exiting...")
-            exit(1)
+            return None
 
     def heartbeat(self) -> None:
         """
