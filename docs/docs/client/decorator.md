@@ -22,9 +22,7 @@ Alias used for exploit identification, logging and as a key for [tracking repeat
 
 IP addresses or hostnames of the targeted teams, or a targeting strategy. Defaults to `TargetingStrategy.AUTO`.
 
-### `TargetingStrategy`
-
-Targeting strategy that can be used as an alternative to specifying a collection of targets in the exploit configuration.
+`TargetingStrategy` can be used as an alternative to specifying a collection of targets.
 
 - `TargetingStrategy.AUTO` **(default)** – Selects all available hosts, excluding your own team and the NOP team.
 - `TargetingStrategy.NOP_TEAM` – Selects the hosts of the NOP team.
@@ -46,11 +44,10 @@ Additional IP addresses or hostnames to include when attacking. Can be used to i
 
 `FlagIdScope`
 
-TODO
+Scope of the `flag_ids` parameter. Can be narrowed down to a single tick (service / target / tick), or a single target (service / target). Defaults to `FlagIdScope.SINGLE`.
 
-### `FlagIdScope`
-
-TODO
+- `FlagIdScope.SINGLE_TICK` **(default)** – `flag_ids` object will represent flag IDs relevant to a single service, target, and tick. If using [Redis cache](./setup.md#redis-cache-optional), each flag ID that successfully returns a flag will be tracked, allowing Avala client to skip the attacks that are using the same flag ID (based on exploit alias, target host and flag id value). This is the recommended and optimized approach.
+- `FlagIdScope.LAST_N_TICKS` – `flag_ids` object will contain a list of flag IDs relevant to a single service, target, and the last N ticks. In most cases, not necessary and can be inefficient due to performing redundant attacks.
 
 ## `delay`
 
@@ -62,11 +59,7 @@ Delay in seconds to wait before starting the first attack, defaults to 0 (`timed
 
 `Batching`
 
-TODO
-
-### `Batching`
-
-TODO
+See [Optimizing with batching](./exploit.md#optimizing-with-batching) section.
 
 ## `timeout`
 

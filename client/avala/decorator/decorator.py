@@ -42,7 +42,7 @@ def exploit(
     :param delay: Delay in seconds to wait before starting the first attack, defaults to 0. Useful when running
     multiple exploits and need a way to prevent them from running at the same time, which could lead to excessive CPU, memory or network usage.
     :type delay: int | float | timedelta, optional
-    :param batching: Batching configuration, defaults to None meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes.
+    :param batching: Batching configuration, defaults to `Batching(count=1)` meaning no batching. Provides a way of distributing the load over time with the goal of mitigating CPU, memory and network usage spikes.
     :type batching: Batching | None, optional
     :param timeout: Timeout in seconds after which the exploit will be terminated if it hangs or takes too long to complete, defaults to 15.
     :type timeout: int, optional
