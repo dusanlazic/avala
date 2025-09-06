@@ -123,11 +123,11 @@ class Avala:
                 # The `pwntools` library used in attack scripts is not compatible with APScheduler's
                 # threading model. To work around this, the method is called in a blocking loop,
                 # and we use `time.sleep()` to pause until the next tick.
-                self._schedule_exploits()
                 seconds_before_next_tick = (
                     self._get_next_tick_start() - datetime.now(tzlocal.get_localzone())
                 ).total_seconds()
                 time.sleep(seconds_before_next_tick)
+                self._schedule_exploits()
         except (KeyboardInterrupt, SystemExit):
             print()  # Add a newline after the ^C
             self._scheduler.shutdown()

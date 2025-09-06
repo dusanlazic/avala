@@ -7,7 +7,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    FilePath,
     PositiveInt,
     ValidationError,
     field_validator,
@@ -37,7 +36,7 @@ class GameConfig(BaseModel):
 
 
 class SubmitterConfig(BaseModel):
-    script_path: FilePath = Field(default=Path("/etc/avala/submitter.py"))
+    script_path: Path = Field(default=Path("/etc/avala/submitter.py"))
     retries: PositiveInt = Field(default=5)
     interval: timedelta | None = Field(default=None)
     per_tick: PositiveInt | None = Field(default=None)
@@ -66,7 +65,7 @@ class SubmitterConfig(BaseModel):
 
 
 class FlagIdsConfig(BaseModel):
-    script_path: FilePath = Field(default=Path("/etc/avala/flag_ids.py"))
+    script_path: Path = Field(default=Path("/etc/avala/flag_ids.py"))
     retries: PositiveInt = Field(default=5)
     interval: timedelta = Field(default=timedelta(seconds=2))
 

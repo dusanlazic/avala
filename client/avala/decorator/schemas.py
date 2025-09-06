@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from pydantic import BaseModel, PositiveInt, model_validator
+from pydantic import BaseModel, PositiveFloat, PositiveInt, field_validator, model_validator
 from typing_extensions import Self
 
 
@@ -36,7 +36,14 @@ class Batching(BaseModel):
 
     size: PositiveInt | None = None
     count: PositiveInt | None = None
-    interval: timedelta = timedelta(seconds=1)
+    interval: PositiveInt | PositiveFloat | timedelta = timedelta(seconds=1)
+
+    @field_validator("interval", mode="before")
+    @classmethod
+    def convert_interval(cls, v):
+        if isinstance(v, (int, float)):
+            return timedelta(seconds=v)
+        return v
 
     @model_validator(mode="after")
     def check_either_size_or_count_set(self) -> Self:
