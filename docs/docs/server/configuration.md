@@ -45,7 +45,7 @@ game:
   # IP addresses or hostnames of your team's vulnerable machines (vulnboxes).
   # There is usually just a single machine per team, but some competitions may have more.
   # These hosts will be excluded from the attacks unless specified otherwise.
-  nop_team_ip: 
+  nop_team_hosts: 
     - 10.10.1.1 # Example Linux machine 1
     - 10.10.1.2 # Example Linux machine 2
     - 10.10.1.3 # Example Windows machine
