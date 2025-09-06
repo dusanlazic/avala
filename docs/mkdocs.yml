@@ -52,15 +52,6 @@ nav:
       - Overview: client/index.md
       - Client setup: client/setup.md
       - CLI reference: client/cli.md
-      - Visual Studio Code extension: client/vscode.md
       - Writing exploits: client/exploit.md
       - Decorator reference: client/decorator.md
-      - Utility functions: client/utils.md
-  - Attack monitoring:
-      - Overview: dashboard/index.md
-  - Infrastructure tips:
-      - Overview: infrastructure/index.md
-  - Troubleshooting:
-      - Overview: troubleshooting/index.md
-  - Contributing:
-      - Overview: contributing/index.md
+  - Playground Repo: "https://github.com/dusanlazic/avala-playground"
