@@ -19,4 +19,6 @@ FROM python:3.12-alpine
 
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 
-CMD ["/app/.venv/bin/server"]
+ENV EXTRA_PACKAGES=""
+
+CMD ["/bin/sh","-lc","if [ -n \"$EXTRA_PACKAGES\" ]; then /app/.venv/bin/pip install --no-cache-dir $EXTRA_PACKAGES; fi; exec /app/.venv/bin/server"]

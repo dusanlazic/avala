@@ -8,7 +8,7 @@ dependencies = [
     "aio-pika>=9.5.5",
     "asyncpg>=0.30.0",
     "avala-common",
-    "pwntools>=4.14.1",
+    "pip>=25.2",
     "sqlalchemy>=2.0.39",
 ]
 

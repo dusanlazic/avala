@@ -12,6 +12,7 @@ Create a file named `compose.yaml` in your current directory and paste the conte
 
 - **Credentials**: You should update the access credentials for RabbitMQ and PostgreSQL. Make sure these credentials, along with hostnames, ports, and other connection parameters, match the settings in your `avala.yaml` file.
 - **Time zone**: The time zone is set to `Europe/Belgrade`, which may need to be adjusted to match your location.
+- **Extra packages**: Your flag ID and submitter scripts will likely use third-party libraries that you will need to install. You can specify these in `EXTRA_PACKAGES` environment variable, and they will be installed upon running the containers.
 - **Docker image**: The services are configured to use images from Docker Hub. If your images have different names or are hosted on a different registry, you'll need to update the `image` field accordingly.
 - **Volumes**: The configuration uses Docker volumes to persist data for RabbitMQ and PostgreSQL. Ensure these are correctly set up if you are not using Docker's default volume management.
 
@@ -29,6 +30,7 @@ services:
     restart: always
     environment:
       TZ: Europe/Belgrade
+      EXTRA_PACKAGES: requests==2.32.5
     tty: true
     volumes:
       - ./avala.yaml:/etc/avala/avala.yaml:ro
@@ -44,6 +46,7 @@ services:
     restart: always
     environment:
       TZ: Europe/Belgrade
+      EXTRA_PACKAGES: pwntools==4.14.1 requests==2.32.5
     tty: true
     volumes:
       - ./avala.yaml:/etc/avala/avala.yaml:ro
