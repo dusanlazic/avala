@@ -39,8 +39,8 @@ jobs:
       common: ${{ steps.filter.outputs.common }}
       client: ${{ steps.filter.outputs.client }}
 
-  build-submitter:
-    name: Build avala-submitter image
+  publish-submitter:
+    name: Build & publish avala-submitter image
     needs: changes
     runs-on: ubuntu-latest
     if: ${{ needs.changes.outputs.submitter == 'true' || needs.changes.outputs.common == 'true' }}
@@ -84,7 +84,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Docker image
+      - name: Build & publish Docker image
         uses: docker/build-push-action@v3
         with:
           context: server/submitter
@@ -95,8 +95,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  build-server:
-    name: Build avala-server image
+  publish-server:
+    name: Build & publish avala-server image
     needs: changes
     runs-on: ubuntu-latest
     if: ${{ needs.changes.outputs.server == 'true' || needs.changes.outputs.common == 'true' }}
@@ -158,7 +158,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Docker image
+      - name: Build & publish Docker image
         uses: docker/build-push-action@v3
         with:
           context: server/server
@@ -169,11 +169,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  build-client:
-    name: Build avala-ad library
+  publish-client:
+    name: Build & publish avala-ad library
     needs: changes
     runs-on: ubuntu-latest
     if: ${{ needs.changes.outputs.client == 'true' }}
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
