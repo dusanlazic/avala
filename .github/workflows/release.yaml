@@ -1,0 +1,199 @@
+name: Release (merge to release)
+
+on:
+  push:
+    branches: [ci-release-testing]
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Path filters
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          token: ${{ github.token }}
+          filters: |
+            submitter:
+              - 'server/submitter/**'
+            server:
+              - 'server/server/**'
+              - 'dashboards/**'
+            common:
+              - 'server/common/**'
+            client:
+              - 'client/**'
+    outputs:
+      submitter: ${{ steps.filter.outputs.submitter }}
+      server: ${{ steps.filter.outputs.server }}
+      common: ${{ steps.filter.outputs.common }}
+      client: ${{ steps.filter.outputs.client }}
+
+  build-submitter:
+    name: Build avala-submitter image
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.submitter == 'true' || needs.changes.outputs.common == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Prepare common
+        run: |
+          rm -rf server/submitter/common
+          mkdir -p server/submitter
+          cp -a server/common server/submitter/common
+
+      - name: Typecheck & format
+        working-directory: server/submitter
+        run: |
+          uv run mypy src/submitter --explicit-package-bases
+          uv run ruff format src/submitter
+          uv run ruff check --fix src/submitter
+
+      - name: Read version
+        id: ver
+        shell: bash
+        run: |
+          VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('server/submitter/pyproject.toml', 'rb'))['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Docker Login
+        uses: docker/login-action@v3.1.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: server/submitter
+          file: server/submitter/Dockerfile
+          tags: dusanlazic/avala-submitter:${{ steps.ver.outputs.version }},dusanlazic/avala-submitter:latest
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-server:
+    name: Build avala-server image
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.server == 'true' || needs.changes.outputs.common == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Prepare common
+        run: |
+          rm -rf server/server/common
+          mkdir -p server/server
+          cp -a server/common server/server/common
+
+      - name: Typecheck & format
+        working-directory: server/server
+        run: |
+          uv run mypy src/server --explicit-package-bases
+          uv run ruff format src/server
+          uv run ruff check --fix src/server
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboards/package-lock.json
+
+      - name: Build UI and copy dist into server static
+        run: |
+          set -euo pipefail
+          pushd dashboards
+          npm ci || npm install
+          npm run build-only
+          popd
+          rm -rf server/server/src/server/static/dist
+          mkdir -p server/server/src/server/static
+          cp -a dashboards/dist server/server/src/server/static/dist
+
+      - name: Read version
+        id: ver
+        shell: bash
+        run: |
+          VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('server/server/pyproject.toml', 'rb'))['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Docker Login
+        uses: docker/login-action@v3.1.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: server/server
+          file: server/server/Dockerfile
+          tags: dusanlazic/avala-server:${{ steps.ver.outputs.version }},dusanlazic/avala-server:latest
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-client:
+    name: Build avala-ad library
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.client == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Typecheck & format
+        working-directory: client
+        run: |
+          uv run mypy avala --explicit-package-bases
+          uv run ruff format avala
+          uv run ruff check --fix avala
+
+      - name: Read version
+        id: ver
+        shell: bash
+        run: |
+          VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('client/pyproject.toml', 'rb'))['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build & publish library
+        working-directory: client
+        run: |
+          echo "Building and publishing avala-ad version ${{ steps.ver.outputs.version }}"
+          uv publish
