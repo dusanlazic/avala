@@ -116,7 +116,7 @@ jobs:
           set -euo pipefail
           pushd dashboards
           npm ci || npm install
-          npm run build
+          npm run build-only
           popd
           rm -rf server/server/src/server/static/dist
           mkdir -p server/server/src/server/static
