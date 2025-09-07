@@ -1,4 +1,4 @@
-# ⛰️ Avala - Exploit development and deployment framework for A/D
+# ⛰️ Avala — Develop and run exploits rapidly in A/D
 
 <img src="https://raw.githubusercontent.com/dusanlazic/avala/refs/heads/develop/docs/docs/assets/logo.svg" width="300">
 
