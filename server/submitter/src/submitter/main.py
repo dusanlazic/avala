@@ -2,7 +2,7 @@ import asyncio
 import inspect
 import sys
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from importlib import reload
 from importlib.util import module_from_spec, spec_from_file_location
 from types import ModuleType
@@ -13,6 +13,7 @@ from avala.common.clock import game_has_started, get_tick_elapsed
 from avala.common.config import config
 from avala.common.logger import logger
 from sqlalchemy import text
+from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 StreamSubmitFunction: TypeAlias = Callable[
@@ -118,7 +119,7 @@ def calculate_next_submit_time() -> timedelta:
     Calculates the time to wait before the next flag submission based on the current time and the submitter
     configuration.
     """
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
 
     interval: timedelta
     if config.submitter.interval:
@@ -166,15 +167,18 @@ async def connect_to_db() -> async_sessionmaker[AsyncSession]:
     Connects to the database using the configuration settings and returns the AsyncSessionLocal factory.
     """
     try:
+        POSTGRESQL_URL = URL.create(
+            "postgresql+asyncpg",
+            username=config.database.user,
+            password=config.database.password,
+            host=config.database.host,
+            port=config.database.port,
+            database=config.database.name,
+            query=config.database.query,
+        )
+
         async_engine = create_async_engine(
-            "postgresql+asyncpg://%s:%s@%s:%d/%s"
-            % (
-                config.database.user,
-                config.database.password,
-                config.database.host,
-                config.database.port,
-                config.database.name,
-            ),
+            POSTGRESQL_URL,
             pool_size=80,
             max_overflow=10,
         )
@@ -288,7 +292,7 @@ async def start_interval_consumer(  # noqa: C901
         sleep_for = calculate_next_submit_time().total_seconds()
         logger.info(
             "Next submission scheduled at <b>"
-            + (datetime.now() + timedelta(seconds=sleep_for)).strftime("%H:%M:%S")
+            + (datetime.now(timezone.utc) + timedelta(seconds=sleep_for)).strftime("%H:%M:%S")
             + "</>."
         )
         await asyncio.sleep(sleep_for)

@@ -88,6 +88,7 @@ class PostgresConfig(BaseModel):
     password: str
     host: str
     port: int = Field(default=5432, ge=1, le=65535)
+    query: dict[str, str] = Field(default_factory=dict)
 
     model_config = ConfigDict(extra="forbid")
 

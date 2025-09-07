@@ -1,6 +1,6 @@
 [project]
 name = "avala-common"
-version = "0.1.0"
+version = "0.2.0"
 description = "Common utilities for Avala server"
 authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
 readme = "README.md"

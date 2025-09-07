@@ -1,13 +1,13 @@
 [project]
 name = "submitter"
-version = "0.1.0"
+version = "0.1.1"
 description = "Flag submitter component of Avala server"
 authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
 requires-python = ">=3.12"
 dependencies = [
     "aio-pika>=9.5.5",
     "asyncpg>=0.30.0",
-    "avala-common",
+    "avala-common>=0.2.0",
     "pip>=25.2",
     "sqlalchemy>=2.0.39",
 ]

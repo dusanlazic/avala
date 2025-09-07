@@ -148,13 +148,18 @@ server:
 
 # Database connection settings
 # If running via Docker compose, ensure that the parameters and the hostname match 
-# those in compose.yaml.
+# those in compose.yaml. 
+#
+# If you have any additional connection parameters, use query object. Note that the
+# database driver is "postgresql+asyncpg".
 database:
   name: avala
   user: admin
   password: admin
   host: postgres
   port: 5432
+  # query:
+  #   ssl: disable
 
 # RabbitMQ connection settings
 # If running via Docker compose, ensure that the parameters and the hostname match 
