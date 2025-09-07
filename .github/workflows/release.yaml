@@ -31,11 +31,14 @@ jobs:
               - 'server/common/**'
             client:
               - 'client/**'
+            docs:
+              - 'docs/**'
     outputs:
       submitter: ${{ steps.filter.outputs.submitter }}
       server: ${{ steps.filter.outputs.server }}
       common: ${{ steps.filter.outputs.common }}
       client: ${{ steps.filter.outputs.client }}
+      docs: ${{ steps.filter.outputs.docs }}
 
   publish-submitter:
     name: Build & publish avala-submitter image
@@ -227,3 +230,30 @@ jobs:
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-docs:
+    name: Publish docs
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.docs == 'true' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      
+      - name: Publish docs
+        run: |
+          pip install mkdocs-material
+          mkdocs gh-deploy --force
