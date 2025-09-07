@@ -19,7 +19,7 @@ Create a file named `compose.yaml` in your current directory and paste the conte
 ```yaml title="compose.yaml"
 services:
   avala-server:
-    image: avala-server
+    image: dusanlazic/avala-server
     ports:
       - "2024:2024"
     depends_on:
@@ -37,7 +37,7 @@ services:
       - ./flag_ids.py:/etc/avala/flag_ids.py:ro
     
   avala-submitter:
-    image: avala-submitter
+    image: dusanlazic/avala-submitter
     depends_on:
       rabbitmq:
         condition: service_healthy
