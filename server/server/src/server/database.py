@@ -8,16 +8,19 @@ from avala.common.config import config
 from fastapi import Depends
 from sqlalchemy import DateTime, String, Text, select
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-POSTGRESQL_URL = "postgresql+asyncpg://%s:%s@%s:%d/%s" % (
-    config.database.user,
-    config.database.password,
-    config.database.host,
-    config.database.port,
-    config.database.name,
+POSTGRESQL_URL = URL.create(
+    "postgresql+asyncpg",
+    username=config.database.user,
+    password=config.database.password,
+    host=config.database.host,
+    port=config.database.port,
+    database=config.database.name,
+    query=config.database.query,
 )
 
 
