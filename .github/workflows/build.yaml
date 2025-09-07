@@ -1,0 +1,143 @@
+name: Build (develop -> release)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [release]
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.head.ref == 'develop' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Path filters
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          token: ${{ github.token }}
+          filters: |
+            submitter:
+              - 'server/submitter/**'
+            server:
+              - 'server/server/**'
+            common:
+              - 'server/common/**'
+            client:
+              - 'client/**'
+    outputs:
+      submitter: ${{ steps.filter.outputs.submitter }}
+      server: ${{ steps.filter.outputs.server }}
+      common: ${{ steps.filter.outputs.common }}
+      client: ${{ steps.filter.outputs.client }}
+
+  build-submitter:
+    name: Build avala-submitter image
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.submitter == 'true' || needs.changes.outputs.common == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare common for submitter
+        run: |
+          rm -rf server/submitter/common
+          mkdir -p server/submitter
+          cp -a server/common server/submitter/common
+
+      - name: Read version from server/submitter/pyproject.toml
+        id: ver
+        shell: bash
+        run: |
+          python3 - << 'PY'
+          import tomllib, pathlib, os
+          p = pathlib.Path("server/submitter/pyproject.toml")
+          with p.open('rb') as f:
+              data = tomllib.load(f)
+          print(f"version={data['project']['version']}")
+          PY
+                    } | tee /dev/stderr >> "$GITHUB_OUTPUT"
+
+      - name: Docker build (avala-submitter)
+        run: |
+          echo "Building avala-submitter:${{ steps.ver.outputs.version }}"
+          docker build \
+            -t avala-submitter:${{ steps.ver.outputs.version }} \
+            -f server/submitter/Dockerfile \
+            server/submitter
+
+  build-server:
+    name: Build avala-server image
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.server == 'true' || needs.changes.outputs.common == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare common for server
+        run: |
+          rm -rf server/server/common
+          mkdir -p server/server
+          cp -a server/common server/server/common
+
+      - name: Read version from server/server/pyproject.toml
+        id: ver
+        shell: bash
+        run: |
+          python3 - << 'PY'
+          import tomllib, pathlib, os
+          p = pathlib.Path("server/server/pyproject.toml")
+          with p.open('rb') as f:
+              data = tomllib.load(f)
+          print(f"version={data['project']['version']}")
+          PY
+                    } | tee /dev/stderr >> "$GITHUB_OUTPUT"
+
+      - name: Docker build (avala-server)
+        run: |
+          echo "Building avala-server:${{ steps.ver.outputs.version }}"
+          docker build \
+            -t avala-server:${{ steps.ver.outputs.version }} \
+            -f server/server/Dockerfile \
+            server/server
+
+  build-client:
+    name: Build avala-ad library
+    needs: changes
+    runs-on: ubuntu-latest
+    if: ${{ needs.changes.outputs.client == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Read client version from client/pyproject.toml
+        id: ver
+        shell: bash
+        run: |
+          python3 - << 'PY'
+          import tomllib, pathlib
+          p = pathlib.Path("client/pyproject.toml")
+          with p.open('rb') as f:
+              data = tomllib.load(f)
+          print(f"version={data['project']['version']}")
+          PY
+                    } | tee /dev/stderr >> "$GITHUB_OUTPUT"
+
+      - name: uv build (verify packaging)
+        working-directory: client
+        run: |
+          echo "Building avala-ad version ${{ steps.ver.outputs.version }}"
+          uv build --no-sdist --wheel
