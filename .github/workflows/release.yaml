@@ -19,7 +19,8 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           token: ${{ github.token }}
-          base: develop
+          base: ${{ github.event.before }}
+          head: ${{ github.sha }}
           filters: |
             submitter:
               - 'server/submitter/**'
