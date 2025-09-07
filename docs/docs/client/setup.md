@@ -1,3 +1,6 @@
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css">
+
 The recommended way to install **Avala** is via **pip** within a Python virtual environment. This practice helps to manage dependencies and avoid conflicts with other dependencies on your system.
 
 ## Create virtual environment
@@ -51,8 +54,14 @@ Running the script should connect to the server and display its configuration. I
 
 You can also run Avala client using the CLI by running `avl run`. For using the CLI, refer to [CLI reference](./cli.md). 
 
-!!! info  "TODO"
-    asciinema replay of running the server
+<div id="connect-demo"></div>
+<script>
+  AsciinemaPlayer.create('/avala/assets/demos/connect.cast', document.getElementById('connect-demo'), {
+      cols: 113,
+      rows: 18,
+      idleTimeLimit: 2
+  });
+</script>
 
 ## Register exploit directories
 
@@ -76,6 +85,15 @@ if __name__ == "__main__":
 ```
 
 If already running the client, stop it and rerun it so the changes take effect. Avala will now scan and pick up exploits in any files in `sploits` directory.
+
+<div id="run-demo"></div>
+<script>
+  AsciinemaPlayer.create('/avala/assets/demos/run.cast', document.getElementById('run-demo'), {
+      cols: 126,
+      rows: 28,
+      idleTimeLimit: 2
+  });
+</script>
 
 ## Redis cache (optional)
 

