@@ -1,6 +1,6 @@
-# avala-ui
+# Avala Dashboard
 
-This template should help get you started developing with Vue 3 in Vite.
+Avala includes a web-based dashboard built in Vue.js. It is built separately and then packaged into the `avala-server` Docker container, where it’s served by the Avala backend.
 
 ## Recommended IDE Setup
 
@@ -30,6 +30,12 @@ npm run dev
 
 ```sh
 npm run build
+```
+
+### Build without type-checking
+
+```sh
+npm run build-only
 ```
 
 ### Lint with [ESLint](https://eslint.org/)

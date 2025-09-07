@@ -1,8 +1,8 @@
-name: Release (merge to release)
+name: Release (push to release)
 
 on:
   push:
-    branches: [ci-release-testing]
+    branches: [release]
 
 jobs:
   changes:
@@ -22,17 +22,13 @@ jobs:
           filters: |
             submitter:
               - 'server/submitter/**'
-              - '.github/**'
             server:
               - 'server/server/**'
               - 'dashboards/**'
-              - '.github/**'
             common:
               - 'server/common/**'
-              - '.github/**'
             client:
               - 'client/**'
-              - '.github/**'
     outputs:
       submitter: ${{ steps.filter.outputs.submitter }}
       server: ${{ steps.filter.outputs.server }}
@@ -225,7 +221,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: "client-v${{ steps.ver.outputs.version }}"
-          name: "Avala Client v${{ steps.ver.outputs.version }}"
+          name: "v${{ steps.ver.outputs.version }}"
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}

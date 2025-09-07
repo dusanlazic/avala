@@ -1,4 +1,4 @@
-name: Build (develop -> release)
+name: Build (PR develop -> release)
 
 on:
   pull_request:
