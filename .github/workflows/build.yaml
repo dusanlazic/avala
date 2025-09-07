@@ -118,8 +118,8 @@ jobs:
           VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('client/pyproject.toml', 'rb'))['project']['version'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: uv build (verify packaging)
+      - name: uv build
         working-directory: client
         run: |
           echo "Building avala-ad version ${{ steps.ver.outputs.version }}"
-          uv build --no-sdist --wheel
+          uv build

