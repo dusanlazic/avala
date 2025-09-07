@@ -1,0 +1,30 @@
+[project]
+name = "avala-common"
+version = "0.1.0"
+description = "Common utilities for Avala server"
+authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "loguru>=0.7.3",
+    "pydantic-settings[yaml]>=2.8.1",
+    "sqlmodel>=0.0.24",
+]
+
+[dependency-groups]
+dev = ["ipython>=9.0.2", "mypy>=1.15.0", "ruff>=0.11.2"]
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["I", "W", "E", "F", "C", "B9"]
+
+[tool.isort]
+known_first_party = ["avala"]
+
+[tool.uv]
+package = true

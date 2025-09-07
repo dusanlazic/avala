@@ -1,0 +1,38 @@
+[project]
+name = "avala-ad"
+version = "0.1.0"
+description = "Avala client for writing and running exploits"
+authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
+readme = "README.md"
+requires-python = ">=3.11"
+license = "GPL-3.0-or-later"
+license-files = ["LICEN[CS]E*"]
+dependencies = [
+    "apscheduler>=3.11.0",
+    "click>=8.2.1",
+    "httpx>=0.28.0",
+    "loguru>=0.7.2",
+    "pydantic>=2.10.2",
+    "redis[hiredis]>=5.2.1",
+]
+
+[project.urls]
+Homepage = "https://lazicdusan.com/avala"
+
+[project.scripts]
+avl = "avala.cli:avl"
+
+[dependency-groups]
+dev = ["ipython>=8.30.0", "mypy>=1.13.0", "pydeps>=3.0.0", "ruff>=0.8.1"]
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["I", "W", "E", "F", "C", "B9"]
+
+[tool.isort]
+known_first_party = ["avala"]

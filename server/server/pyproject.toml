@@ -1,0 +1,51 @@
+[project]
+name = "server"
+version = "0.1.0"
+description = "Core server component of Avala server"
+authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
+requires-python = ">=3.12"
+dependencies = [
+    "aio-pika>=9.5.5",
+    "apscheduler>=3.11.0",
+    "asyncpg>=0.30.0",
+    "avala-common>=0.1.0",
+    "fastapi-cache2>=0.2.2",
+    "fastapi[standard]>=0.115.12",
+    "pip>=25.2",
+    "sqlalchemy[asyncio]>=2.0.40",
+]
+
+[project.scripts]
+server = "server:main.main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["ipython>=9.1.0", "mypy>=1.15.0", "ruff>=0.11.5"]
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["I", "W", "E", "F", "C", "B9"]
+
+[tool.isort]
+known_first_party = [
+    "configure",
+    "flag_ids",
+    "flags",
+    "workers",
+    "messaging",
+    "scheduling",
+    "database",
+    "avala",
+    "avala.common",
+]
+
+[tool.uv.sources]
+avala-common = { path = "common" }

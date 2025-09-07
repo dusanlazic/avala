@@ -1,0 +1,57 @@
+site_name: "Avala Documentation"
+site_url: https://lazicdusan.com/avala
+repo_url: https://github.com/dusanlazic/avala
+repo_name: dusanlazic/avala
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/favicon.ico
+  features:
+    - content.code.copy
+    - content.code.annotate
+    - navigation.footer
+    - navigation.instant
+    - navigation.tabs
+  palette:
+    scheme: slate
+    primary: black
+    accent: red
+markdown_extensions:
+- attr_list
+- md_in_html
+- def_list
+- admonition
+- pymdownx.details
+- pymdownx.superfences:
+    custom_fences:
+      - name: mermaid
+        class: mermaid
+        format: !!python/name:pymdownx.superfences.fence_code_format
+- pymdownx.highlight:
+    anchor_linenums: true
+- pymdownx.tabbed:
+    alternate_style: true 
+- pymdownx.tasklist:
+    custom_checkbox: true
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg
+- toc:
+    permalink: true
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Server setup:
+      - Overview: server/index.md
+      - Writing submitter script: server/submitter.md
+      - Writing flag IDs script: server/flag-ids.md
+      - Configuration: server/configuration.md
+      - Launching: server/launching.md
+  - Exploit development:
+      - Overview: client/index.md
+      - Client setup: client/setup.md
+      - CLI reference: client/cli.md
+      - Writing exploits: client/exploit.md
+      - Decorator reference: client/decorator.md
+  - Playground Repo: "https://github.com/dusanlazic/avala-playground"

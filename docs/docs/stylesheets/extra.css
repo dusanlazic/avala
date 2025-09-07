@@ -1,0 +1,7 @@
+.md-nav__link.md-nav__link--active {
+    color: #e75465;
+}
+
+.md-content {
+    --md-typeset-a-color:  #e75465;
+}
