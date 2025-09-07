@@ -99,8 +99,8 @@ class APIClient:
         flags: Iterable[str],
         host: str,
         worker_name: str,
-        service_name: str | None = None,
-        exploit_alias: str | None = None,
+        service_name: str,
+        exploit_alias: str,
     ) -> None:
         """
         Sends flags to the server for submission.
@@ -118,7 +118,7 @@ class APIClient:
         :raises httpx.HTTPStatusError: If the server responds with an error status code.
         """
         enqueue_body = FlagsEnqueueBody(
-            values=flags,
+            values=set(flags),
             host=host,
             service=service_name,
             worker=worker_name,
@@ -137,7 +137,7 @@ class APIClient:
             "{icon} Enqueued <b>{enqueued}/{total}</> flags from <b>{host}</> via <b>{exploit}</>. <d>{flags}</>",
             icon="🚩" if flag_enqueue_response.enqueued else "❗",
             enqueued=flag_enqueue_response.enqueued,
-            total=len(flags),
+            total=len(list(flags)),
             host=colorize(host),
             exploit=colorize(exploit_alias),
             flags=truncate(", ".join(flags)),

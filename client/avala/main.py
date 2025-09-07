@@ -60,7 +60,7 @@ class Avala:
             password=password,
         )
         self._worker_name: str = name
-        self._client: APIClient | None = None
+        self._client: APIClient
         self._scheduler: BackgroundScheduler
         self._blob_storage: BlobStorage | None = BlobStorage(redis_url, "avala_blobs") if redis_url else None
         self._flag_ids_hash_storage: FlagIdsHashStorage | None = (
@@ -79,10 +79,11 @@ class Avala:
         Connects to the Avala server without running it. This method must be called before using any method
         that uses the API client, other than run() as it calls this method internally.
         """
-        self._client = APIClient.connect(self._connection, quiet=self.suppress_logs)
-        if self._client is None:
+        client = APIClient.connect(self._connection, quiet=self.suppress_logs)
+        if client is None:
             return False
 
+        self._client = client
         return True
 
     def run(self) -> None:
@@ -144,6 +145,8 @@ class Avala:
         :param exploit_alias: Alias of the exploit to be launched.
         :type exploit_alias: str
         """
+        self._check_connection()
+
         flag_ids = self._fetch_or_load_flag_ids()
 
         exploit = next((e for e in self._reload_exploits() if e.alias == exploit_alias), None)
@@ -191,6 +194,7 @@ class Avala:
         :return: Unscoped flag ids covering flag IDs from all services, targets and ticks.
         :rtype: UnscopedFlagIds
         """
+        self._check_connection()
         return self._client.fetch_flag_ids()
 
     def get_services(self) -> set[str]:
@@ -200,6 +204,7 @@ class Avala:
         :return: Set of service names.
         :rtype: set[str]
         """
+        self._check_connection()
         return self._client.fetch_flag_ids().get_service_names()
 
     def submit_flags(
@@ -221,6 +226,7 @@ class Avala:
         :param exploit_alias: Alias of the exploit that retrieved the flags.
         :type exploit_alias: str
         """
+        self._check_connection()
         self._client.enqueue(flags, host, self._worker_name, service_name, exploit_alias)
 
     def match_flags(self, output: Any) -> set[str]:
@@ -233,6 +239,7 @@ class Avala:
         :return: Set of flags extracted from the output.
         :rtype: set[str]
         """
+        self._check_connection()
         return set(re.findall(self._client.game.flag_format, str(output)))
 
     def list_exploits(self) -> list[tuple[str, bool]]:
@@ -249,11 +256,11 @@ class Avala:
         Updates the exploit directory paths to be relative to the given module path. This is useful when running the
         client from a different working directory when using the CLI. Updates _exploit_directories in place.
         """
-        module_path = Path(module_path).parent.resolve()
+        abs_module_path = Path(module_path).parent.resolve()
         updated_directories = set()
         for path in self._exploit_directories:
             if not path.is_absolute():
-                path = (module_path / path).resolve()
+                path = (abs_module_path / path).resolve()
             updated_directories.add(path)
         self._exploit_directories = updated_directories
 
@@ -329,7 +336,7 @@ class Avala:
                     raise Exception("Failed to load module spec.")
 
                 module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                spec.loader.exec_module(module)  # type: ignore[union-attr]
 
                 for _, func in module.__dict__.items():
                     if callable(func) and hasattr(func, "exploit") and isinstance(func.exploit, Exploit):
@@ -494,8 +501,15 @@ class Avala:
                 flags=truncate(", ".join(flags)),
             )
             if self._unsent_flag_storage:
-                for flag in flags:
-                    self._unsent_flag_storage.add(FlagsEnqueueBody(values=[flag], exploit=exploit.alias, host=host))
+                self._unsent_flag_storage.add(
+                    FlagsEnqueueBody(
+                        values=flags,
+                        host=host,
+                        worker=self._worker_name,
+                        service=exploit.service,
+                        exploit=exploit.alias,
+                    )
+                )
         finally:
             return True
 
@@ -504,6 +518,9 @@ class Avala:
         Job that periodically checks the connection with the server and tries to enqueue the pending flags collected
         during the server downtime.
         """
+        if self._unsent_flag_storage is None:  # check for typing
+            return
+
         if self._unsent_flag_storage.size():
             logger.warning(
                 "🔄 <b>{count}</> flags are waiting to be submitted! Checking connection with the server...",
@@ -534,8 +551,8 @@ class Avala:
                     flag.values,
                     flag.host,
                     self._worker_name,
-                    flag.service,
-                    flag.exploit,
+                    flag.service or "unknown",
+                    flag.exploit or "unknown",
                 )
             except Exception:
                 self._unsent_flag_storage.add(flag)
@@ -564,6 +581,17 @@ class Avala:
             return first_tick_start
 
         return now + tick_duration - (now - first_tick_start) % tick_duration
+
+    def _check_connection(self) -> None:
+        """
+        Raises a runtime error if the APIClient is not initialized.
+
+        :raises RuntimeError: Avala instance has no connection established.
+        """
+        if not hasattr(self, "_client"):
+            raise RuntimeError(
+                "Avala instance has no connection established. Call .connect() method before running this function."
+            )
 
     def _show_banner(self) -> None:
         """

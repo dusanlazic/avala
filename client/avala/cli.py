@@ -115,7 +115,7 @@ def avl(ctx: click.Context, path_: str | None = None) -> None:
         avala = _load_avala(path_)
         ctx.obj = Context(avala=avala, module_path=module_path)
     except Exception as e:
-        ctx.obj = Context(avala=None, module_path=module_path, load_error=str(e))
+        ctx.obj = Context(avala=None, module_path=module_path, load_error=str(e))  # type: ignore[arg-type]
         return
 
 

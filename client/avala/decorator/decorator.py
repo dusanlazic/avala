@@ -66,17 +66,11 @@ def exploit(
             targets_skip=set(skip) if skip else set(),
             targets_include=set(include) if include else set(),
             targets_explicit=set(targets) if isinstance(targets, Iterable) else set(),
-            targets_strategy=targets
-            if isinstance(targets, TargetingStrategy)
-            else None,
+            targets_strategy=targets if isinstance(targets, TargetingStrategy) else None,
             flag_id_scope=flag_id_scope,
-            delay=timedelta(seconds=delay)
-            if isinstance(delay, (int, float))
-            else delay,
+            delay=timedelta(seconds=delay) if isinstance(delay, (int, float)) else delay,
             batching=batching,
-            timeout=timedelta(seconds=timeout)
-            if isinstance(timeout, (int, float))
-            else timeout,
+            timeout=timedelta(seconds=timeout) if isinstance(timeout, (int, float)) else timeout,
             func=func,
         )
 

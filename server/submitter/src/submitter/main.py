@@ -135,9 +135,9 @@ def calculate_next_submit_time() -> timedelta:
         return (config.game.game_starts_at + interval) - now
 
 
-async def connect_to_rabbitmq() -> (
-    tuple[aio_pika.abc.AbstractRobustConnection | None, aio_pika.abc.AbstractChannel | None]
-):
+async def connect_to_rabbitmq() -> tuple[
+    aio_pika.abc.AbstractRobustConnection | None, aio_pika.abc.AbstractChannel | None
+]:
     """
     Connects to RabbitMQ using the configuration settings and returns the connection and channel objects.
     """
@@ -264,7 +264,7 @@ async def start_interval_consumer(  # noqa: C901
                 message = messages[flag]
                 attempt = message.headers.get("x-delivery-count", 0) if message.headers else 0
                 status = "requeued" if attempt < config.submitter.retries else "failed"
-                await persist_flag_status(db=db, flag=flag, response=None, status=status)
+                await persist_flag_status(db=db, flag=flag, response=None, status=status)  # type: ignore[arg-type]
         else:
             stats = Counter(status for status, _, _ in results)
             logger.info(

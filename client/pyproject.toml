@@ -5,7 +5,7 @@ description = "Avala client for writing and running exploits"
 authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
 readme = "README.md"
 requires-python = ">=3.11"
-license = "GPL-3"
+license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
     "apscheduler>=3.11.0",

@@ -46,20 +46,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare common for submitter
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Prepare common
         run: |
           rm -rf server/submitter/common
           mkdir -p server/submitter
           cp -a server/common server/submitter/common
 
-      - name: Read version from server/submitter/pyproject.toml
+      - name: Typecheck & format
+        working-directory: server/submitter
+        run: |
+          uv run mypy src/submitter --explicit-package-bases
+          uv run ruff format src/submitter
+          uv run ruff check --fix src/submitter
+
+      - name: Read version
         id: ver
         shell: bash
         run: |
           VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('server/submitter/pyproject.toml', 'rb'))['project']['version'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Docker build (avala-submitter)
+      - name: Build Docker image
         run: |
           echo "Building avala-submitter:${{ steps.ver.outputs.version }}"
           docker build \
@@ -77,20 +87,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare common for server
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Prepare common
         run: |
           rm -rf server/server/common
           mkdir -p server/server
           cp -a server/common server/server/common
 
-      - name: Read version from server/server/pyproject.toml
+      - name: Typecheck & format
+        working-directory: server/server
+        run: |
+          uv run mypy src/server --explicit-package-bases
+          uv run ruff format src/server
+          uv run ruff check --fix src/server
+
+      - name: Read version
         id: ver
         shell: bash
         run: |
           VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('server/server/pyproject.toml', 'rb'))['project']['version'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Docker build (avala-server)
+      - name: Build Docker image
         run: |
           echo "Building avala-server:${{ steps.ver.outputs.version }}"
           docker build \
@@ -111,14 +131,21 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v4
 
-      - name: Read client version from client/pyproject.toml
+      - name: Typecheck & format
+        working-directory: client
+        run: |
+          uv run mypy avala --explicit-package-bases
+          uv run ruff format avala
+          uv run ruff check --fix avala
+
+      - name: Read version
         id: ver
         shell: bash
         run: |
           VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('client/pyproject.toml', 'rb'))['project']['version'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: uv build
+      - name: Build library
         working-directory: client
         run: |
           echo "Building avala-ad version ${{ steps.ver.outputs.version }}"

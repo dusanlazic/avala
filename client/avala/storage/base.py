@@ -127,7 +127,7 @@ class HashRedisStorage(BaseRedisStorage[T]):
         :return: Size of the hash.
         :rtype: int
         """
-        return self._redis.hlen(self._name)
+        return self._redis.hlen(self._name)  # type: ignore[return-value]
 
     def __getitem__(self, key: str) -> T:
         return self.get(key)
@@ -167,7 +167,7 @@ class SetRedisStorage(BaseRedisStorage[T]):
         encoded_values = [self._encode(value) for value in values]
         self._redis.srem(self._name, *encoded_values)
 
-    def pop(self) -> T:
+    def pop(self) -> T | None:
         """
         Retrieves and removes a random value from the Redis set.
 
@@ -196,7 +196,7 @@ class SetRedisStorage(BaseRedisStorage[T]):
         :return: Size of the set.
         :rtype: int
         """
-        return self._redis.scard(self._name)
+        return self._redis.scard(self._name)  # type: ignore[return-value]
 
     def __contains__(self, value: T) -> bool:
         return self.contains(value)
