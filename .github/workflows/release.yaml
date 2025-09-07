@@ -94,6 +94,13 @@ jobs:
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: Create tag
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git tag -a "submitter-v${{ steps.ver.outputs.version }}" -m "Avala Submitter v${{ steps.ver.outputs.version }}"
+          git push origin "submitter-v${{ steps.ver.outputs.version }}"
 
   publish-server:
     name: Build & publish avala-server image
@@ -168,6 +175,13 @@ jobs:
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: Create tag
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git tag -a "server-v${{ steps.ver.outputs.version }}" -m "Avala Server v${{ steps.ver.outputs.version }}"
+          git push origin "server-v${{ steps.ver.outputs.version }}"
 
   publish-client:
     name: Build & publish avala-ad library
@@ -176,6 +190,7 @@ jobs:
     if: ${{ needs.changes.outputs.client == 'true' }}
     permissions:
       id-token: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -204,4 +219,13 @@ jobs:
           echo "Building avala-ad version ${{ steps.ver.outputs.version }}"
           uv build
           echo "Publishing..."
-          uv publish --publish-url https://test.pypi.org/legacy/
+          # uv publish --publish-url https://test.pypi.org/legacy/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "client-v${{ steps.ver.outputs.version }}"
+          name: "Avala Client v${{ steps.ver.outputs.version }}"
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
