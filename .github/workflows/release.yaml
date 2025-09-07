@@ -199,5 +199,7 @@ jobs:
       - name: Build & publish library
         working-directory: client
         run: |
-          echo "Building and publishing avala-ad version ${{ steps.ver.outputs.version }}"
-          uv publish
+          echo "Building avala-ad version ${{ steps.ver.outputs.version }}"
+          uv build
+          echo "Publishing..."
+          uv publish --publish-url https://test.pypi.org/legacy/
