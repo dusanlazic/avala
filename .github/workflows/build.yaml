@@ -56,14 +56,8 @@ jobs:
         id: ver
         shell: bash
         run: |
-          python3 - << 'PY'
-          import tomllib, pathlib, os
-          p = pathlib.Path("server/submitter/pyproject.toml")
-          with p.open('rb') as f:
-              data = tomllib.load(f)
-          print(f"version={data['project']['version']}")
-          PY
-                    } | tee /dev/stderr >> "$GITHUB_OUTPUT"
+          VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('server/submitter/pyproject.toml', 'rb'))['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Docker build (avala-submitter)
         run: |
@@ -93,14 +87,8 @@ jobs:
         id: ver
         shell: bash
         run: |
-          python3 - << 'PY'
-          import tomllib, pathlib, os
-          p = pathlib.Path("server/server/pyproject.toml")
-          with p.open('rb') as f:
-              data = tomllib.load(f)
-          print(f"version={data['project']['version']}")
-          PY
-                    } | tee /dev/stderr >> "$GITHUB_OUTPUT"
+          VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('server/server/pyproject.toml', 'rb'))['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Docker build (avala-server)
         run: |
@@ -127,14 +115,8 @@ jobs:
         id: ver
         shell: bash
         run: |
-          python3 - << 'PY'
-          import tomllib, pathlib
-          p = pathlib.Path("client/pyproject.toml")
-          with p.open('rb') as f:
-              data = tomllib.load(f)
-          print(f"version={data['project']['version']}")
-          PY
-                    } | tee /dev/stderr >> "$GITHUB_OUTPUT"
+          VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('client/pyproject.toml', 'rb'))['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: uv build (verify packaging)
         working-directory: client
