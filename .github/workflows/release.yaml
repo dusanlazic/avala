@@ -22,13 +22,17 @@ jobs:
           filters: |
             submitter:
               - 'server/submitter/**'
+              - '.github/**'
             server:
               - 'server/server/**'
               - 'dashboards/**'
+              - '.github/**'
             common:
               - 'server/common/**'
+              - '.github/**'
             client:
               - 'client/**'
+              - '.github/**'
     outputs:
       submitter: ${{ steps.filter.outputs.submitter }}
       server: ${{ steps.filter.outputs.server }}
