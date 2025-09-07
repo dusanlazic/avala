@@ -1,6 +1,6 @@
 [project]
 name = "server"
-version = "0.1.1"
+version = "0.1.2"
 description = "Core server component of Avala server"
 authors = [{ name = "Dušan Lazić", email = "lazicdusan@protonmail.com" }]
 requires-python = ">=3.12"
