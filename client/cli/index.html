@@ -871,6 +871,8 @@
 
   <h1>CLI reference</h1>
 
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
+<p><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css"></p>
 <p>After installing Avala, you'll have access to the <code>avl</code> CLI utility. This guide serves as a quick reference for its commands.</p>
 <h2 id="discovery">Discovery<a class="headerlink" href="#discovery" title="Permanent link">&para;</a></h2>
 <p>By default, <code>avl</code> command will try to import <code>app.py</code> in the current working directory and look for an instance of <code>Avala</code>. To import a file other than <code>app.py</code>, use <code>--path</code> flag to specify a different path.</p>
@@ -879,119 +881,80 @@
 <p>The rest of this guide assumes the file is named <code>app.py</code> and omits the <code>--path</code> flag.</p>
 <h2 id="avl-init"><code>avl init</code><a class="headerlink" href="#avl-init" title="Permanent link">&para;</a></h2>
 <p>Creates an <code>app.py</code> client script and an exploit directory in the current working directory based on user inputs. Serves as a guided interactive way of setting up the client.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gp">$ </span>avl<span class="w"> </span>init
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="go">protocol [http]: https</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="go">host [localhost]: avala.hakuj.me</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="go">port [2024]: 2024</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="go">name [anon]: s4ndu</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="go">password []: </span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="go">redis url []:</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="go">exploit directory [sploits]: sploits</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="go">🚀 Initialization complete. Run &#39;avl run&#39; to run Avala.</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="gp">$ </span>avl<span class="w"> </span>run
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="go">      db</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="go">     ;MM:</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="go">    ,V^MM. 7MM&quot;&quot;Yq.  ,6&quot;Yb.  `7M&quot;&quot;MMF&#39;,6&quot;Yb.</span>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="go">   ,M  `MM `MM   j8 8)   MM    M  MM 8)   MM</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="go">   AbmmmqMA MM&quot;&quot;Yq.  ,pm9MM   ,P  MM  ,pm9MM</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="go">  A&#39;     VML`M   j8 8M   MM . d&#39;  MM 8M   MM</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="go">.AMA.   .AMMA.mmm9&#39; `Moo9^Yo8M&#39; .JMML`Moo9^Yo.</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="go">[23:54:23] SUCCESS  ✅ Connected to Avala server at https://avala.hakuj.me:2024 as s4ndu.</span>
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="go">[23:54:23] INFO     Flag format: ENO[A-Za-z0-9+/=]{48}</span>
-<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="go">[23:54:23] INFO     Tick duration: 60.0 seconds</span>
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="go">[23:54:23] INFO     Time of the first tick: 2025-09-03 20:30:00+02:00</span>
-<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="go">[23:54:23] INFO     📂 Registered exploit directories: sploits</span>
-<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="go">[23:54:23] WARNING  ⚠️  No exploits loaded.</span>
-<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="go">^C</span>
-<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="go">[23:54:29] INFO     🙌 Thanks for using Avala!</span>
-</code></pre></div>
+<div id="init-demo"></div>
+<script>
+  AsciinemaPlayer.create('/avala/assets/demos/init.cast', document.getElementById('init-demo'), {
+      cols: 100,
+      rows: 18,
+      idleTimeLimit: 2
+  });
+</script>
+
 <h2 id="avl-run"><code>avl run</code><a class="headerlink" href="#avl-run" title="Permanent link">&para;</a></h2>
 <p>Runs Avala client in production mode.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>avl<span class="w"> </span>run
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="go">      db</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="go">     ;MM:</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="go">    ,V^MM. 7MM&quot;&quot;Yq.  ,6&quot;Yb.  `7M&quot;&quot;MMF&#39;,6&quot;Yb.</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="go">   ,M  `MM `MM   j8 8)   MM    M  MM 8)   MM</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="go">   AbmmmqMA MM&quot;&quot;Yq.  ,pm9MM   ,P  MM  ,pm9MM</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="go">  A&#39;     VML`M   j8 8M   MM . d&#39;  MM 8M   MM</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="go">.AMA.   .AMMA.mmm9&#39; `Moo9^Yo8M&#39; .JMML`Moo9^Yo.</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="go">[22:50:47] SUCCESS  ✅ Connected to Avala server at http://avala.hakuj.me:2024 as s4ndu.</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="go">[22:50:47] INFO     Flag format: ENO[A-Za-z0-9+/=]{48}</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="go">[22:50:47] INFO     Tick duration: 60.0 seconds</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="go">[22:50:47] INFO     Time of the first tick: 2025-09-03 20:30:00+02:00</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="go">[22:50:47] INFO     📂 Registered exploit directories: exploits</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="go">[22:50:47] INFO     📥 Loaded 5 exploits: alpha*, bravo*, charlie*, delta, echo*</span>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="go">[22:50:47] INFO     ⏰ Exploit delta (batch 1/2) will run at 22:50:50.</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="go">[22:50:47] INFO     ⏰ Exploit delta (batch 2/2) will run at 22:50:55.</span>
-</code></pre></div>
+<div id="run-2-demo"></div>
+<script>
+  AsciinemaPlayer.create('/avala/assets/demos/run.cast', document.getElementById('run-2-demo'), {
+      cols: 126,
+      rows: 28,
+      idleTimeLimit: 2
+  });
+</script>
+
 <h2 id="avl-services"><code>avl services</code><a class="headerlink" href="#avl-services" title="Permanent link">&para;</a></h2>
 <p>Displays all service names based on flag IDs.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="gp">$ </span>avl<span class="w"> </span>services
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="go">foo</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="go">bar</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="go">baz</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="go">qux</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gp">$ </span>avl<span class="w"> </span>services
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="go">history</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="go">none</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="go">own</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="go">pay</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="go">prepare</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="go">security</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="go">wish</span>
 </code></pre></div>
 <h2 id="avl-flag-ids"><code>avl flag-ids</code><a class="headerlink" href="#avl-flag-ids" title="Permanent link">&para;</a></h2>
 <p>Filters and lists flag IDs. You can narrow down the results by providing a service name, target host, and/or tick index. Pipe output to <code>jq</code> to make large outputs easier to read. </p>
 <p><code>avl flag-ids [service] [target] [tick index]</code></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="gp">$ </span>avl<span class="w"> </span>flag-ids
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="go">&lt;entire flag_ids json&gt;</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="gp">$ </span>avl<span class="w"> </span>flag-ids<span class="w"> </span>foobar<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="go">{</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="go">  &lt;...&gt;</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="go">  &quot;10.10.42.1&quot;: [...],</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="go">  &quot;10.10.43.1&quot;: [</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="go">    &quot;lorem&quot;,</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="go">    &quot;ipsum&quot;,</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="go">    &quot;dolor&quot;,</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="go">    &quot;sit&quot;,</span>
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="go">    &quot;amet&quot;</span>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="go">  ],</span>
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="go">  &quot;10.10.44.1&quot;: [...],</span>
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="go">  &lt;...&gt;</span>
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="go">}</span>
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>
-<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="gp">$ </span>avl<span class="w"> </span>flag-ids<span class="w"> </span>foobar<span class="w"> </span><span class="s2">&quot;10.10.43.1&quot;</span>
-<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="go">[&quot;lorem&quot;, &quot;ipsum&quot;, &quot;dolor&quot;, &quot;sit&quot;, &quot;amet&quot;]</span>
-<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>
-<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="gp">$ </span>avl<span class="w"> </span>flag-ids<span class="w"> </span>foobar<span class="w"> </span><span class="s2">&quot;10.10.43.1&quot;</span><span class="w"> </span><span class="m">2</span>
-<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="go">dolor</span>
-</code></pre></div>
+<div id="flag-ids-demo"></div>
+<script>
+  AsciinemaPlayer.create('/avala/assets/demos/flagids.cast', document.getElementById('flag-ids-demo'), {
+      cols: 126,
+      rows: 28,
+      idleTimeLimit: 2
+  });
+</script>
+
 <h2 id="avl-exploits"><code>avl exploits</code><a class="headerlink" href="#avl-exploits" title="Permanent link">&para;</a></h2>
 <p>Displays aliases of all found exploits.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="gp">$ </span>avl<span class="w"> </span>exploits
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="go">alpha (draft)</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="go">bravo (draft)</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="go">charlie (draft)</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="go">delta</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="go">echo (draft)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>avl<span class="w"> </span>exploits
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="go">wish</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="go">wish_team_188 (draft)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="go">wish_experimental (draft)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="go">history_1</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="go">history_2</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="go">security.testing (draft)</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="go">all_at_once</span>
 </code></pre></div>
 <h2 id="avl-launch"><code>avl launch</code><a class="headerlink" href="#avl-launch" title="Permanent link">&para;</a></h2>
 <p>Launches attacks using an exploit with specified alias.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="gp">$ </span>avl<span class="w"> </span>launch<span class="w"> </span>alpha
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="go">[22:49:50] INFO     🚀 Launching exploit alpha (batch 1/1)...</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="go">[22:49:50] INFO     🚩 Enqueued 1/1 flags from 10.10.221.1 via alpha. ENOa354f4fc256fd7ea207b12b8dab1b6997309cec6e3283dd...</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="go">[22:49:50] INFO     🚩 Enqueued 1/1 flags from 10.10.101.1 via alpha. ENO7345b273162b30b9da7e141c6bacae89d8f664db04fe1a9...</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="go">[22:49:50] INFO     🚩 Enqueued 1/1 flags from 10.10.201.1 via alpha. ENOb1508613cd3dfa0c2ffd49562e3973528eaea78bfa918d5...</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="go">[22:49:50] INFO     🚩 Enqueued 1/1 flags from 10.10.173.1 via alpha. ENOd4445975d6ea241863a1000ae03105a094d665ab53aa797...</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="go">[22:49:50] INFO     🚩 Enqueued 1/1 flags from 10.10.13.1 via alpha. ENOb38346cc5c2375807885c7197e88fb5e56378e0d3e27616...</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="go">...</span>
-</code></pre></div>
+<p><code>avl launch &lt;exploit alias&gt;</code></p>
+<div id="launch-2-demo"></div>
+<script>
+  AsciinemaPlayer.create('/avala/assets/demos/launch.cast', document.getElementById('launch-2-demo'), {
+      cols: 126,
+      rows: 28,
+      idleTimeLimit: 2
+  });
+</script>
+
 <h2 id="avl-submit"><code>avl submit</code><a class="headerlink" href="#avl-submit" title="Permanent link">&para;</a></h2>
 <p>Extracts flags from text and sends them for submission. </p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="gp">$ </span>avl<span class="w"> </span>submit
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="go">Paste content containing the flags:</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="gp">$ </span>avl<span class="w"> </span>submit
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="go">Paste content containing the flags:</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="gp">$ </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;surroundingtext FLAG_3B37DF144CE4A83566BB surroundingtext&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avl<span class="w"> </span>submit
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="gp">$ </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;surroundingtext FLAG_3B37DF144CE4A83566BB surroundingtext&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>avl<span class="w"> </span>submit
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="gp">$ </span>avl<span class="w"> </span>submit<span class="w"> </span>&lt;<span class="w"> </span>response.txt
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="gp">$ </span>avl<span class="w"> </span>submit<span class="w"> </span>&lt;<span class="w"> </span>response.txt
 </code></pre></div>
 
 

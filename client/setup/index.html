@@ -817,6 +817,8 @@
 
   <h1>Client setup</h1>
 
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
+<p><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css"></p>
 <p>The recommended way to install <strong>Avala</strong> is via <strong>pip</strong> within a Python virtual environment. This practice helps to manage dependencies and avoid conflicts with other dependencies on your system.</p>
 <h2 id="create-virtual-environment">Create virtual environment<a class="headerlink" href="#create-virtual-environment" title="Permanent link">&para;</a></h2>
 <p>A virtual environment is a self-contained directory that holds a specific version of Python and any installed packages.</p>
@@ -858,10 +860,15 @@
 </code></pre></div>
 <p>Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet. </p>
 <p>You can also run Avala client using the CLI by running <code>avl run</code>. For using the CLI, refer to <a href="../cli/">CLI reference</a>. </p>
-<div class="admonition info">
-<p class="admonition-title">TODO</p>
-<p>asciinema replay of running the server</p>
-</div>
+<div id="connect-demo"></div>
+<script>
+  AsciinemaPlayer.create('/avala/assets/demos/connect.cast', document.getElementById('connect-demo'), {
+      cols: 113,
+      rows: 18,
+      idleTimeLimit: 2
+  });
+</script>
+
 <h2 id="register-exploit-directories">Register exploit directories<a class="headerlink" href="#register-exploit-directories" title="Permanent link">&para;</a></h2>
 <p>Avala client needs to know where the exploit scripts will be located at. Create a directory with a custom name (e.g. <code>sploits</code>) in your current directory and register it.</p>
 <div class="highlight"><span class="filename">app.py</span><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
@@ -880,6 +887,15 @@
 <a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="n">avl</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
 <p>If already running the client, stop it and rerun it so the changes take effect. Avala will now scan and pick up exploits in any files in <code>sploits</code> directory.</p>
+<div id="run-demo"></div>
+<script>
+  AsciinemaPlayer.create('/avala/assets/demos/run.cast', document.getElementById('run-demo'), {
+      cols: 126,
+      rows: 28,
+      idleTimeLimit: 2
+  });
+</script>
+
 <h2 id="redis-cache-optional">Redis cache (optional)<a class="headerlink" href="#redis-cache-optional" title="Permanent link">&para;</a></h2>
 <p>To support advanced features such as <a href="../exploit/#store-parameter">blob storage</a>, fallback flag store and skipping successful attacks to reduce resource usage, you can run a Redis instance and connect your Avala client.</p>
 <p>You can spin up a Redis instance using Docker:</p>
