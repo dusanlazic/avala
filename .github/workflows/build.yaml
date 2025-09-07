@@ -70,13 +70,22 @@ jobs:
           VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('server/submitter/pyproject.toml', 'rb'))['project']['version'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
       - name: Build Docker image
-        run: |
-          echo "Building avala-submitter:${{ steps.ver.outputs.version }}"
-          docker build \
-            -t avala-submitter:${{ steps.ver.outputs.version }} \
-            -f server/submitter/Dockerfile \
-            server/submitter
+        uses: docker/build-push-action@v3
+        with:
+          context: server/submitter
+          file: server/submitter/Dockerfile
+          tags: dusanlazic/avala-submitter:${{ steps.ver.outputs.version }},dusanlazic/avala-submitter:latest
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   build-server:
     name: Build avala-server image
@@ -128,14 +137,23 @@ jobs:
         run: |
           VERSION=$(python -c "import sys; import tomllib; print(tomllib.load(open('server/server/pyproject.toml', 'rb'))['project']['version'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
+      
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+      
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
       - name: Build Docker image
-        run: |
-          echo "Building avala-server:${{ steps.ver.outputs.version }}"
-          docker build \
-            -t avala-server:${{ steps.ver.outputs.version }} \
-            -f server/server/Dockerfile \
-            server/server
+        uses: docker/build-push-action@v3
+        with:
+          context: server/server
+          file: server/server/Dockerfile
+          tags: dusanlazic/avala-server:${{ steps.ver.outputs.version }},dusanlazic/avala-server:latest
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   build-client:
     name: Build avala-ad library
