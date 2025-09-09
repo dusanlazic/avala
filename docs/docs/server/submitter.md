@@ -40,7 +40,7 @@ def submit(flags: list[str]) -> list[tuple[Literal["accepted", "rejected", "requ
 
 ### Stream submission
 
-**Stream submission** should be used for competitions that accept flags one at the time, typically via **raw TCP**. Avala handles the submission by sending each flag immediatelly upon capture.
+**Stream submission** should be used for competitions that accept flags one at a time, typically via **raw TCP**. Avala handles the submission by sending each flag immediately upon capture.
 
 The `submit` function must accept a single flag (`str`) and is expected to return a `tuple` consisting of the submission status (`"accepted"`, `"rejected"`, or `"requeued"`) and the message from the service (`str`).
 
@@ -54,7 +54,7 @@ def submit(flag: str) -> tuple[Literal["accepted", "rejected", "requeued"], str]
     and the response message from the service.
 
     Use this when the flag checking service allows submitting only one flag
-    at the time (e.g. over TCP).
+    at a time (e.g. over TCP).
     """
 
     return "accepted", "FLAG_3B37DF144CE4A83566BB OK"
@@ -137,7 +137,7 @@ All three functions, `submit`, `setup`, and `teardown`, can also be **coroutines
         and the response message from the service.
 
         Use this when the flag checking service allows submitting only one flag
-        at the time (e.g. over TCP).
+        at a time (e.g. over TCP).
         """
 
         return "accepted", "FLAG_3B37DF144CE4A83566BB OK"
@@ -247,7 +247,7 @@ server-workspace/
 └── submitter.py
 ```
 
-Next step is writing the flag ID fetching script.
+The next step is writing the flag ID fetching script.
 
 - [x] [Create an empty directory on your server](./index.md) ✅
 - [x] [Write the **submitter** script](./submitter.md) ✅
