@@ -50,6 +50,8 @@
     
       <link rel="stylesheet" href="../../stylesheets/extra.css">
     
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -191,6 +193,25 @@
   
   
   
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
     
     
       <li class="md-tabs__item">
@@ -240,7 +261,26 @@
   
     
   
-  Playground Repo
+  Playground
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://github.com/dusanlazic/avala/tree/release" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Source
 
       </a>
     </li>
@@ -297,6 +337,28 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -309,10 +371,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
@@ -325,8 +387,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_1">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             Server setup
           </label>
@@ -477,10 +539,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -493,8 +555,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             Exploit development
           </label>
@@ -744,7 +806,29 @@
   
   
   <span class="md-ellipsis">
-    Playground Repo
+    Playground
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/dusanlazic/avala/tree/release" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Source
     
   </span>
   
@@ -871,36 +955,30 @@
 
   <h1>CLI reference</h1>
 
-<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
-<p><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css"></p>
 <p>After installing Avala, you'll have access to the <code>avl</code> CLI utility. This guide serves as a quick reference for its commands.</p>
 <h2 id="discovery">Discovery<a class="headerlink" href="#discovery" title="Permanent link">&para;</a></h2>
-<p>By default, <code>avl</code> command will try to import <code>app.py</code> in the current working directory and look for an instance of <code>Avala</code>. To import a file other than <code>app.py</code>, use <code>--path</code> flag to specify a different path.</p>
+<p>By default, the <code>avl</code> command will try to import <code>app.py</code> in the current working directory and look for an instance of <code>Avala</code>. To import a file other than <code>app.py</code>, use <code>--path</code> flag to specify a different path.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="gp">$ </span>avl<span class="w"> </span>--path<span class="w"> </span>./hello.py<span class="w"> </span>run
 </code></pre></div>
 <p>The rest of this guide assumes the file is named <code>app.py</code> and omits the <code>--path</code> flag.</p>
 <h2 id="avl-init"><code>avl init</code><a class="headerlink" href="#avl-init" title="Permanent link">&para;</a></h2>
 <p>Creates an <code>app.py</code> client script and an exploit directory in the current working directory based on user inputs. Serves as a guided interactive way of setting up the client.</p>
-<div id="init-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/init.cast', document.getElementById('init-demo'), {
-      cols: 100,
-      rows: 18,
-      idleTimeLimit: 2
-  });
-</script>
-
+<p><div
+  data-asciinema
+  data-src="/avala/assets/demos/init.cast"
+  data-cols="100"
+  data-rows="18"
+></div>
+</p>
 <h2 id="avl-run"><code>avl run</code><a class="headerlink" href="#avl-run" title="Permanent link">&para;</a></h2>
 <p>Runs Avala client in production mode.</p>
-<div id="run-2-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/run.cast', document.getElementById('run-2-demo'), {
-      cols: 126,
-      rows: 28,
-      idleTimeLimit: 2
-  });
-</script>
-
+<p><div
+  data-asciinema
+  data-src="/avala/assets/demos/run.cast"
+  data-cols="126"
+  data-rows="28"
+></div>
+</p>
 <h2 id="avl-services"><code>avl services</code><a class="headerlink" href="#avl-services" title="Permanent link">&para;</a></h2>
 <p>Displays all service names based on flag IDs.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gp">$ </span>avl<span class="w"> </span>services
@@ -915,15 +993,13 @@
 <h2 id="avl-flag-ids"><code>avl flag-ids</code><a class="headerlink" href="#avl-flag-ids" title="Permanent link">&para;</a></h2>
 <p>Filters and lists flag IDs. You can narrow down the results by providing a service name, target host, and/or tick index. Pipe output to <code>jq</code> to make large outputs easier to read. </p>
 <p><code>avl flag-ids [service] [target] [tick index]</code></p>
-<div id="flag-ids-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/flagids.cast', document.getElementById('flag-ids-demo'), {
-      cols: 126,
-      rows: 28,
-      idleTimeLimit: 2
-  });
-</script>
-
+<p><div
+  data-asciinema
+  data-src="/avala/assets/demos/flagids.cast"
+  data-cols="126"
+  data-rows="28"
+></div>
+</p>
 <h2 id="avl-exploits"><code>avl exploits</code><a class="headerlink" href="#avl-exploits" title="Permanent link">&para;</a></h2>
 <p>Displays aliases of all found exploits.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>avl<span class="w"> </span>exploits
@@ -938,15 +1014,13 @@
 <h2 id="avl-launch"><code>avl launch</code><a class="headerlink" href="#avl-launch" title="Permanent link">&para;</a></h2>
 <p>Launches attacks using an exploit with specified alias.</p>
 <p><code>avl launch &lt;exploit alias&gt;</code></p>
-<div id="launch-2-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/launch.cast', document.getElementById('launch-2-demo'), {
-      cols: 126,
-      rows: 28,
-      idleTimeLimit: 2
-  });
-</script>
-
+<p><div
+  data-asciinema
+  data-src="/avala/assets/demos/launch.cast"
+  data-cols="126"
+  data-rows="28"
+></div>
+</p>
 <h2 id="avl-submit"><code>avl submit</code><a class="headerlink" href="#avl-submit" title="Permanent link">&para;</a></h2>
 <p>Extracts flags from text and sends them for submission. </p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="gp">$ </span>avl<span class="w"> </span>submit
@@ -1048,6 +1122,10 @@
     
     
       <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
+      
+        <script src="../../javascripts/asciinema-init.js"></script>
       
     
   </body>

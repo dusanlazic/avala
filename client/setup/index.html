@@ -50,6 +50,8 @@
     
       <link rel="stylesheet" href="../../stylesheets/extra.css">
     
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -191,6 +193,25 @@
   
   
   
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
     
     
       <li class="md-tabs__item">
@@ -240,7 +261,26 @@
   
     
   
-  Playground Repo
+  Playground
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://github.com/dusanlazic/avala/tree/release" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Source
 
       </a>
     </li>
@@ -297,6 +337,28 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -309,10 +371,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
@@ -325,8 +387,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_1">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             Server setup
           </label>
@@ -477,10 +539,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -493,8 +555,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             Exploit development
           </label>
@@ -717,7 +779,29 @@
   
   
   <span class="md-ellipsis">
-    Playground Repo
+    Playground
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/dusanlazic/avala/tree/release" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Source
     
   </span>
   
@@ -817,8 +901,6 @@
 
   <h1>Client setup</h1>
 
-<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
-<p><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css"></p>
 <p>The recommended way to install <strong>Avala</strong> is via <strong>pip</strong> within a Python virtual environment. This practice helps to manage dependencies and avoid conflicts with other dependencies on your system.</p>
 <h2 id="create-virtual-environment">Create virtual environment<a class="headerlink" href="#create-virtual-environment" title="Permanent link">&para;</a></h2>
 <p>A virtual environment is a self-contained directory that holds a specific version of Python and any installed packages.</p>
@@ -842,7 +924,7 @@
 <h2 id="connect-to-the-server">Connect to the server<a class="headerlink" href="#connect-to-the-server" title="Permanent link">&para;</a></h2>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>You can also setup Avala client interactively via <code>avl init</code>. See <a href="../cli/#avl-init">CLI reference</a>.</p>
+<p>You can also set up Avala client interactively via <code>avl init</code>. See <a href="../cli/#avl-init">CLI reference</a>.</p>
 </div>
 <p>In your current directory, create a Python file named <code>app.py</code> and create an instance of <code>Avala</code>. Provide it your own connection parameters.</p>
 <div class="highlight"><span class="filename">app.py</span><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
@@ -860,17 +942,15 @@
 </code></pre></div>
 <p>Running the script should connect to the server and display its configuration. It will also warn you that no exploit directories are registered yet. </p>
 <p>You can also run Avala client using the CLI by running <code>avl run</code>. For using the CLI, refer to <a href="../cli/">CLI reference</a>. </p>
-<div id="connect-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/connect.cast', document.getElementById('connect-demo'), {
-      cols: 113,
-      rows: 18,
-      idleTimeLimit: 2
-  });
-</script>
-
+<p><div
+  data-asciinema
+  data-src="/avala/assets/demos/connect.cast"
+  data-cols="113"
+  data-rows="18"
+></div>
+</p>
 <h2 id="register-exploit-directories">Register exploit directories<a class="headerlink" href="#register-exploit-directories" title="Permanent link">&para;</a></h2>
-<p>Avala client needs to know where the exploit scripts will be located at. Create a directory with a custom name (e.g. <code>sploits</code>) in your current directory and register it.</p>
+<p>Avala client needs to know where the exploit scripts will be located. Create a directory with a custom name (e.g. <code>sploits</code>) in your current directory and register it.</p>
 <div class="highlight"><span class="filename">app.py</span><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">avala</span><span class="w"> </span><span class="kn">import</span> <span class="n">Avala</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">avl</span> <span class="o">=</span> <span class="n">Avala</span><span class="p">(</span>
@@ -887,15 +967,13 @@
 <a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="n">avl</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
 <p>If already running the client, stop it and rerun it so the changes take effect. Avala will now scan and pick up exploits in any files in <code>sploits</code> directory.</p>
-<div id="run-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/run.cast', document.getElementById('run-demo'), {
-      cols: 126,
-      rows: 28,
-      idleTimeLimit: 2
-  });
-</script>
-
+<p><div
+  data-asciinema
+  data-src="/avala/assets/demos/run.cast"
+  data-cols="126"
+  data-rows="28"
+></div>
+</p>
 <h2 id="redis-cache-optional">Redis cache (optional)<a class="headerlink" href="#redis-cache-optional" title="Permanent link">&para;</a></h2>
 <p>To support advanced features such as <a href="../exploit/#store-parameter">blob storage</a>, fallback flag store and skipping successful attacks to reduce resource usage, you can run a Redis instance and connect your Avala client.</p>
 <p>You can spin up a Redis instance using Docker:</p>
@@ -1009,6 +1087,10 @@
     
     
       <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
+      
+        <script src="../../javascripts/asciinema-init.js"></script>
       
     
   </body>

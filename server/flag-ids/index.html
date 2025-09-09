@@ -50,6 +50,8 @@
     
       <link rel="stylesheet" href="../../stylesheets/extra.css">
     
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -74,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#writing-flag-ids-fetching-script" class="md-skip">
+        <a href="#writing-flag-id-fetching-script" class="md-skip">
           Skip to content
         </a>
       
@@ -190,6 +192,25 @@
   
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
     
   
   
@@ -240,7 +261,26 @@
   
     
   
-  Playground Repo
+  Playground
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="https://github.com/dusanlazic/avala/tree/release" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Source
 
       </a>
     </li>
@@ -295,6 +335,28 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -314,10 +376,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -330,8 +392,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_1">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             Server setup
           </label>
@@ -546,10 +608,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
@@ -562,8 +624,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             Exploit development
           </label>
@@ -703,7 +765,29 @@
   
   
   <span class="md-ellipsis">
-    Playground Repo
+    Playground
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/dusanlazic/avala/tree/release" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Source
     
   </span>
   
@@ -785,9 +869,9 @@
   
 
 
-<h1 id="writing-flag-ids-fetching-script">Writing flag IDs fetching script<a class="headerlink" href="#writing-flag-ids-fetching-script" title="Permanent link">&para;</a></h1>
+<h1 id="writing-flag-id-fetching-script">Writing flag ID fetching script<a class="headerlink" href="#writing-flag-id-fetching-script" title="Permanent link">&para;</a></h1>
 <p>The same principles apply here as they do for the submitter script. Avala lets you write your own flag ID fetching script tailored to the competition's requirements. This script, written by you, is responsible for fetching the latest flag IDs and converting them to a standardized JSON format. Avala executes this script at the start of every tick and takes care of potential delays, network hiccups and other common issues during AD.</p>
-<p>Your flag IDs fetching script must adhere to the template specified below. If you like to learn by examples, you'll find them at the <a href="#examples">bottom of the page</a>.</p>
+<p>Your flag ID fetching script must adhere to the template specified below. If you like to learn by examples, you'll find them at the <a href="#examples">bottom of the page</a>.</p>
 <p>As a first step, create a file named <code>flag_ids.py</code> in your directory.</p>
 <hr />
 <h2 id="script-structure">Script structure<a class="headerlink" href="#script-structure" title="Permanent link">&para;</a></h2>
@@ -995,12 +1079,12 @@
 </div>
 </div>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<p>After completing your flag IDs fetching script, in your directory you should have the following:</p>
+<p>After completing your flag ID fetching script, in your directory you should have the following:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>server-workspace/
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>├── flag_ids.py
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>└── submitter.py
 </code></pre></div>
-<p>Next step is writing the flag ID fetching script.</p>
+<p>The next step is writing the flag ID fetching script.</p>
 <ul class="task-list">
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> <a href="../">Create an empty directory on your server</a> ✅</li>
 <li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled checked/><span class="task-list-indicator"></span></label> <a href="../submitter/">Write the <strong>submitter</strong> script</a> ✅</li>
@@ -1100,6 +1184,10 @@
     
     
       <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
+      
+        <script src="../../javascripts/asciinema-init.js"></script>
       
     
   </body>
