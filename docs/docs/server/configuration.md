@@ -110,7 +110,7 @@ submitter:
 
 # Flag IDs fetching
 flag_ids:
-  # Path to the flag IDs fetching script. If running Avala in Docker, you likely don't need to change this.
+  # Path to the flag ID fetching script. If running Avala in Docker, you likely don't need to change this.
   script_path: /etc/avala/flag_ids.py
 
   # Maximum number of attempts to fetch the flag IDs.
@@ -183,7 +183,7 @@ server-workspace/
 └── submitter.py
 ```
 
-Next step is writing the flag ID fetching script.
+The next step is writing the flag ID fetching script.
 
 - [x] [Create an empty directory on your server](./index.md) ✅
 - [x] [Write the **submitter** script](./submitter.md) ✅

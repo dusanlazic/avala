@@ -1,7 +1,7 @@
 To run the entire infrastructure, a pre-configured `compose.yaml` file is provided. The file defines the following services:
 
 - `avala-server`: Core server component that orchestrates all operations.
-- `avala-subimtter`: Component responsible for submitting flags. It can be configured to run multiple instances (replicas) to handle high volume of flags, which is useful when submitting in streams.
+- `avala-submitter`: Component responsible for submitting flags. It can be configured to run multiple instances (replicas) to handle high volume of flags, which is useful when submitting in streams.
 - `rabbitmq`: Message broker that handles the flow of flags from the server to the submitters.
 - `postgres`: Database used for storing flags, their statuses, responses and historical data.
 

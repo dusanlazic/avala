@@ -2,7 +2,9 @@
 
 <img src="https://raw.githubusercontent.com/dusanlazic/avala/refs/heads/develop/docs/docs/assets/logo.svg" width="300">
 
-**Avala** is a specialized tool built for rapid developing, testing, running and monitoring exploits in attack-defense CTF competitions. The goal of Avala is to take the technical burden off the team players, enabling them to focus on writing exploits and patching vulnerabilities.
+<br>
+
+**Avala** is a specialized tool built for rapid **developing, running and monitoring exploits** in attack-defense CTF competitions. The goal of Avala is to take the technical burden off the team players, enabling them to focus on exploiting and patching vulnerabilities. 
 
 ```py
 from avala import exploit
@@ -21,7 +23,7 @@ def attack(target: str, flag_ids: str):
     return response.text
 ```
 
-The development of Avala was heavily influenced by the practical experiences and valuable insights gathered by the **Serbian National ECSC Team** 🇷🇸 who utilized the tool in many A/D competitions.
+Development of Avala is heavily influenced by the practical experiences and valuable insights gathered by the **Serbian National ECSC Team** 🇷🇸, who use the tool in major A/D competitions such as **European Cyber Security Challenge**, **FAUST**, **ENOWARS**, and more.
 
 ## Documentation
 

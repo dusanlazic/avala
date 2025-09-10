@@ -1,11 +1,8 @@
-<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css">
-
 After installing Avala, you'll have access to the `avl` CLI utility. This guide serves as a quick reference for its commands.
 
 ## Discovery
 
-By default, `avl` command will try to import `app.py` in the current working directory and look for an instance of `Avala`. To import a file other than `app.py`, use `--path` flag to specify a different path.
+By default, the `avl` command will try to import `app.py` in the current working directory and look for an instance of `Avala`. To import a file other than `app.py`, use `--path` flag to specify a different path.
 
 ```console
 $ avl --path ./hello.py run
@@ -17,27 +14,23 @@ The rest of this guide assumes the file is named `app.py` and omits the `--path`
 
 Creates an `app.py` client script and an exploit directory in the current working directory based on user inputs. Serves as a guided interactive way of setting up the client.
 
-<div id="init-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/init.cast', document.getElementById('init-demo'), {
-      cols: 100,
-      rows: 18,
-      idleTimeLimit: 2
-  });
-</script>
+<div
+  data-asciinema
+  data-src="/avala/assets/demos/init.cast"
+  data-cols="100"
+  data-rows="18"
+></div>
 
 ## `avl run`
 
 Runs Avala client in production mode.
 
-<div id="run-2-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/run.cast', document.getElementById('run-2-demo'), {
-      cols: 126,
-      rows: 28,
-      idleTimeLimit: 2
-  });
-</script>
+<div
+  data-asciinema
+  data-src="/avala/assets/demos/run.cast"
+  data-cols="126"
+  data-rows="28"
+></div>
 
 ## `avl services`
 
@@ -60,14 +53,12 @@ Filters and lists flag IDs. You can narrow down the results by providing a servi
 
 `avl flag-ids [service] [target] [tick index]`
 
-<div id="flag-ids-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/flagids.cast', document.getElementById('flag-ids-demo'), {
-      cols: 126,
-      rows: 28,
-      idleTimeLimit: 2
-  });
-</script>
+<div
+  data-asciinema
+  data-src="/avala/assets/demos/flagids.cast"
+  data-cols="126"
+  data-rows="28"
+></div>
 
 ## `avl exploits`
 
@@ -90,14 +81,12 @@ Launches attacks using an exploit with specified alias.
 
 `avl launch <exploit alias>`
 
-<div id="launch-2-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/launch.cast', document.getElementById('launch-2-demo'), {
-      cols: 126,
-      rows: 28,
-      idleTimeLimit: 2
-  });
-</script>
+<div
+  data-asciinema
+  data-src="/avala/assets/demos/launch.cast"
+  data-cols="126"
+  data-rows="28"
+></div>
 
 ## `avl submit`
 

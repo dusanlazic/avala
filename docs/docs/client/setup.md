@@ -1,6 +1,3 @@
-<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css">
-
 The recommended way to install **Avala** is via **pip** within a Python virtual environment. This practice helps to manage dependencies and avoid conflicts with other dependencies on your system.
 
 ## Create virtual environment
@@ -31,7 +28,7 @@ $ pip install avala-ad
 ## Connect to the server
 
 !!! tip
-    You can also setup Avala client interactively via `avl init`. See [CLI reference](./cli.md#avl-init).
+    You can also set up Avala client interactively via `avl init`. See [CLI reference](./cli.md#avl-init).
 
 In your current directory, create a Python file named `app.py` and create an instance of `Avala`. Provide it your own connection parameters.
 
@@ -54,18 +51,16 @@ Running the script should connect to the server and display its configuration. I
 
 You can also run Avala client using the CLI by running `avl run`. For using the CLI, refer to [CLI reference](./cli.md). 
 
-<div id="connect-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/connect.cast', document.getElementById('connect-demo'), {
-      cols: 113,
-      rows: 18,
-      idleTimeLimit: 2
-  });
-</script>
+<div
+  data-asciinema
+  data-src="/avala/assets/demos/connect.cast"
+  data-cols="113"
+  data-rows="18"
+></div>
 
 ## Register exploit directories
 
-Avala client needs to know where the exploit scripts will be located at. Create a directory with a custom name (e.g. `sploits`) in your current directory and register it.
+Avala client needs to know where the exploit scripts will be located. Create a directory with a custom name (e.g. `sploits`) in your current directory and register it.
 
 ```py title="app.py" hl_lines="11"
 from avala import Avala
@@ -86,14 +81,12 @@ if __name__ == "__main__":
 
 If already running the client, stop it and rerun it so the changes take effect. Avala will now scan and pick up exploits in any files in `sploits` directory.
 
-<div id="run-demo"></div>
-<script>
-  AsciinemaPlayer.create('/avala/assets/demos/run.cast', document.getElementById('run-demo'), {
-      cols: 126,
-      rows: 28,
-      idleTimeLimit: 2
-  });
-</script>
+<div
+  data-asciinema
+  data-src="/avala/assets/demos/run.cast"
+  data-cols="126"
+  data-rows="28"
+></div>
 
 ## Redis cache (optional)
 

@@ -40,8 +40,13 @@ markdown_extensions:
     permalink: true
 extra_css:
   - stylesheets/extra.css
+  - https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.css
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/asciinema-player@3.5.0/dist/bundle/asciinema-player.min.js
+  - javascripts/asciinema-init.js
 
 nav:
+  - Home: index.md
   - Server setup:
       - Overview: server/index.md
       - Writing submitter script: server/submitter.md
@@ -54,4 +59,5 @@ nav:
       - CLI reference: client/cli.md
       - Writing exploits: client/exploit.md
       - Decorator reference: client/decorator.md
-  - Playground Repo: "https://github.com/dusanlazic/avala-playground"
+  - Playground: "https://github.com/dusanlazic/avala-playground"
+  - Source: "https://github.com/dusanlazic/avala/tree/release"
