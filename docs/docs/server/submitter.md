@@ -179,9 +179,9 @@ The following are complete `submitter.py` scripts from AD competitions Team Serb
 
         return [
             (
-                response["flag"],
                 statuses[response["status"]],
                 response["msg"],
+                response["flag"],
             )
             for response in responses
         ]

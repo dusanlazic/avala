@@ -217,6 +217,7 @@ jobs:
       - name: Build & publish library
         working-directory: client
         run: |
+          cp ../README.md .
           echo "Building avala-ad version ${{ steps.ver.outputs.version }}"
           uv build
           echo "Publishing..."
