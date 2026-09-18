@@ -25,4 +25,4 @@ The development of Avala was heavily influenced by the practical experiences and
 
 ## Documentation
 
-Documentation is available at [lazicdusan.com/avala](https://lazicdusan.com/avala).
+Documentation is available at [avala.lazicdusan.com](https://avala.lazicdusan.com/).
